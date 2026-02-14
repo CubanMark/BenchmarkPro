@@ -1,15 +1,8 @@
-GitHub Pages Update
-1) Alte Dateien im Repo überschreiben:
-   - index.html
-   - manifest.json
-   - service-worker.js
-   - icons/ (2 PNGs)
-2) Commit
-3) Am Handy: Cache leeren oder Hard-Reload, dann testen.
-   (Service Worker Cache Name: benchmark-pro-cache-v2fix)
+Update auf v3 (Plan UI sichtbar)
+- In "Neues Training" erscheint direkt unter Notizen: "Einheit auswählen (optional)"
+- Nach Auswahl siehst du "Plan-Übungen (Reihenfolge)" zum schnellen Antippen.
 
-Neue Features:
-- Tab "Pläne": Pläne anlegen, Reihenfolge (↑/↓), Export v2, Import Replace
-- Plan-Auswahl im "Neues Training" + QuickPick
-- Draft-Autosave (Zurück aus Spotify etc. -> Entwurf wiederherstellbar)
-- Eigene Übungen persistent (wenn du sie als "Eigene Übung" erstellst)
+Deploy:
+1) Repo Dateien überschreiben (index.html, manifest.json, service-worker.js, icons/)
+2) Commit
+3) Handy: Cache leeren / einmal Hard-Reload (SW Cache: benchmark-pro-cache-v3-planui)

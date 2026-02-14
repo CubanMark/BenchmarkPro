@@ -96,7 +96,8 @@
     <h1>BenchMark Pro</h1>
 
     <!-- Tabs HTML -->
-    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist"> <li class="nav-item" role="presentation"> <button class="nav-link active" id="add-tab" data-bs-toggle="tab" data-bs-target="#add" type="button" role="tab"> <i class="fas fa-plus-circle me-1"></i>Neues Training </button> </li> <li class="nav-item" role="presentation"> <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab"> <i class="fas fa-history me-1"></i>Historie </button> </li> <li class="nav-item" role="presentation">
+    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist"> <li class="nav-item" role="presentation"> <button class="nav-link active" id="add-tab" data-bs-toggle="tab" data-bs-target="#add" type="button" role="tab"> <i class="fas fa-plus-circle me-1"></i>Neues Training </button> </li> <li class="nav-item" role="presentation"> <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab"> <i class="fas fa-history me-1"></i>Historie </button> </li>
+        <li class="nav-item" role="presentation">
           <button class="nav-link" id="plans-tab" data-bs-toggle="tab" data-bs-target="#plans" type="button" role="tab">
             <i class="fas fa-layer-group me-1"></i>Pläne
           </button>
@@ -498,25 +499,21 @@
 
 
     // ==========================
-    // Erweiterungen (PWA, Pläne, Draft-Autosave, v2 Export/Import, eigene Übungen persistent)
-    // Basis-App nutzt: loadDataFromLocalStorage(), saveDataToLocalStorage(), currentWorkoutSession, allExercisesData
+    // Patch v3: Plan-Auswahl sichtbar + QuickPick + Timer + Draft (kompatibel zur Basis-App)
     // ==========================
+    // (Diese Erweiterung ergänzt die bestehende App; keine Änderung am Trainings-Datenformat.)
 
     const PLANS_KEY = "benchmark_pro_plans_v1";
-    const CUSTOM_EXERCISES_KEY = "benchmark_pro_custom_exercises_v1";
     const SETTINGS_KEY = "benchmark_pro_settings_v1";
     const DRAFT_KEY = "benchmark_pro_workout_draft_v1";
-    const EXPORT_SCHEMA_VERSION = 2;
 
     const DEFAULT_PLANS = [
       { id: "home_a", name: "Home A", exerciseOrder: ["Back Squat", "Bench Press", "Barbell Row", "Seitheben"] },
       { id: "home_b", name: "Home B", exerciseOrder: ["RDL", "Inclined Bench Press", "Pull-ups", "Toe-Assisted Pull-Ups", "McGill Big 3"] },
       { id: "home_c", name: "Home C", exerciseOrder: ["Pause Squat", "Close-Grip Bench Press", "Inverted Row", "Glute Bridge bilateral", "W-Raises"] }
     ];
-    const DEFAULT_EXTRAS = ["Tricepsstrecken", "Bizeps-Curls", "Box Squat"];
 
     let plans = [];
-    let customExercises = []; // [{name, category, primaryMuscles, secondaryMuscles, link}]
     let appSettings = { lastSelectedPlanId: "" };
 
     function safeParseJson(raw, fallback) { try { return JSON.parse(raw); } catch { return fallback; } }
@@ -531,72 +528,12 @@
 
     function loadPlans() {
       const parsed = safeParseJson(localStorage.getItem(PLANS_KEY), null);
-      if (Array.isArray(parsed) && parsed.length) {
-        plans = parsed.map(normalizePlan).filter(Boolean);
-      } else {
+      if (Array.isArray(parsed) && parsed.length) plans = parsed.map(normalizePlan).filter(Boolean);
+      else {
         plans = DEFAULT_PLANS.map(normalizePlan).filter(Boolean);
         localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
       }
     }
-    function savePlans() { localStorage.setItem(PLANS_KEY, JSON.stringify(plans)); }
-
-    function normalizeExercise(x) {
-      if (!x) return null;
-      if (typeof x === "string") return { name: x.trim() };
-      if (typeof x !== "object") return null;
-      const name = String(x.name || x.exerciseName || "").trim();
-      if (!name) return null;
-      return {
-        name,
-        category: String(x.category || "Andere").trim() || "Andere",
-        primaryMuscles: Array.isArray(x.primaryMuscles) ? x.primaryMuscles.map(m=>String(m).trim()).filter(Boolean) : [],
-        secondaryMuscles: Array.isArray(x.secondaryMuscles) ? x.secondaryMuscles.map(m=>String(m).trim()).filter(Boolean) : [],
-        link: x.link || null
-      };
-    }
-
-    function loadCustomExercises() {
-      customExercises = safeParseJson(localStorage.getItem(CUSTOM_EXERCISES_KEY), []);
-      if (!Array.isArray(customExercises)) customExercises = [];
-      customExercises = customExercises.map(normalizeExercise).filter(Boolean);
-
-      const seedNames = new Set();
-      DEFAULT_PLANS.forEach(p => (p.exerciseOrder||[]).forEach(n => seedNames.add(n)));
-      DEFAULT_EXTRAS.forEach(n => seedNames.add(n));
-      for (const n of seedNames) addCustomExerciseIfMissing({ name: n, category: "Andere", primaryMuscles: [], secondaryMuscles: [] }, false);
-
-      saveCustomExercises();
-      mergeCustomIntoLibrary();
-    }
-
-    function saveCustomExercises() { localStorage.setItem(CUSTOM_EXERCISES_KEY, JSON.stringify(customExercises)); }
-
-    function addCustomExerciseIfMissing(ex, persist = true) {
-      const nx = normalizeExercise(ex);
-      if (!nx) return;
-      const k = nx.name.toLowerCase();
-      if (customExercises.some(e => (e.name||"").toLowerCase() === k)) return;
-      customExercises.push(nx);
-      if (persist) saveCustomExercises();
-      mergeCustomIntoLibrary();
-    }
-
-    function mergeCustomIntoLibrary() {
-      const existing = new Set((allExercisesData||[]).map(e => (e.name||"").toLowerCase()));
-      for (const ce of customExercises) {
-        const k = (ce.name||"").toLowerCase();
-        if (!k || existing.has(k)) continue;
-        allExercisesData.push({
-          name: ce.name,
-          link: ce.link || null,
-          category: ce.category || "Andere",
-          primaryMuscles: ce.primaryMuscles || [],
-          secondaryMuscles: ce.secondaryMuscles || []
-        });
-        existing.add(k);
-      }
-    }
-
     function loadSettings() {
       appSettings = safeParseJson(localStorage.getItem(SETTINGS_KEY), { lastSelectedPlanId: "" });
       if (!appSettings || typeof appSettings !== "object") appSettings = { lastSelectedPlanId: "" };
@@ -608,24 +545,6 @@
     let planSkipped = new Set();
 
     function getPlanById(id) { return plans.find(p => p && p.id === id) || null; }
-
-    function getRecentExercises(limit = 5) {
-      const allData = loadDataFromLocalStorage();
-      const flat = getFlattenedExerciseHistory(allData);
-      flat.sort((a,b) => String(b.date||"").localeCompare(String(a.date||"")));
-      const out = [];
-      const seen = new Set();
-      for (const e of flat) {
-        const n = (e.exerciseName || "").trim();
-        if (!n) continue;
-        const k = n.toLowerCase();
-        if (seen.has(k)) continue;
-        seen.add(k);
-        out.push(n);
-        if (out.length >= limit) break;
-      }
-      return out;
-    }
 
     function renderPlanSelect() {
       if (!planSelectEl) return;
@@ -650,6 +569,7 @@
         exerciseSelect.value = opt.value;
         exerciseSelect.dispatchEvent(new Event("change"));
       } else {
+        // fallback: freetext
         exerciseSelect.value = FREETEXT_VALUE;
         exerciseSelect.dispatchEvent(new Event("change"));
         if (customExerciseInput) {
@@ -711,8 +631,8 @@
         cb.addEventListener("change", () => {
           const k = n.toLowerCase();
           if (!cb.checked) planSkipped.add(k); else planSkipped.delete(k);
-          scheduleDraftSave();
           populateExerciseDropdown();
+          saveDraftNow();
         });
 
         item.appendChild(left);
@@ -734,73 +654,10 @@
       const plan = planId ? getPlanById(planId) : null;
       renderPlanQuickPick(plan);
       populateExerciseDropdown();
-      scheduleDraftSave();
+      saveDraftNow();
     }
 
-    const _origPopulate = populateExerciseDropdown;
-    populateExerciseDropdown = function() {
-      if (!exerciseSelect) return;
-      exerciseSelect.innerHTML = '<option value="" selected disabled>Übung wählen...</option>';
-
-      const planId = planSelectEl ? (planSelectEl.value || "") : "";
-      const plan = planId ? getPlanById(planId) : null;
-      const planList = (plan?.exerciseOrder || []).filter(n => !planSkipped.has(String(n).toLowerCase()));
-      const recent = getRecentExercises(5);
-
-      const used = new Set();
-      const addSection = (list) => {
-        const out = [];
-        for (const n of list) {
-          const name = (n||"").trim();
-          if (!name) continue;
-          const k = name.toLowerCase();
-          if (used.has(k)) continue;
-          used.add(k);
-          out.push(name);
-        }
-        return out;
-      };
-
-      const secPlan = addSection(planList);
-      const secRecent = addSection(recent);
-      const secAll = addSection([...allExercisesData].map(x => x.name).sort((a,b)=>String(a).localeCompare(String(b))));
-
-      const makeOption = (exerciseName) => {
-        const option = document.createElement('option');
-        option.value = exerciseName;
-
-        const exercise = allExercisesData.find(ex => (ex.name||"").toLowerCase() === exerciseName.toLowerCase());
-        let prefix = ''; let cssClass = '';
-        const primaryMuscles = (exercise?.primaryMuscles) || [];
-        const needsRest = primaryMuscles.some(muscle => (musclesNeedingRest||[]).includes(muscle));
-        if (needsRest) { prefix = '⚠️ '; cssClass = 'needs-rest-exercise'; }
-        else {
-          const isRecommended = primaryMuscles.some(muscle => (recommendedMusclesForFocus||[]).includes(muscle));
-          if (isRecommended) { prefix = '⭐ '; cssClass = 'recommended-exercise'; }
-        }
-        option.textContent = prefix + exerciseName;
-        if (cssClass) option.classList.add(cssClass);
-        return option;
-      };
-
-      const appendGroup = (label, items) => {
-        if (!items.length) return;
-        const og = document.createElement("optgroup");
-        og.label = label;
-        items.forEach(n => og.appendChild(makeOption(n)));
-        exerciseSelect.appendChild(og);
-      };
-
-      appendGroup("Plan", secPlan);
-      appendGroup("Zuletzt verwendet", secRecent);
-      appendGroup("Übungen", secAll);
-
-      const customOption = document.createElement('option');
-      customOption.value = FREETEXT_VALUE;
-      customOption.textContent = "Eigene Übung hinzufügen...";
-      exerciseSelect.appendChild(customOption);
-    };
-
+    // Timer
     function startOrResumeTimer(ts) { workoutStartTs = ts || workoutStartTs || Date.now(); tickTimer(); }
     function tickTimer() {
       if (!workoutTimerEl || !workoutStartTs) return;
@@ -812,33 +669,28 @@
     let _timerInterval = null;
     function ensureTimerInterval() { if (_timerInterval) return; _timerInterval = setInterval(tickTimer, 1000); }
 
-    let draftTimer = null;
-    function scheduleDraftSave() { clearTimeout(draftTimer); draftTimer = setTimeout(saveDraftNow, 400); }
+    // Draft (minimal): just preserve current form + plan selection
     function saveDraftNow() {
-      if (!dateInput) return;
-      const repsInputs = Array.from(document.querySelectorAll(".reps-input")).map(i => i.value);
-
-      const draft = {
-        savedAt: Date.now(),
-        workoutStartTs: workoutStartTs || Date.now(),
-        planId: planSelectEl ? (planSelectEl.value || "") : "",
-        planSkipped: Array.from(planSkipped),
-        date: dateInput.value,
-        notes: (document.getElementById('sessionNotesInput')?.value || ""),
-        selectedExerciseValue: exerciseSelect?.value || "",
-        customExercise: {
-          name: customExerciseInput?.value || "",
-          category: document.getElementById('customCategorySelect')?.value || "",
-          primary: document.getElementById('customPrimaryMusclesInput')?.value || "",
-          secondary: document.getElementById('customSecondaryMusclesInput')?.value || ""
-        },
-        weight: weightInput?.value || "",
-        sets: setsInput?.value || "",
-        repsPerSet: repsInputs,
-        currentWorkoutSession: currentWorkoutSession
-      };
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      try {
+        const repsInputs = Array.from(document.querySelectorAll(".reps-input")).map(i => i.value);
+        const draft = {
+          savedAt: Date.now(),
+          workoutStartTs: workoutStartTs || Date.now(),
+          planId: planSelectEl ? (planSelectEl.value || "") : "",
+          planSkipped: Array.from(planSkipped),
+          date: dateInput?.value || "",
+          notes: document.getElementById('sessionNotesInput')?.value || "",
+          selectedExerciseValue: exerciseSelect?.value || "",
+          customExerciseName: customExerciseInput?.value || "",
+          weight: weightInput?.value || "",
+          sets: setsInput?.value || "",
+          repsPerSet: repsInputs,
+          currentWorkoutSession: currentWorkoutSession
+        };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      } catch {}
     }
+
     function loadDraft() { return safeParseJson(localStorage.getItem(DRAFT_KEY), null); }
     function clearDraft() { localStorage.removeItem(DRAFT_KEY); }
 
@@ -860,7 +712,7 @@
         if (planSelectEl) { planSelectEl.value = draft.planId || ""; handlePlanSelectionChange(); }
         planSkipped = new Set(Array.isArray(draft.planSkipped) ? draft.planSkipped : []);
 
-        dateInput.value = draft.date || dateInput.value;
+        if (dateInput) dateInput.value = draft.date || dateInput.value;
         const notesEl = document.getElementById('sessionNotesInput');
         if (notesEl) notesEl.value = draft.notes || "";
 
@@ -874,248 +726,23 @@
           exerciseSelect.value = draft.selectedExerciseValue || "";
           exerciseSelect.dispatchEvent(new Event("change"));
         }
-        if (customExerciseInput) customExerciseInput.value = draft.customExercise?.name || "";
-        const cc = document.getElementById('customCategorySelect');
-        const cp = document.getElementById('customPrimaryMusclesInput');
-        const cs = document.getElementById('customSecondaryMusclesInput');
-        if (cc) cc.value = draft.customExercise?.category || "";
-        if (cp) cp.value = draft.customExercise?.primary || "";
-        if (cs) cs.value = draft.customExercise?.secondary || "";
+        if (customExerciseInput) customExerciseInput.value = draft.customExerciseName || "";
 
         if (weightInput) weightInput.value = draft.weight || "";
         if (setsInput) setsInput.value = draft.sets || setsInput.value;
         generateSetFields();
-
         const repsEls = document.querySelectorAll(".reps-input");
-        if (Array.isArray(draft.repsPerSet)) {
-          repsEls.forEach((el, i) => { el.value = draft.repsPerSet[i] ?? ""; });
-        }
+        if (Array.isArray(draft.repsPerSet)) repsEls.forEach((el, i) => el.value = draft.repsPerSet[i] ?? "");
 
         const plan = (planSelectEl && planSelectEl.value) ? getPlanById(planSelectEl.value) : null;
         renderPlanQuickPick(plan);
 
         hideDraftBanner();
         saveDraftNow();
-      } catch (e) { console.error("Draft restore failed", e); }
+      } catch (e) { console.error(e); }
     }
 
-    function buildExportV2Object() {
-      return {
-        schemaVersion: EXPORT_SCHEMA_VERSION,
-        exportedAt: new Date().toISOString(),
-        sessions: loadDataFromLocalStorage(),
-        plans: plans,
-        customExercises: customExercises,
-        settings: appSettings
-      };
-    }
-
-    function doExportV2() {
-      const data = buildExportV2Object();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `benchmark-pro-export-v${EXPORT_SCHEMA_VERSION}-${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }
-
-    function importReplace(obj) {
-      let sessions = null, newPlans = [], newCustom = [], newSettings = { lastSelectedPlanId: "" };
-
-      if (Array.isArray(obj)) sessions = obj;
-      else if (obj && typeof obj === "object") {
-        if (Array.isArray(obj.sessions)) sessions = obj.sessions;
-        else if (Array.isArray(obj.trainings)) sessions = obj.trainings;
-        if (Array.isArray(obj.plans)) newPlans = obj.plans;
-        if (Array.isArray(obj.customExercises)) newCustom = obj.customExercises;
-        if (obj.settings && typeof obj.settings === "object") newSettings = obj.settings;
-      }
-      if (!Array.isArray(sessions)) throw new Error("Import: kein gültiges Sessions-Format gefunden.");
-
-      saveDataToLocalStorage(sessions);
-
-      plans = Array.isArray(newPlans) && newPlans.length ? newPlans.map(normalizePlan).filter(Boolean) : [];
-      localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
-
-      customExercises = Array.isArray(newCustom) ? newCustom.map(normalizeExercise).filter(Boolean) : [];
-      localStorage.setItem(CUSTOM_EXERCISES_KEY, JSON.stringify(customExercises));
-
-      appSettings = newSettings || { lastSelectedPlanId: "" };
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
-
-      clearDraft();
-
-      mergeCustomIntoLibrary();
-      loadPlans(); loadCustomExercises(); loadSettings();
-      updateStatisticsAndRecommendations();
-      populateExerciseDropdown();
-      loadAndDisplayHistory();
-      alert("Import erfolgreich. (Replace)");
-    }
-
-    let planModal, planModalEl, planModalTitle, planNameInput, planExercisesEditor, savePlanBtn, deletePlanBtn;
-    let editingPlanId = null;
-
-    function setupPlansUi() {
-      const plansListEl = document.getElementById("plansList");
-      const plansEmptyEl = document.getElementById("plansEmpty");
-      planModalEl = document.getElementById("planModal");
-      if (!planModalEl) return;
-
-      planModal = new bootstrap.Modal(planModalEl);
-      planModalTitle = document.getElementById("planModalTitle");
-      planNameInput = document.getElementById("planNameInput");
-      planExercisesEditor = document.getElementById("planExercisesEditor");
-      savePlanBtn = document.getElementById("savePlanBtn");
-      deletePlanBtn = document.getElementById("deletePlanBtn");
-
-      const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-      function renderPlansList() {
-        if (!plansListEl || !plansEmptyEl) return;
-        plansListEl.innerHTML = "";
-        if (!plans.length) {
-          plansEmptyEl.classList.remove("d-none");
-          renderPlanSelect();
-          return;
-        }
-        plansEmptyEl.classList.add("d-none");
-
-        for (const p of plans) {
-          const item = document.createElement("div");
-          item.className = "list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2";
-
-          const left = document.createElement("div");
-          left.innerHTML = `<div class="fw-semibold">${escapeHtml(p.name || "Plan")}</div><div class="small text-muted">${(p.exerciseOrder||[]).length} Übungen</div>`;
-
-          const right = document.createElement("div");
-          right.className = "d-flex gap-2";
-
-          const editBtn = document.createElement("button");
-          editBtn.type = "button";
-          editBtn.className = "btn btn-sm btn-outline-primary";
-          editBtn.innerHTML = '<i class="fas fa-pen me-1"></i>Edit';
-          editBtn.addEventListener("click", () => openPlanModal(p.id));
-
-          right.appendChild(editBtn);
-          item.appendChild(left);
-          item.appendChild(right);
-          plansListEl.appendChild(item);
-        }
-
-        renderPlanSelect();
-      }
-
-      function getEditorOrder() {
-        return Array.from(planExercisesEditor.querySelectorAll(".list-group-item .fw-semibold"))
-          .map(el => (el.textContent || "").trim())
-          .filter(Boolean);
-      }
-
-      function renderPlanExercisesEditor(order) {
-        planExercisesEditor.innerHTML = "";
-        const list = Array.isArray(order) ? order : [];
-        list.forEach((name, idx) => {
-          const row = document.createElement("div");
-          row.className = "list-group-item d-flex justify-content-between align-items-center gap-2";
-
-          const label = document.createElement("div");
-          label.className = "fw-semibold";
-          label.textContent = name;
-
-          const controls = document.createElement("div");
-          controls.className = "d-flex gap-2";
-
-          const up = document.createElement("button");
-          up.type = "button";
-          up.className = "btn btn-sm btn-outline-secondary";
-          up.innerHTML = '<i class="fas fa-arrow-up"></i>';
-          up.disabled = idx === 0;
-          up.addEventListener("click", () => {
-            const arr = getEditorOrder();
-            [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
-            renderPlanExercisesEditor(arr);
-          });
-
-          const down = document.createElement("button");
-          down.type = "button";
-          down.className = "btn btn-sm btn-outline-secondary";
-          down.innerHTML = '<i class="fas fa-arrow-down"></i>';
-          down.disabled = idx === list.length - 1;
-          down.addEventListener("click", () => {
-            const arr = getEditorOrder();
-            [arr[idx], arr[idx+1]] = [arr[idx+1], arr[idx]];
-            renderPlanExercisesEditor(arr);
-          });
-
-          const del = document.createElement("button");
-          del.type = "button";
-          del.className = "btn btn-sm btn-outline-danger";
-          del.innerHTML = '<i class="fas fa-trash"></i>';
-          del.addEventListener("click", () => {
-            const arr = getEditorOrder().filter((_, i) => i !== idx);
-            renderPlanExercisesEditor(arr);
-          });
-
-          controls.appendChild(up); controls.appendChild(down); controls.appendChild(del);
-          row.appendChild(label); row.appendChild(controls);
-          planExercisesEditor.appendChild(row);
-        });
-      }
-
-      function openPlanModal(planId) {
-        editingPlanId = planId || null;
-        const p = planId ? getPlanById(planId) : null;
-        planModalTitle.textContent = p ? "Plan bearbeiten" : "Neuer Plan";
-        planNameInput.value = p?.name || "";
-        renderPlanExercisesEditor(p?.exerciseOrder || []);
-        deletePlanBtn?.classList.toggle("d-none", !p);
-        planModal.show();
-      }
-
-      document.getElementById("addPlanBtn")?.addEventListener("click", () => openPlanModal(null));
-      document.getElementById("planAddExerciseBtn")?.addEventListener("click", () => {
-        const name = prompt("Übung hinzufügen (Name wie im Dropdown; kann auch neu sein).");
-        const n = (name || "").trim();
-        if (!n) return;
-        const arr = getEditorOrder();
-        arr.push(n);
-        renderPlanExercisesEditor(arr);
-      });
-
-      savePlanBtn?.addEventListener("click", () => {
-        const name = (planNameInput.value || "").trim();
-        if (!name) { alert("Bitte Plan-Namen eingeben."); return; }
-        const order = getEditorOrder();
-        if (editingPlanId) {
-          const p = getPlanById(editingPlanId);
-          if (p) { p.name = name; p.exerciseOrder = order; }
-        } else {
-          plans.push({ id: "p_" + Math.random().toString(36).slice(2,10), name, exerciseOrder: order });
-        }
-        savePlans();
-        renderPlansList();
-        planModal.hide();
-      });
-
-      deletePlanBtn?.addEventListener("click", () => {
-        if (!editingPlanId) return;
-        if (!confirm("Plan wirklich löschen?")) return;
-        plans = plans.filter(p => p.id !== editingPlanId);
-        savePlans();
-        renderPlansList();
-        planModal.hide();
-      });
-
-      renderPlansList();
-    }
-
-    function registerServiceWorker() {
-      if (!("serviceWorker" in navigator)) return;
-      navigator.serviceWorker.register("./service-worker.js").catch(console.error);
-    }
-
+    // Hook into initApp
     const _origInitApp = initApp;
     initApp = function() {
       _origInitApp();
@@ -1127,16 +754,8 @@
       workoutTimerEl = document.getElementById("workoutTimer");
 
       loadPlans();
-      loadCustomExercises();
       loadSettings();
       renderPlanSelect();
-
-      const draft = loadDraft();
-      if (draft && typeof draft === "object") {
-        showDraftBanner(draft);
-        document.getElementById("restoreDraftBtn")?.addEventListener("click", () => restoreDraft(draft));
-        document.getElementById("discardDraftBtn")?.addEventListener("click", () => { clearDraft(); hideDraftBanner(); });
-      }
 
       planSelectEl?.addEventListener("change", handlePlanSelectionChange);
       nextPlanExerciseBtn?.addEventListener("click", () => {
@@ -1149,57 +768,24 @@
         if (next) selectExerciseInForm(next);
       });
 
-      document.getElementById("exportV2Btn")?.addEventListener("click", doExportV2);
-      document.getElementById("importV2Input")?.addEventListener("change", async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        if (!confirm("Import (Replace): Das ersetzt alle Daten in der App. Fortfahren?")) return;
-        const txt = await file.text();
-        const obj = safeParseJson(txt, null);
-        try { importReplace(obj); } catch (err) { alert("Import fehlgeschlagen: " + (err?.message || err)); }
-        e.target.value = "";
-      });
-
-      setupPlansUi();
+      const draft = loadDraft();
+      if (draft && typeof draft === "object") {
+        showDraftBanner(draft);
+        document.getElementById("restoreDraftBtn")?.addEventListener("click", () => restoreDraft(draft));
+        document.getElementById("discardDraftBtn")?.addEventListener("click", () => { clearDraft(); hideDraftBanner(); });
+      }
 
       startOrResumeTimer(Date.now());
       ensureTimerInterval();
 
-      [dateInput, document.getElementById('sessionNotesInput'), weightInput, setsInput, exerciseSelect, customExerciseInput].forEach(el => el?.addEventListener("input", scheduleDraftSave));
-      document.addEventListener("input", (ev) => { if (ev.target?.classList?.contains("reps-input")) scheduleDraftSave(); });
+      // Draft autosave triggers
+      [dateInput, document.getElementById('sessionNotesInput'), weightInput, setsInput, exerciseSelect, customExerciseInput].forEach(el => el?.addEventListener("input", saveDraftNow));
+      document.addEventListener("input", (ev) => { if (ev.target?.classList?.contains("reps-input")) saveDraftNow(); });
       document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveDraftNow(); });
       window.addEventListener("pagehide", () => saveDraftNow());
 
-      const _origHandleAdd = handleAddExerciseToSession;
-      handleAddExerciseToSession = function(e) {
-        const beforeLen = currentWorkoutSession.exercises?.length || 0;
-        _origHandleAdd(e);
-        const afterLen = currentWorkoutSession.exercises?.length || 0;
-
-        if (afterLen > beforeLen) {
-          const last = currentWorkoutSession.exercises[currentWorkoutSession.exercises.length - 1];
-          if (last && last.exerciseName && exerciseSelect?.value === FREETEXT_VALUE) {
-            addCustomExerciseIfMissing({
-              name: last.exerciseName,
-              category: last.category || "Andere",
-              primaryMuscles: last.primaryMuscles || [],
-              secondaryMuscles: last.secondaryMuscles || [],
-              link: null
-            }, true);
-          }
-          const plan = (planSelectEl && planSelectEl.value) ? getPlanById(planSelectEl.value) : null;
-          renderPlanQuickPick(plan);
-          scheduleDraftSave();
-        }
-      };
-
       const _origSave = handleSaveWorkoutSession;
-      handleSaveWorkoutSession = function() {
-        _origSave();
-        clearDraft();
-      };
-
-      registerServiceWorker();
+      handleSaveWorkoutSession = function() { _origSave(); clearDraft(); };
     };
 
 
