@@ -1,8 +1,15 @@
-GitHub Pages Setup:
+GitHub Pages Setup (public, kostenlos)
+1) Public Repo erstellen (z. B. BenchmarkPro).
+2) ZIP entpacken und alles in Repo-Root hochladen:
+   - index.html
+   - manifest.json
+   - service-worker.js
+   - icons/ (2 PNGs)
+3) Repo -> Settings -> Pages:
+   - Source: Deploy from a branch
+   - Branch: main / (root)
+4) Pages-URL am Handy öffnen -> Chrome -> "Installieren"
 
-1. Public Repository erstellen.
-2. Alle Dateien aus diesem ZIP in das Root-Verzeichnis hochladen.
-3. Settings → Pages → Deploy from branch → main / (root).
-4. URL am Handy öffnen → Installieren.
-
-Kosten: 0 € (Public Repo).
+Migration (Replace):
+- Alte App: Export JSON (v1 Array) erstellen
+- Neue App: Tab "Pläne" -> Import (Replace) -> Datei wählen
