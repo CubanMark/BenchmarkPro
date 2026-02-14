@@ -1,15 +1,15 @@
-GitHub Pages Setup (public, kostenlos)
-1) Public Repo erstellen (z. B. BenchmarkPro).
-2) ZIP entpacken und alles in Repo-Root hochladen:
+GitHub Pages Update
+1) Alte Dateien im Repo überschreiben:
    - index.html
    - manifest.json
    - service-worker.js
    - icons/ (2 PNGs)
-3) Repo -> Settings -> Pages:
-   - Source: Deploy from a branch
-   - Branch: main / (root)
-4) Pages-URL am Handy öffnen -> Chrome -> "Installieren"
+2) Commit
+3) Am Handy: Cache leeren oder Hard-Reload, dann testen.
+   (Service Worker Cache Name: benchmark-pro-cache-v2fix)
 
-Migration (Replace):
-- Alte App: Export JSON (v1 Array) erstellen
-- Neue App: Tab "Pläne" -> Import (Replace) -> Datei wählen
+Neue Features:
+- Tab "Pläne": Pläne anlegen, Reihenfolge (↑/↓), Export v2, Import Replace
+- Plan-Auswahl im "Neues Training" + QuickPick
+- Draft-Autosave (Zurück aus Spotify etc. -> Entwurf wiederherstellbar)
+- Eigene Übungen persistent (wenn du sie als "Eigene Übung" erstellst)

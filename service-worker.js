@@ -1,5 +1,5 @@
-/* BenchMark Pro - offline cache (simple) */
-const CACHE_NAME = "benchmark-pro-cache-full-v1";
+/* BenchMark Pro - offline cache */
+const CACHE_NAME = "benchmark-pro-cache-v2fix";
 const CORE = [
   "./",
   "./index.html",
@@ -11,9 +11,7 @@ const CORE = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(CORE))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting())
   );
 });
 
@@ -27,7 +25,6 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
-
   if (url.origin === self.location.origin) {
     event.respondWith(
       caches.match(req).then(cached => cached || fetch(req).then(resp => {
@@ -38,13 +35,5 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
-
-  // CDN: network-first, cache fallback
-  event.respondWith(
-    fetch(req).then(resp => {
-      const copy = resp.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
-      return resp;
-    }).catch(() => caches.match(req))
-  );
+  event.respondWith(fetch(req).catch(() => caches.match(req)));
 });
