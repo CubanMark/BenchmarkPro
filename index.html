@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BenchMark Pro</title>
+  <title>BenchMark Pro <span class="badge bg-dark ms-2" id="appVersionBadge">v3.1</span></title>
 
   
 
-  <!-- PWA -->
+  <!-- PWA (v3.1) -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#111827">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="benchmark-pro-version" content="v3.1">
 
 <!-- Bootstrap (CDN) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
@@ -86,6 +87,11 @@
 
     @media (max-width: 768px) { .card { padding: 1rem; } h1 { font-size: 2rem; } h2 { font-size: 1.5rem; } h3 { font-size: 1.1rem; } .workout-builder-area { padding: 1rem; } .pr-list-item { flex-direction: column; align-items: flex-start; } .pr-list-item .details { text-align: left; margin-top: 3px; margin-left: 0; } }
   </style>
+
+<style id="versionBadgeStyle">
+#appVersionBadge { font-size: .75rem; opacity: .9; vertical-align: middle; }
+</style>
+
 </head>
 
 <body>
@@ -96,12 +102,7 @@
     <h1>BenchMark Pro</h1>
 
     <!-- Tabs HTML -->
-    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist"> <li class="nav-item" role="presentation"> <button class="nav-link active" id="add-tab" data-bs-toggle="tab" data-bs-target="#add" type="button" role="tab"> <i class="fas fa-plus-circle me-1"></i>Neues Training </button> </li> <li class="nav-item" role="presentation"> <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab"> <i class="fas fa-history me-1"></i>Historie </button> </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="plans-tab" data-bs-toggle="tab" data-bs-target="#plans" type="button" role="tab">
-            <i class="fas fa-layer-group me-1"></i>Pläne
-          </button>
-        </li> <li class="nav-item" role="presentation"> <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button" role="tab"> <i class="fas fa-chart-line me-1"></i>Statistiken & Analyse </button> </li> </ul>
+    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist"> <li class="nav-item" role="presentation"> <button class="nav-link active" id="add-tab" data-bs-toggle="tab" data-bs-target="#add" type="button" role="tab"> <i class="fas fa-plus-circle me-1"></i>Neues Training </button> </li> <li class="nav-item" role="presentation"> <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab"> <i class="fas fa-history me-1"></i>Historie </button> </li> <li class="nav-item" role="presentation"> <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button" role="tab"> <i class="fas fa-chart-line me-1"></i>Statistiken & Analyse </button> </li> </ul>
 
     <!-- Tab Content HTML -->
     <div class="tab-content" id="myTabContent">
@@ -128,68 +129,7 @@
         <div class="card mb-4"> <h2 class="mb-4">Leistungstrend pro Übung</h2> <div class="row g-3 align-items-end"> <div class="col-md-5"> <label for="exerciseSelectStats" class="form-label">Übung:</label> <select id="exerciseSelectStats" class="form-select"></select> </div> <div class="col-md-4"> <label for="timeRangeSelect" class="form-label">Zeitraum:</label> <select id="timeRangeSelect" class="form-select"> <option value="30">Letzte 30 Tage</option> <option value="90">Letzte 3 Monate</option> <option value="180">Letzte 6 Monate</option> <option value="365">Letztes Jahr</option> <option value="all">Alle Zeiten</option> </select> </div> <div class="col-md-3"> <label for="chartTypeSelect" class="form-label">Anzeigen:</label> <select id="chartTypeSelect" class="form-select"> <option value="volume">Volumen</option> <option value="weight">Max. Gewicht</option> <option value="reps">Max. Wiederholungen</option> <option value="oneRepMax">Est. 1RM (Epley)</option> </select> </div> </div> <div class="chart-container mt-4"> <div class="chart-loading-overlay d-none"> <div class="spinner-border" role="status"> <span class="visually-hidden">Loading...</span> </div> </div> <canvas id="performanceChart"></canvas> <p id="chartNoDataMessage" class="text-center text-muted mt-3 d-none"></p> </div> </div>
         <div class="card mb-4"> <h2>Häufigste Übungen</h2> <div id="topExercisesContainer" class="mt-3"></div> </div> </div>
 
-    
-        <!-- Tab: Pläne -->
-        <div class="tab-pane fade" id="plans" role="tabpanel">
-          <div class="card">
-            <h2>Workout-Pläne</h2>
-            <p class="text-muted">Pläne sind Templates: Übungsreihenfolge & Vorschlag. Eine Session bleibt immer frei editierbar.</p>
-
-            <div class="d-flex flex-wrap gap-2 mb-3">
-              <button type="button" class="btn btn-primary" id="addPlanBtn"><i class="fas fa-plus me-1"></i>Neuer Plan</button>
-              <button type="button" class="btn btn-outline-secondary" id="exportV2Btn"><i class="fas fa-download me-1"></i>Export (v2)</button>
-              <label class="btn btn-outline-secondary mb-0">
-                <i class="fas fa-upload me-1"></i>Import (Replace)
-                <input type="file" id="importV2Input" accept="application/json" hidden>
-              </label>
-            </div>
-
-            <div id="plansEmpty" class="text-muted">Noch keine Pläne. Erstelle einen Plan (z. B. „Home A“, „Home B“).</div>
-            <div id="plansList" class="list-group"></div>
-
-            <hr class="my-4" />
-
-            <h3 class="h5">Hinweis</h3>
-            <ul class="text-muted mb-0">
-              <li>Export v2 sichert: Trainingsdaten + Pläne + eigene Übungen.</li>
-              <li>Import ersetzt alles (Replace). Alte Exporte (v1-Array) werden akzeptiert.</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Plan Modal -->
-        <div class="modal fade" id="planModal" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title" id="planModalTitle">Plan</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body">
-                <div class="mb-3">
-                  <label for="planNameInput" class="form-label">Name</label>
-                  <input type="text" id="planNameInput" class="form-control" placeholder="z. B. Home A" />
-                </div>
-
-                <div class="mb-2 d-flex justify-content-between align-items-center">
-                  <label class="form-label mb-0">Übungen (Reihenfolge)</label>
-                  <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="planAddExerciseBtn"><i class="fas fa-plus me-1"></i>Übung hinzufügen</button>
-                  </div>
-                </div>
-                <div id="planExercisesEditor" class="list-group mb-2"></div>
-                <div class="text-muted small">Reihenfolge per ↑/↓ ändern. Entfernen per 🗑️.</div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-outline-danger me-auto d-none" id="deletePlanBtn"><i class="fas fa-trash me-1"></i>Plan löschen</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary" id="savePlanBtn"><i class="fas fa-save me-1"></i>Speichern</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-</div> <!-- Ende Tab Content -->
+    </div> <!-- Ende Tab Content -->
   </div> <!-- Ende Container -->
 
   <!-- Bootstrap Bundle -->
@@ -497,297 +437,13 @@
 
   
 
-
-    // ==========================
-    // Patch v3: Plan-Auswahl sichtbar + QuickPick + Timer + Draft (kompatibel zur Basis-App)
-    // ==========================
-    // (Diese Erweiterung ergänzt die bestehende App; keine Änderung am Trainings-Datenformat.)
-
-    const PLANS_KEY = "benchmark_pro_plans_v1";
-    const SETTINGS_KEY = "benchmark_pro_settings_v1";
-    const DRAFT_KEY = "benchmark_pro_workout_draft_v1";
-
-    const DEFAULT_PLANS = [
-      { id: "home_a", name: "Home A", exerciseOrder: ["Back Squat", "Bench Press", "Barbell Row", "Seitheben"] },
-      { id: "home_b", name: "Home B", exerciseOrder: ["RDL", "Inclined Bench Press", "Pull-ups", "Toe-Assisted Pull-Ups", "McGill Big 3"] },
-      { id: "home_c", name: "Home C", exerciseOrder: ["Pause Squat", "Close-Grip Bench Press", "Inverted Row", "Glute Bridge bilateral", "W-Raises"] }
-    ];
-
-    let plans = [];
-    let appSettings = { lastSelectedPlanId: "" };
-
-    function safeParseJson(raw, fallback) { try { return JSON.parse(raw); } catch { return fallback; } }
-
-    function normalizePlan(p) {
-      if (!p || typeof p !== "object") return null;
-      const id = String(p.id || ("p_" + Math.random().toString(36).slice(2, 10))).trim();
-      const name = String(p.name || "").trim();
-      const order = Array.isArray(p.exerciseOrder) ? p.exerciseOrder.map(x => String(x||"").trim()).filter(Boolean) : [];
-      return name ? { id, name, exerciseOrder: order } : null;
-    }
-
-    function loadPlans() {
-      const parsed = safeParseJson(localStorage.getItem(PLANS_KEY), null);
-      if (Array.isArray(parsed) && parsed.length) plans = parsed.map(normalizePlan).filter(Boolean);
-      else {
-        plans = DEFAULT_PLANS.map(normalizePlan).filter(Boolean);
-        localStorage.setItem(PLANS_KEY, JSON.stringify(plans));
-      }
-    }
-    function loadSettings() {
-      appSettings = safeParseJson(localStorage.getItem(SETTINGS_KEY), { lastSelectedPlanId: "" });
-      if (!appSettings || typeof appSettings !== "object") appSettings = { lastSelectedPlanId: "" };
-    }
-    function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings)); }
-
-    let planSelectEl, planQuickPickEl, planExerciseListEl, nextPlanExerciseBtn, workoutTimerEl;
-    let workoutStartTs = null;
-    let planSkipped = new Set();
-
-    function getPlanById(id) { return plans.find(p => p && p.id === id) || null; }
-
-    function renderPlanSelect() {
-      if (!planSelectEl) return;
-      const current = planSelectEl.value || "";
-      planSelectEl.innerHTML = '<option value="">Kein Plan (frei)</option>';
-      for (const p of plans) {
-        const opt = document.createElement("option");
-        opt.value = p.id;
-        opt.textContent = p.name;
-        planSelectEl.appendChild(opt);
-      }
-      const want = current || appSettings.lastSelectedPlanId || "";
-      if (want && [...planSelectEl.options].some(o => o.value === want)) planSelectEl.value = want;
-      handlePlanSelectionChange();
-    }
-
-    function selectExerciseInForm(name) {
-      const n = (name || "").trim();
-      if (!n) return;
-      const opt = [...exerciseSelect.options].find(o => (o.value||"").toLowerCase() === n.toLowerCase());
-      if (opt) {
-        exerciseSelect.value = opt.value;
-        exerciseSelect.dispatchEvent(new Event("change"));
-      } else {
-        // fallback: freetext
-        exerciseSelect.value = FREETEXT_VALUE;
-        exerciseSelect.dispatchEvent(new Event("change"));
-        if (customExerciseInput) {
-          customExerciseInput.value = n;
-          customExerciseInput.dispatchEvent(new Event("input"));
-        }
-      }
-    }
-
-    function renderPlanQuickPick(plan) {
-      if (!planQuickPickEl || !planExerciseListEl) return;
-      planSkipped = new Set();
-
-      if (!plan || !Array.isArray(plan.exerciseOrder) || plan.exerciseOrder.length === 0) {
-        planQuickPickEl.classList.add("d-none");
-        planExerciseListEl.innerHTML = "";
-        return;
-      }
-
-      planQuickPickEl.classList.remove("d-none");
-      planExerciseListEl.innerHTML = "";
-
-      const inSession = new Set((currentWorkoutSession.exercises || []).map(e => (e.exerciseName||"").trim().toLowerCase()));
-
-      for (const name of plan.exerciseOrder) {
-        const n = (name || "").trim();
-        if (!n) continue;
-
-        const item = document.createElement("label");
-        item.className = "list-group-item d-flex justify-content-between align-items-center gap-2";
-
-        const left = document.createElement("div");
-        left.className = "d-flex align-items-center gap-2 flex-wrap";
-
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.className = "form-check-input";
-        cb.checked = true;
-
-        const title = document.createElement("span");
-        title.className = "fw-semibold";
-        title.textContent = n;
-
-        const badge = document.createElement("span");
-        const already = inSession.has(n.toLowerCase());
-        badge.className = "badge rounded-pill " + (already ? "bg-success" : "bg-light text-dark");
-        badge.textContent = already ? "in Session" : "plan";
-
-        left.appendChild(cb);
-        left.appendChild(title);
-        left.appendChild(badge);
-
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn btn-sm btn-outline-primary";
-        btn.innerHTML = '<i class="fas fa-arrow-right"></i>';
-        btn.addEventListener("click", (e) => { e.preventDefault(); if (cb.checked) selectExerciseInForm(n); });
-
-        cb.addEventListener("change", () => {
-          const k = n.toLowerCase();
-          if (!cb.checked) planSkipped.add(k); else planSkipped.delete(k);
-          populateExerciseDropdown();
-          saveDraftNow();
-        });
-
-        item.appendChild(left);
-        item.appendChild(btn);
-
-        item.addEventListener("click", (e) => {
-          if (e.target === cb || e.target.closest("button")) return;
-          if (!cb.checked) return;
-          selectExerciseInForm(n);
-        });
-
-        planExerciseListEl.appendChild(item);
-      }
-    }
-
-    function handlePlanSelectionChange() {
-      const planId = planSelectEl ? (planSelectEl.value || "") : "";
-      if (planId) { appSettings.lastSelectedPlanId = planId; saveSettings(); }
-      const plan = planId ? getPlanById(planId) : null;
-      renderPlanQuickPick(plan);
-      populateExerciseDropdown();
-      saveDraftNow();
-    }
-
-    // Timer
-    function startOrResumeTimer(ts) { workoutStartTs = ts || workoutStartTs || Date.now(); tickTimer(); }
-    function tickTimer() {
-      if (!workoutTimerEl || !workoutStartTs) return;
-      const sec = Math.max(0, Math.floor((Date.now() - workoutStartTs) / 1000));
-      const mm = String(Math.floor(sec/60)).padStart(2,'0');
-      const ss = String(sec%60).padStart(2,'0');
-      workoutTimerEl.textContent = `${mm}:${ss}`;
-    }
-    let _timerInterval = null;
-    function ensureTimerInterval() { if (_timerInterval) return; _timerInterval = setInterval(tickTimer, 1000); }
-
-    // Draft (minimal): just preserve current form + plan selection
-    function saveDraftNow() {
-      try {
-        const repsInputs = Array.from(document.querySelectorAll(".reps-input")).map(i => i.value);
-        const draft = {
-          savedAt: Date.now(),
-          workoutStartTs: workoutStartTs || Date.now(),
-          planId: planSelectEl ? (planSelectEl.value || "") : "",
-          planSkipped: Array.from(planSkipped),
-          date: dateInput?.value || "",
-          notes: document.getElementById('sessionNotesInput')?.value || "",
-          selectedExerciseValue: exerciseSelect?.value || "",
-          customExerciseName: customExerciseInput?.value || "",
-          weight: weightInput?.value || "",
-          sets: setsInput?.value || "",
-          repsPerSet: repsInputs,
-          currentWorkoutSession: currentWorkoutSession
-        };
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-      } catch {}
-    }
-
-    function loadDraft() { return safeParseJson(localStorage.getItem(DRAFT_KEY), null); }
-    function clearDraft() { localStorage.removeItem(DRAFT_KEY); }
-
-    function showDraftBanner(draft) {
-      const banner = document.getElementById("draftBanner");
-      const meta = document.getElementById("draftBannerMeta");
-      if (!banner || !meta) return;
-      const dt = new Date(draft.savedAt || Date.now());
-      meta.textContent = `Gespeichert: ${dt.toLocaleString()}`;
-      banner.classList.remove("d-none");
-    }
-    function hideDraftBanner() { document.getElementById("draftBanner")?.classList.add("d-none"); }
-
-    function restoreDraft(draft) {
-      try {
-        startOrResumeTimer(draft.workoutStartTs || Date.now());
-        ensureTimerInterval();
-
-        if (planSelectEl) { planSelectEl.value = draft.planId || ""; handlePlanSelectionChange(); }
-        planSkipped = new Set(Array.isArray(draft.planSkipped) ? draft.planSkipped : []);
-
-        if (dateInput) dateInput.value = draft.date || dateInput.value;
-        const notesEl = document.getElementById('sessionNotesInput');
-        if (notesEl) notesEl.value = draft.notes || "";
-
-        if (draft.currentWorkoutSession && typeof draft.currentWorkoutSession === "object") {
-          currentWorkoutSession = draft.currentWorkoutSession;
-          if (!currentWorkoutSession.exercises) currentWorkoutSession.exercises = [];
-        }
-        updateSessionSummaryUI();
-
-        if (exerciseSelect) {
-          exerciseSelect.value = draft.selectedExerciseValue || "";
-          exerciseSelect.dispatchEvent(new Event("change"));
-        }
-        if (customExerciseInput) customExerciseInput.value = draft.customExerciseName || "";
-
-        if (weightInput) weightInput.value = draft.weight || "";
-        if (setsInput) setsInput.value = draft.sets || setsInput.value;
-        generateSetFields();
-        const repsEls = document.querySelectorAll(".reps-input");
-        if (Array.isArray(draft.repsPerSet)) repsEls.forEach((el, i) => el.value = draft.repsPerSet[i] ?? "");
-
-        const plan = (planSelectEl && planSelectEl.value) ? getPlanById(planSelectEl.value) : null;
-        renderPlanQuickPick(plan);
-
-        hideDraftBanner();
-        saveDraftNow();
-      } catch (e) { console.error(e); }
-    }
-
-    // Hook into initApp
-    const _origInitApp = initApp;
-    initApp = function() {
-      _origInitApp();
-
-      planSelectEl = document.getElementById("planSelect");
-      planQuickPickEl = document.getElementById("planQuickPick");
-      planExerciseListEl = document.getElementById("planExerciseList");
-      nextPlanExerciseBtn = document.getElementById("nextPlanExerciseBtn");
-      workoutTimerEl = document.getElementById("workoutTimer");
-
-      loadPlans();
-      loadSettings();
-      renderPlanSelect();
-
-      planSelectEl?.addEventListener("change", handlePlanSelectionChange);
-      nextPlanExerciseBtn?.addEventListener("click", () => {
-        const planId = planSelectEl ? (planSelectEl.value || "") : "";
-        const plan = planId ? getPlanById(planId) : null;
-        if (!plan || !Array.isArray(plan.exerciseOrder)) return;
-        const inSession = new Set((currentWorkoutSession.exercises || []).map(e => (e.exerciseName||"").trim().toLowerCase()));
-        const next = plan.exerciseOrder.map(s => (s||"").trim()).filter(Boolean)
-          .find(n => !planSkipped.has(n.toLowerCase()) && !inSession.has(n.toLowerCase()));
-        if (next) selectExerciseInForm(next);
-      });
-
-      const draft = loadDraft();
-      if (draft && typeof draft === "object") {
-        showDraftBanner(draft);
-        document.getElementById("restoreDraftBtn")?.addEventListener("click", () => restoreDraft(draft));
-        document.getElementById("discardDraftBtn")?.addEventListener("click", () => { clearDraft(); hideDraftBanner(); });
-      }
-
-      startOrResumeTimer(Date.now());
-      ensureTimerInterval();
-
-      // Draft autosave triggers
-      [dateInput, document.getElementById('sessionNotesInput'), weightInput, setsInput, exerciseSelect, customExerciseInput].forEach(el => el?.addEventListener("input", saveDraftNow));
-      document.addEventListener("input", (ev) => { if (ev.target?.classList?.contains("reps-input")) saveDraftNow(); });
-      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveDraftNow(); });
-      window.addEventListener("pagehide", () => saveDraftNow());
-
-      const _origSave = handleSaveWorkoutSession;
-      handleSaveWorkoutSession = function() { _origSave(); clearDraft(); };
-    };
-
+    // ---- Version marker ----
+    const BENCHMARK_PRO_VERSION = "v3.1";
+    console.log("BenchMark Pro", BENCHMARK_PRO_VERSION, "loaded at", new Date().toISOString());
+    document.addEventListener("DOMContentLoaded", () => {
+      const b = document.getElementById("appVersionBadge");
+      if (b) b.textContent = BENCHMARK_PRO_VERSION;
+    });
 
 </script> <!-- Diese schließende Klammer war wahrscheinlich der Übeltäter -->
 

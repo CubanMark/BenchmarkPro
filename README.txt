@@ -1,8 +1,7 @@
-Update auf v3 (Plan UI sichtbar)
-- In "Neues Training" erscheint direkt unter Notizen: "Einheit auswählen (optional)"
-- Nach Auswahl siehst du "Plan-Übungen (Reihenfolge)" zum schnellen Antippen.
+Deploy v3.1
+1) Repo: index.html, manifest.json, service-worker.js, icons/ überschreiben.
+2) Commit.
+3) Handy: Seite neu öffnen. (SW ist network-first für HTML -> Updates kommen zuverlässiger)
 
-Deploy:
-1) Repo Dateien überschreiben (index.html, manifest.json, service-worker.js, icons/)
-2) Commit
-3) Handy: Cache leeren / einmal Hard-Reload (SW Cache: benchmark-pro-cache-v3-planui)
+Version sichtbar: Badge oben im Header: v3.1
+Cache Name: benchmark-pro-cache-v31
