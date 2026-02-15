@@ -13,7 +13,6 @@ let state = loadState();
 const mig = runMigrations(state);
 state = mig.state;
 
-
 const defaults = {
   exercises: getDefaultExercises(),
   plans: getDefaultPlans()
@@ -515,75 +514,4 @@ function hideImportPreview(){
   $("#importWorkouts").textContent = "—";
   $("#importPlans").textContent = "—";
   $("#importExercises").textContent = "—";
-  $("#importNote").textContent = "";
-}
-
-function showImportPreview(preview){
-  const box = $("#importPreview");
-  box.style.display = "block";
-  $("#importKind").textContent = preview.kind;
-  $("#importWorkouts").textContent = String(preview.counts?.workouts ?? 0);
-  $("#importPlans").textContent = String(preview.counts?.plans ?? 0);
-  $("#importExercises").textContent = String(preview.counts?.exercises ?? 0);
-  $("#importNote").textContent = preview.note || "";
-}
-
-$("#fileImport").addEventListener("change", async (ev) => {
-  const file = ev.target.files?.[0];
-  if (!file) return;
-  const text = await file.text();
-  try {
-    const { preview, state: imported } = parseImportFile(text);
-    pendingImport = imported;
-    showImportPreview(preview);
-    toast("Import-Vorschau bereit ✅");
-  } catch (e) {
-    hideImportPreview();
-    toast(String(e?.message || e));
-  } finally {
-    ev.target.value = "";
-  }
-});
-
-$("#btnCancelImport").addEventListener("click", () => {
-  hideImportPreview();
-  toast("Import abgebrochen");
-});
-
-$("#btnApplyImport").addEventListener("click", () => {
-  if (!pendingImport) return;
-  try {
-    // Hard replace: clear persisted state first (prevents "ghost" data)
-    resetState();
-    // Clone imported state to avoid shared references
-    const importedClone = (globalThis.structuredClone ? structuredClone(pendingImport) : JSON.parse(JSON.stringify(pendingImport)));
-    state = applyImportedState(importedClone);
-    // Ensure defaults exist (and keep imported custom exercises/plans/workouts)
-    ensureDefaults(state, defaults);
-    state.meta = state.meta || {};
-    state.meta.activeWorkoutId = null; // avoid dangling ids after replace
-    // run migrations for imported v4 state
-    const mig2 = runMigrations(state);
-    state = mig2.state;
-    state.meta.lastMigration = { ran: mig2.ran, from: mig2.from, to: mig2.to, at: new Date().toISOString() };
-    persist();
-    rerenderAll();
-    hideImportPreview();
-    toast("Import angewendet ✅");
-  } catch (e) {
-    toast(String(e?.message || e));
-  }
-});
-;
-}
-
-function boot(){
-  // persist defaults once
-  persist();
-  rerenderAll();
-  setupTabs();
-  setupActions();
-  setActiveTab("training");
-}
-
-boot();
+  $("#importNote").text
