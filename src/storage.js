@@ -1,40 +1,42 @@
-import { STORAGE_KEY } from "./version.js";
-import { createEmptyState, touchUpdatedAt, assertLooksLikeState } from "./models.js";
-import { migrateToLatest } from "./migrations.js";
+import { STORAGE_KEY, APP_VERSION, DATA_VERSION } from "./version.js";
+import { createEmptyState, isLikelyState } from "./models.js";
 
 export function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return createEmptyState();
   try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return createEmptyState();
     const parsed = JSON.parse(raw);
-    return migrateToLatest(parsed);
-  } catch (e) {
-    console.warn("Failed to load state. Falling back to empty state.", e);
+    if (!isLikelyState(parsed)) return createEmptyState();
+    parsed.appVersion = APP_VERSION;
+    if (!parsed.meta) parsed.meta = { createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    return parsed;
+  } catch {
     return createEmptyState();
   }
 }
 
 export function saveState(state) {
-  touchUpdatedAt(state);
+  const now = new Date().toISOString();
+  state.appVersion = APP_VERSION;
+  state.dataVersion = DATA_VERSION;
+  state.meta = state.meta || { createdAt: now, updatedAt: now };
+  state.meta.updatedAt = now;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  return now;
+}
+
+export function exportState(state) {
+  return JSON.stringify(state, null, 2);
+}
+
+export function importStateReplace(fileText) {
+  const parsed = JSON.parse(fileText);
+  if (!isLikelyState(parsed)) {
+    throw new Error("Import abgelehnt: JSON sieht nicht wie BenchMark-State aus.");
+  }
+  return parsed;
 }
 
 export function resetState() {
   localStorage.removeItem(STORAGE_KEY);
-}
-
-export function exportState(state) {
-  touchUpdatedAt(state);
-  return JSON.stringify(state, null, 2);
-}
-
-export function importStateReplace(jsonText) {
-  const parsed = JSON.parse(jsonText);
-  assertLooksLikeState(parsed);
-  const migrated = migrateToLatest(parsed);
-  if (!migrated.meta) migrated.meta = {};
-  if (!migrated.meta.createdAt) migrated.meta.createdAt = new Date().toISOString();
-  migrated.meta.updatedAt = new Date().toISOString();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-  return migrated;
 }

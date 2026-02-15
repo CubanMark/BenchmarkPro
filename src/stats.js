@@ -1,2 +1,1 @@
-// Phase 4+: Stats/analytics will live here.
-export {};
+// Phase 2: placeholder

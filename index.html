@@ -3,78 +3,95 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0b1220" />
-  <title>BenchMark Pro</title>
-
+  <title>BenchMark Pro (v4)</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icons/icon-192-maskable.png" />
-  <link rel="apple-touch-icon" href="icons/icon-192-maskable.png" />
-
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
   <header class="app-header">
     <div class="app-title">
-      <span class="app-title__name">BenchMark Pro</span>
-      <span id="versionBadge" class="badge" title="App-Version"></span>
+      <h1>BenchMark Pro</h1>
+      <span id="versionBadge" class="badge">v4</span>
     </div>
 
     <nav class="tabs" aria-label="Navigation">
-      <button class="tab is-active" data-tab="train" type="button">Training</button>
-      <button class="tab" data-tab="plans" type="button">Pläne</button>
-      <button class="tab" data-tab="history" type="button">Historie</button>
-      <button class="tab" data-tab="diagnostics" type="button">Diagnose</button>
+      <button class="tab is-active" data-tab="training">Training</button>
+      <button class="tab" data-tab="plans">Pläne</button>
+      <button class="tab" data-tab="history">Historie</button>
+      <button class="tab" data-tab="diagnostics">Diagnose</button>
     </nav>
   </header>
 
-  <main class="app-main">
-    <section id="tab-train" class="panel is-active" aria-label="Training">
+  <main class="container">
+    <section class="panel is-active" id="tab-training">
       <h2>Training</h2>
-      <p class="muted">Phase 1: Skeleton. Noch keine Logik – nur State + Navigation.</p>
+      <p class="muted">Phase 2: Defaults (Exercises + Pläne) + Plan-Editor. Noch kein Workout-Tracking.</p>
+
       <div class="card">
-        <div class="row">
-          <span class="label">State</span>
-          <span id="stateSummary" class="mono">—</span>
-        </div>
-        <div class="row">
-          <button id="btnSave" class="btn" type="button">Save State</button>
-          <button id="btnReset" class="btn btn--ghost" type="button">Reset (dev)</button>
+        <div class="row space">
+          <div>
+            <div class="label">State</div>
+            <div id="stateSummary" class="mono muted">…</div>
+          </div>
+          <div class="row">
+            <button id="btnSaveState" class="btn">Save State</button>
+            <button id="btnResetDev" class="btn btn-ghost" title="Nur für Entwicklung">Reset (dev)</button>
+          </div>
         </div>
       </div>
     </section>
 
-    <section id="tab-plans" class="panel" aria-label="Pläne">
-      <h2>Pläne</h2>
-      <p class="muted">Kommt in Phase 2.</p>
+    <section class="panel" id="tab-plans">
+      <div class="row space">
+        <h2>Pläne</h2>
+        <button id="btnAddPlan" class="btn">+ Neuer Plan</button>
+      </div>
+
+      <div class="card">
+        <div class="row space">
+          <div>
+            <div class="label">Exercises</div>
+            <div class="muted">Namens-/Alias-Liste (v4.2 wird das sauber normalisieren).</div>
+          </div>
+          <button id="btnAddExercise" class="btn btn-ghost">+ Übung</button>
+        </div>
+        <div id="exerciseList" class="list"></div>
+      </div>
+
+      <div id="plansList" class="stack"></div>
     </section>
 
-    <section id="tab-history" class="panel" aria-label="Historie">
+    <section class="panel" id="tab-history">
       <h2>Historie</h2>
-      <p class="muted">Kommt in Phase 3.</p>
+      <p class="muted">Phase 2: Placeholder.</p>
+      <div class="card"><div class="muted">Workouts kommen in Phase 3.</div></div>
     </section>
 
-    <section id="tab-diagnostics" class="panel" aria-label="Diagnose">
+    <section class="panel" id="tab-diagnostics">
       <h2>Diagnose</h2>
       <div class="card">
-        <div class="row"><span class="label">AppVersion</span><span id="diagAppVersion" class="mono">—</span></div>
-        <div class="row"><span class="label">DataVersion</span><span id="diagDataVersion" class="mono">—</span></div>
-        <div class="row"><span class="label">StorageKey</span><span id="diagStorageKey" class="mono">—</span></div>
-        <div class="row"><span class="label">Last saved</span><span id="diagUpdatedAt" class="mono">—</span></div>
-      </div>
-      <div class="card">
-        <div class="row">
-          <button id="btnExport" class="btn" type="button">Export JSON</button>
-          <label class="btn btn--ghost" for="importFile">Import JSON (Replace)</label>
-          <input id="importFile" type="file" accept="application/json" hidden />
+        <div class="kv">
+          <div class="kv-row"><div>AppVersion</div><div class="mono" id="diagAppVersion">…</div></div>
+          <div class="kv-row"><div>DataVersion</div><div class="mono" id="diagDataVersion">…</div></div>
+          <div class="kv-row"><div>StorageKey</div><div class="mono" id="diagStorageKey">…</div></div>
+          <div class="kv-row"><div>Last saved</div><div class="mono" id="diagLastSaved">…</div></div>
         </div>
-        <p class="muted">Phase 1: Import/Export ist minimal und ersetzt komplett.</p>
+
+        <div class="row space mt">
+          <button id="btnExport" class="btn">Export JSON</button>
+          <label class="btn btn-ghost" for="fileImport">Import JSON (Replace)</label>
+          <input id="fileImport" type="file" accept="application/json" hidden />
+        </div>
+
+        <div class="muted mt">Phase 2: Import/Export ersetzt komplett. Merge kommt später.</div>
       </div>
     </section>
-  </main>
 
-  <footer class="app-footer muted">
-    <span>BenchMark Pro • v4 Phase 1</span>
-  </footer>
+    <footer class="footer muted">
+      BenchMark Pro • v4 Phase 2
+    </footer>
+  </main>
 
   <script type="module" src="src/app.js"></script>
 </body>
