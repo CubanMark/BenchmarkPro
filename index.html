@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BenchMark Pro <span class="badge bg-dark ms-2" id="appVersionBadge">v3.2</span></title>
+  <title>BenchMark Pro</title>
 
   
 
-  <!-- PWA (v3.2) -->
+  <!-- PWA (v3.2.1) -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#111827">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <meta name="benchmark-pro-version" content="v3.2">
+  <meta name="benchmark-pro-version" content="v3.2.1">
 
 <!-- Bootstrap (CDN) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
@@ -89,14 +89,14 @@
   </style>
 
 <style id="versionBadgeStyle">
-#appVersionBadge { font-size: .75rem; opacity: .9; vertical-align: middle; }
+#appVersionBadge{font-size:.75rem;opacity:.9;vertical-align:middle}
 </style>
 
 </head>
 
 <body>
   <!-- NAV BAR -->
-  <nav class="navbar navbar-expand-md navbar-dark"> <div class="container-fluid"> <a class="navbar-brand" href="#"> <i class="fas fa-dumbbell me-2"></i>BenchMark Pro </a> <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"> <span class="navbar-toggler-icon"></span> </button> <div class="collapse navbar-collapse" id="navbarContent"> <ul class="navbar-nav ms-auto"> <li class="nav-item"> <a class="nav-link" href="#" id="exportData"><i class="fas fa-download me-1"></i>Daten exportieren</a> </li> <li class="nav-item"> <a class="nav-link" href="#" id="importData"><i class="fas fa-upload me-1"></i>Daten importieren</a> </li> </ul> </div> </div> </nav>
+  <nav class="navbar navbar-expand-md navbar-dark"> <div class="container-fluid"> <a class="navbar-brand" href="#"> <i class="fas fa-dumbbell me-2"></i>BenchMark Pro <span class="badge bg-dark ms-2" id="appVersionBadge">v3.2.1</span> </a> <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"> <span class="navbar-toggler-icon"></span> </button> <div class="collapse navbar-collapse" id="navbarContent"> <ul class="navbar-nav ms-auto"> <li class="nav-item"> <a class="nav-link" href="#" id="exportData"><i class="fas fa-download me-1"></i>Daten exportieren</a> </li> <li class="nav-item"> <a class="nav-link" href="#" id="importData"><i class="fas fa-upload me-1"></i>Daten importieren</a> </li> </ul> </div> </div> </nav>
 
   <div class="container mt-4">
     <h1>BenchMark Pro</h1>
@@ -140,7 +140,6 @@
           <div class="card">
             <h2>Workout-Pläne</h2>
             <p class="text-muted">Pläne sind Templates: Übungsreihenfolge & Vorschlag. Du wählst sie im Tab „Neues Training“ aus.</p>
-
             <div class="d-flex flex-wrap gap-2 mb-3">
               <button type="button" class="btn btn-primary" id="addPlanBtn"><i class="fas fa-plus me-1"></i>Neuer Plan</button>
               <button type="button" class="btn btn-outline-secondary" id="exportV2Btn"><i class="fas fa-download me-1"></i>Export (v2)</button>
@@ -149,41 +148,8 @@
                 <input type="file" id="importV2Input" accept="application/json" hidden>
               </label>
             </div>
-
             <div id="plansEmpty" class="text-muted">Noch keine Pläne. (Default: Home A/B/C sind automatisch da.)</div>
             <div id="plansList" class="list-group"></div>
-          </div>
-        </div>
-
-        <!-- Plan Modal -->
-        <div class="modal fade" id="planModal" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title" id="planModalTitle">Plan</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body">
-                <div class="mb-3">
-                  <label for="planNameInput" class="form-label">Name</label>
-                  <input type="text" id="planNameInput" class="form-control" placeholder="z. B. Home A" />
-                </div>
-
-                <div class="mb-2 d-flex justify-content-between align-items-center">
-                  <label class="form-label mb-0">Übungen (Reihenfolge)</label>
-                  <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="planAddExerciseBtn"><i class="fas fa-plus me-1"></i>Übung hinzufügen</button>
-                  </div>
-                </div>
-                <div id="planExercisesEditor" class="list-group mb-2"></div>
-                <div class="text-muted small">Reihenfolge per ↑/↓ ändern. Entfernen per 🗑️.</div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-outline-danger me-auto d-none" id="deletePlanBtn"><i class="fas fa-trash me-1"></i>Plan löschen</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary" id="savePlanBtn"><i class="fas fa-save me-1"></i>Speichern</button>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -493,281 +459,23 @@
     function exportData() { try { const data = loadDataFromLocalStorage(); const dataJson = JSON.stringify(data, null, 2); const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(dataJson); const downloadAnchorNode = document.createElement('a'); const timestamp = new Date().toISOString().slice(0, 10); downloadAnchorNode.setAttribute("href", dataStr); downloadAnchorNode.setAttribute("download", `benchmark_pro_backup_${timestamp}.json`); document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove(); } catch (error) { console.error("Fehler beim Exportieren der Daten:", error); alert("Datenexport fehlgeschlagen."); } }
     function importData() { console.log("Import button clicked."); const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = e => { const file = e.target.files[0]; if (!file) { console.log("No file selected."); return; } console.log(`File selected: ${file.name}`); const reader = new FileReader(); reader.onload = function(event) { console.log("File read ok."); try { const importedData = JSON.parse(event.target.result); console.log("JSON parsed ok."); if (Array.isArray(importedData)) { console.log("Data is array. Confirming overwrite."); if (confirm('WARNUNG: Diese Aktion überschreibt alle aktuell gespeicherten Trainingsdaten! Fortfahren?')) { console.log("User confirmed."); try { saveDataToLocalStorage(importedData); console.log("Data saved to localStorage."); console.log("Re-initializing app..."); initApp(); alert('Daten erfolgreich importiert!'); console.log("Import finished."); const historyTab = document.getElementById('history-tab'); if (historyTab) { const tabInstance = bootstrap.Tab.getOrCreateInstance(historyTab); if (tabInstance) tabInstance.show(); } } catch (saveError) { console.error("Error saving imported data:", saveError); alert(`Fehler beim Speichern der importierten Daten: ${saveError.message}`); } } else { console.log("User cancelled."); } } else { console.error("Imported data is not an array:", importedData); alert('Import fehlgeschlagen: Die Datei scheint kein gültiges Trainingsdaten-Array zu enthalten.'); } } catch (error) { console.error("Error parsing/processing import file:", error); alert(`Import fehlgeschlagen: ${error.message}`); } }; reader.onerror = function(error) { console.error("Error reading file:", error); alert('Fehler beim Lesen der Datei.'); }; reader.readAsText(file); }; input.click(); } // Diese Klammer schließt input.onchange und somit die Funktion importData
 
-  
+  </script> <!-- Diese schließende Klammer war wahrscheinlich der Übeltäter -->
 
-    // ---- Version marker ----
-    const BENCHMARK_PRO_VERSION = "v3.2";
-    console.log("BenchMark Pro", BENCHMARK_PRO_VERSION);
-    document.addEventListener("DOMContentLoaded", () => {
-      const b = document.getElementById("appVersionBadge");
-      if (b) b.textContent = BENCHMARK_PRO_VERSION;
+
+<script>
+  // PWA SW registration (v3.2.1)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+        .then(() => console.log('SW registered'))
+        .catch(err => console.warn('SW register failed', err));
     });
+  }
 
-    // ---- Plans ----
-    const PLANS_KEY = "benchmark_pro_plans_v1";
-    const SETTINGS_KEY = "benchmark_pro_settings_v1";
-
-    const DEFAULT_PLANS = [
-      { id: "home_a", name: "Home A", exerciseOrder: ["Back Squat", "Bench Press", "Barbell Row", "Seitheben"] },
-      { id: "home_b", name: "Home B", exerciseOrder: ["RDL", "Inclined Bench Press", "Pull-ups", "Toe-Assisted Pull-Ups", "McGill Big 3"] },
-      { id: "home_c", name: "Home C", exerciseOrder: ["Pause Squat", "Close-Grip Bench Press", "Inverted Row", "Glute Bridge bilateral", "W-Raises"] }
-    ];
-
-    let plans = [];
-    let appSettings = { lastSelectedPlanId: "" };
-    let planSelectEl, planQuickPickEl, planExerciseListEl, nextPlanExerciseBtn;
-    let planSkipped = new Set();
-
-    function safeParseJson(raw, fallback) { try { return JSON.parse(raw); } catch { return fallback; } }
-    function normalizePlan(p) {
-      if (!p || typeof p !== "object") return null;
-      const id = String(p.id || ("p_" + Math.random().toString(36).slice(2,10))).trim();
-      const name = String(p.name || "").trim();
-      const order = Array.isArray(p.exerciseOrder) ? p.exerciseOrder.map(x => String(x||"").trim()).filter(Boolean) : [];
-      return name ? { id, name, exerciseOrder: order } : null;
-    }
-    function loadPlans() {
-      const parsed = safeParseJson(localStorage.getItem(PLANS_KEY), null);
-      if (Array.isArray(parsed) && parsed.length) plans = parsed.map(normalizePlan).filter(Boolean);
-      else { plans = DEFAULT_PLANS.map(normalizePlan).filter(Boolean); localStorage.setItem(PLANS_KEY, JSON.stringify(plans)); }
-    }
-    function savePlans() { localStorage.setItem(PLANS_KEY, JSON.stringify(plans)); }
-    function loadSettings() {
-      appSettings = safeParseJson(localStorage.getItem(SETTINGS_KEY), { lastSelectedPlanId: "" });
-      if (!appSettings || typeof appSettings !== "object") appSettings = { lastSelectedPlanId: "" };
-    }
-    function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings)); }
-    function getPlanById(id) { return plans.find(p => p.id === id) || null; }
-
-    function renderPlanSelect() {
-      if (!planSelectEl) return;
-      const current = planSelectEl.value || "";
-      planSelectEl.innerHTML = '<option value="">Kein Plan (frei)</option>';
-      for (const p of plans) {
-        const opt = document.createElement("option");
-        opt.value = p.id;
-        opt.textContent = p.name;
-        planSelectEl.appendChild(opt);
-      }
-      const want = current || appSettings.lastSelectedPlanId || "";
-      if (want && [...planSelectEl.options].some(o => o.value === want)) planSelectEl.value = want;
-      handlePlanSelectionChange();
-    }
-
-    function selectExerciseInForm(name) {
-      const n = (name||"").trim();
-      if (!n) return;
-      const opt = [...exerciseSelect.options].find(o => (o.value||"").toLowerCase() === n.toLowerCase());
-      if (opt) { exerciseSelect.value = opt.value; exerciseSelect.dispatchEvent(new Event("change")); }
-      else {
-        exerciseSelect.value = FREETEXT_VALUE;
-        exerciseSelect.dispatchEvent(new Event("change"));
-        if (customExerciseInput) { customExerciseInput.value = n; customExerciseInput.dispatchEvent(new Event("input")); }
-      }
-    }
-
-    function renderPlanQuickPick(plan) {
-      if (!planQuickPickEl || !planExerciseListEl) return;
-      planSkipped = new Set();
-
-      if (!plan || !Array.isArray(plan.exerciseOrder) || plan.exerciseOrder.length === 0) {
-        planQuickPickEl.classList.add("d-none");
-        planExerciseListEl.innerHTML = "";
-        return;
-      }
-      planQuickPickEl.classList.remove("d-none");
-      planExerciseListEl.innerHTML = "";
-
-      const inSession = new Set((currentWorkoutSession.exercises || []).map(e => (e.exerciseName||"").trim().toLowerCase()));
-
-      for (const name of plan.exerciseOrder) {
-        const n = (name||"").trim();
-        if (!n) continue;
-
-        const item = document.createElement("label");
-        item.className = "list-group-item d-flex justify-content-between align-items-center gap-2";
-
-        const left = document.createElement("div");
-        left.className = "d-flex align-items-center gap-2 flex-wrap";
-
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.className = "form-check-input";
-        cb.checked = true;
-
-        const title = document.createElement("span");
-        title.className = "fw-semibold";
-        title.textContent = n;
-
-        const badge = document.createElement("span");
-        const already = inSession.has(n.toLowerCase());
-        badge.className = "badge rounded-pill " + (already ? "bg-success" : "bg-light text-dark");
-        badge.textContent = already ? "in Session" : "plan";
-
-        left.appendChild(cb); left.appendChild(title); left.appendChild(badge);
-
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn btn-sm btn-outline-primary";
-        btn.innerHTML = '<i class="fas fa-arrow-right"></i>';
-        btn.addEventListener("click", (e) => { e.preventDefault(); if (cb.checked) selectExerciseInForm(n); });
-
-        cb.addEventListener("change", () => {
-          const k = n.toLowerCase();
-          if (!cb.checked) planSkipped.add(k); else planSkipped.delete(k);
-        });
-
-        item.appendChild(left); item.appendChild(btn);
-        item.addEventListener("click", (e) => {
-          if (e.target === cb || e.target.closest("button")) return;
-          if (!cb.checked) return;
-          selectExerciseInForm(n);
-        });
-
-        planExerciseListEl.appendChild(item);
-      }
-    }
-
-    function handlePlanSelectionChange() {
-      const planId = planSelectEl ? (planSelectEl.value || "") : "";
-      if (planId) { appSettings.lastSelectedPlanId = planId; saveSettings(); }
-      const plan = planId ? getPlanById(planId) : null;
-      renderPlanQuickPick(plan);
-    }
-
-    // Hook into initApp
-    const __origInitApp = initApp;
-    initApp = function() {
-      __origInitApp();
-
-      planSelectEl = document.getElementById("planSelect");
-      planQuickPickEl = document.getElementById("planQuickPick");
-      planExerciseListEl = document.getElementById("planExerciseList");
-      nextPlanExerciseBtn = document.getElementById("nextPlanExerciseBtn");
-
-      loadPlans();
-      loadSettings();
-      renderPlanSelect();
-      planSelectEl?.addEventListener("change", handlePlanSelectionChange);
-
-      nextPlanExerciseBtn?.addEventListener("click", () => {
-        const planId = planSelectEl ? (planSelectEl.value || "") : "";
-        const plan = planId ? getPlanById(planId) : null;
-        if (!plan || !Array.isArray(plan.exerciseOrder)) return;
-        const inSession = new Set((currentWorkoutSession.exercises || []).map(e => (e.exerciseName||"").trim().toLowerCase()));
-        const next = plan.exerciseOrder.map(s => (s||"").trim()).filter(Boolean)
-          .find(n => !planSkipped.has(n.toLowerCase()) && !inSession.has(n.toLowerCase()));
-        if (next) selectExerciseInForm(next);
-      });
-
-      // Plans tab CRUD (minimal)
-      const addPlanBtn = document.getElementById("addPlanBtn");
-      const plansListEl = document.getElementById("plansList");
-      const plansEmptyEl = document.getElementById("plansEmpty");
-      const planModalEl = document.getElementById("planModal");
-      if (addPlanBtn && plansListEl && planModalEl) {
-        const planModal = new bootstrap.Modal(planModalEl);
-        const titleEl = document.getElementById("planModalTitle");
-        const nameInput = document.getElementById("planNameInput");
-        const editor = document.getElementById("planExercisesEditor");
-        const saveBtn = document.getElementById("savePlanBtn");
-        const delBtn = document.getElementById("deletePlanBtn");
-        const addExBtn = document.getElementById("planAddExerciseBtn");
-        let editingId = null;
-
-        const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-        function editorOrder() { return Array.from(editor.querySelectorAll(".list-group-item .fw-semibold")).map(x => (x.textContent||"").trim()).filter(Boolean); }
-        function renderEditor(order) {
-          editor.innerHTML = "";
-          (order||[]).forEach((n, idx) => {
-            const row = document.createElement("div");
-            row.className = "list-group-item d-flex justify-content-between align-items-center gap-2";
-            const label = document.createElement("div");
-            label.className = "fw-semibold";
-            label.textContent = n;
-            const ctr = document.createElement("div");
-            ctr.className = "d-flex gap-2";
-            const up = document.createElement("button");
-            up.className = "btn btn-sm btn-outline-secondary";
-            up.type = "button";
-            up.innerHTML = '<i class="fas fa-arrow-up"></i>';
-            up.disabled = idx === 0;
-            up.onclick = () => { const a = editorOrder(); [a[idx-1], a[idx]] = [a[idx], a[idx-1]]; renderEditor(a); };
-            const down = document.createElement("button");
-            down.className = "btn btn-sm btn-outline-secondary";
-            down.type = "button";
-            down.innerHTML = '<i class="fas fa-arrow-down"></i>';
-            down.disabled = idx === (order.length - 1);
-            down.onclick = () => { const a = editorOrder(); [a[idx], a[idx+1]] = [a[idx+1], a[idx]]; renderEditor(a); };
-            const trash = document.createElement("button");
-            trash.className = "btn btn-sm btn-outline-danger";
-            trash.type = "button";
-            trash.innerHTML = '<i class="fas fa-trash"></i>';
-            trash.onclick = () => { const a = editorOrder().filter((_,i)=>i!=idx); renderEditor(a); };
-            ctr.appendChild(up); ctr.appendChild(down); ctr.appendChild(trash);
-            row.appendChild(label); row.appendChild(ctr);
-            editor.appendChild(row);
-          });
-        }
-
-        function renderPlansList() {
-          plansListEl.innerHTML = "";
-          if (!plans.length) { plansEmptyEl?.classList.remove("d-none"); renderPlanSelect(); return; }
-          plansEmptyEl?.classList.add("d-none");
-          plans.forEach(p => {
-            const item = document.createElement("div");
-            item.className = "list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2";
-            const left = document.createElement("div");
-            left.innerHTML = '<div class="fw-semibold">' + escapeHtml(p.name) + '</div><div class="small text-muted">' + ((p.exerciseOrder||[]).length) + ' Übungen</div>';
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "btn btn-sm btn-outline-primary";
-            btn.innerHTML = '<i class="fas fa-pen me-1"></i>Edit';
-            btn.onclick = () => openModal(p.id);
-            item.appendChild(left);
-            item.appendChild(btn);
-            plansListEl.appendChild(item);
-          });
-          renderPlanSelect();
-        }
-
-        function openModal(id) {
-          editingId = id || null;
-          const p = id ? getPlanById(id) : null;
-          titleEl.textContent = p ? "Plan bearbeiten" : "Neuer Plan";
-          nameInput.value = p?.name || "";
-          renderEditor(p?.exerciseOrder || []);
-          delBtn.classList.toggle("d-none", !p);
-          planModal.show();
-        }
-
-        addPlanBtn.onclick = () => openModal(null);
-        addExBtn.onclick = () => { const n = prompt("Übung hinzufügen (Name)"); if (!n) return; const a = editorOrder(); a.push(n.trim()); renderEditor(a); };
-        saveBtn.onclick = () => {
-          const name = (nameInput.value||"").trim();
-          if (!name) { alert("Bitte Plan-Namen eingeben."); return; }
-          const order = editorOrder();
-          if (editingId) { const p = getPlanById(editingId); if (p) { p.name = name; p.exerciseOrder = order; } }
-          else { plans.push({ id: "p_" + Math.random().toString(36).slice(2,10), name, exerciseOrder: order }); }
-          savePlans();
-          renderPlansList();
-          planModal.hide();
-        };
-        delBtn.onclick = () => {
-          if (!editingId) return;
-          if (!confirm("Plan wirklich löschen?")) return;
-          plans = plans.filter(p => p.id !== editingId);
-          savePlans();
-          renderPlansList();
-          planModal.hide();
-        };
-
-        renderPlansList();
-      }
-    };
-
-</script> <!-- Diese schließende Klammer war wahrscheinlich der Übeltäter -->
+// ---- Runtime marker ----
+const BENCHMARK_PRO_VERSION = 'v3.2.1';
+console.log('BenchMark Pro loaded:', BENCHMARK_PRO_VERSION);
+</script>
 
 </body>
 </html>

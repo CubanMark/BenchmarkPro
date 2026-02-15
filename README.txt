@@ -1,8 +1,7 @@
-Deploy v3.2
-- Überschreibe im Repo: index.html, manifest.json, service-worker.js, icons/
+Deploy v3.2.1
+- Überschreiben: index.html, manifest.json, service-worker.js, icons/
 - Commit
-
-Erwartung:
-- Badge v3.2 sichtbar
-- Unter Notizen: "Einheit auswählen (optional)"
-- QuickPick erscheint nach Plan-Auswahl
+Checks:
+1) Badge: v3.2.1
+2) Unter Notizen: Einheit auswählen (optional)
+3) DevTools -> Application -> Service workers: Registrierung vorhanden

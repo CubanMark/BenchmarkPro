@@ -1,7 +1,7 @@
 {
   "name": "BenchMark Pro",
   "short_name": "BenchMark",
-  "start_url": "./index.html?v=v3.2",
+  "start_url": "./index.html?v=v3.2.1",
   "display": "standalone",
   "background_color": "#111827",
   "theme_color": "#111827",
