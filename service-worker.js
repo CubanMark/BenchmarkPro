@@ -1,5 +1,5 @@
-/* BenchMark Pro - offline cache (v3.1) */
-const CACHE_NAME = "benchmark-pro-cache-v31";
+/* BenchMark Pro - offline cache (v3.1.1) */
+const CACHE_NAME = "benchmark-pro-cache-v311";
 const CORE = [
   "./",
   "./index.html",

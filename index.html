@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BenchMark Pro <span class="badge bg-dark ms-2" id="appVersionBadge">v3.1</span></title>
+  <title>BenchMark Pro</title>
 
   
 
@@ -13,7 +13,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <meta name="benchmark-pro-version" content="v3.1">
+  <meta name="benchmark-pro-version" content="v3.1.1">
 
 <!-- Bootstrap (CDN) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
@@ -96,7 +96,7 @@
 
 <body>
   <!-- NAV BAR -->
-  <nav class="navbar navbar-expand-md navbar-dark"> <div class="container-fluid"> <a class="navbar-brand" href="#"> <i class="fas fa-dumbbell me-2"></i>BenchMark Pro </a> <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"> <span class="navbar-toggler-icon"></span> </button> <div class="collapse navbar-collapse" id="navbarContent"> <ul class="navbar-nav ms-auto"> <li class="nav-item"> <a class="nav-link" href="#" id="exportData"><i class="fas fa-download me-1"></i>Daten exportieren</a> </li> <li class="nav-item"> <a class="nav-link" href="#" id="importData"><i class="fas fa-upload me-1"></i>Daten importieren</a> </li> </ul> </div> </div> </nav>
+  <nav class="navbar navbar-expand-md navbar-dark"> <div class="container-fluid"> <a class="navbar-brand" href="#"> <i class="fas fa-dumbbell me-2"></i>BenchMark Pro <span class="badge bg-dark ms-2" id="appVersionBadge">v3.1.1</span> </a> <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"> <span class="navbar-toggler-icon"></span> </button> <div class="collapse navbar-collapse" id="navbarContent"> <ul class="navbar-nav ms-auto"> <li class="nav-item"> <a class="nav-link" href="#" id="exportData"><i class="fas fa-download me-1"></i>Daten exportieren</a> </li> <li class="nav-item"> <a class="nav-link" href="#" id="importData"><i class="fas fa-upload me-1"></i>Daten importieren</a> </li> </ul> </div> </div> </nav>
 
   <div class="container mt-4">
     <h1>BenchMark Pro</h1>
@@ -438,7 +438,7 @@
   
 
     // ---- Version marker ----
-    const BENCHMARK_PRO_VERSION = "v3.1";
+    const BENCHMARK_PRO_VERSION = "v3.1.1";
     console.log("BenchMark Pro", BENCHMARK_PRO_VERSION, "loaded at", new Date().toISOString());
     document.addEventListener("DOMContentLoaded", () => {
       const b = document.getElementById("appVersionBadge");
