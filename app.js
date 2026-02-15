@@ -20,48 +20,51 @@ const defaults = {
 
 ensureDefaults(state, defaults);
 
-// Event listener setup: Ensuring that the DOM is loaded before we attach event listeners
-document.addEventListener('DOMContentLoaded', function () {
-  const importButton = document.getElementById('import-json'); // Make sure the element exists
-  if (importButton) {
-    importButton.addEventListener('click', function () {
-      const fileInput = document.getElementById('file-input');
-      if (fileInput && fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        const reader = new FileReader();
-        reader.onload = function (event) {
-          const fileText = event.target.result;
-          const parsedData = parseImportFile(fileText);
-          if (parsedData) {
-            applyImportedState(parsedData);
-          }
-        };
-        reader.readAsText(file);
-      } else {
-        toast("Keine Datei ausgewählt", "error");
-      }
-    });
-  } else {
-    console.error("Import-Button nicht gefunden");
-  }
+// Wait for the window to fully load before accessing DOM elements
+window.onload = function() {
+  // Wait a moment to make sure elements are available
+  setTimeout(function() {
+    const importButton = document.getElementById('import-json'); // Make sure the element exists
+    if (importButton) {
+      importButton.addEventListener('click', function () {
+        const fileInput = document.getElementById('file-input');
+        if (fileInput && fileInput.files.length > 0) {
+          const file = fileInput.files[0];
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            const fileText = event.target.result;
+            const parsedData = parseImportFile(fileText);
+            if (parsedData) {
+              applyImportedState(parsedData);
+            }
+          };
+          reader.readAsText(file);
+        } else {
+          toast("Keine Datei ausgewählt", "error");
+        }
+      });
+    } else {
+      console.error("Import-Button nicht gefunden");
+    }
 
-  const exportButton = document.getElementById('export-json');
-  if (exportButton) {
-    exportButton.addEventListener('click', function () {
-      exportStateToFile();
-    });
-  } else {
-    console.error("Export-Button nicht gefunden");
-  }
+    const exportButton = document.getElementById('export-json');
+    if (exportButton) {
+      exportButton.addEventListener('click', function () {
+        exportStateToFile();
+      });
+    } else {
+      console.error("Export-Button nicht gefunden");
+    }
 
-  // Ensure that the tabs are functioning after DOM is loaded
-  const tabs = $all('.tab');
-  tabs.forEach(tab => {
-    tab.addEventListener('click', function () {
-      setActiveTab(tab);
+    // Ensure that the tabs are functioning after DOM is loaded
+    const tabs = $all('.tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', function () {
+        setActiveTab(tab);
+      });
     });
-  });
-});
+  }, 100); // Slight delay to ensure everything is available
+};
 
 // Function to export state to file
 function exportStateToFile() {
