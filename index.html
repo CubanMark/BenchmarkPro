@@ -1,747 +1,98 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BenchMark Pro</title>
-
-  
-
-  <!-- PWA (v3.2.1) -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#111827">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <meta name="benchmark-pro-version" content="v3.2.1">
-
-<!-- Bootstrap (CDN) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-
-  <!-- Font Awesome (Icons) -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
-  <!-- Google Fonts: Poppins -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" />
-
-  <!-- Chart.js (CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/dist/date-fns.min.js"></script>
-  <!-- German locale script removed -->
-
-  <style>
-    /* --- Styles (wie zuvor + neue für Muskel-Badges) --- */
-    :root {
-      --primary-color: #4361ee; --secondary-color: #3f37c9; --success-color: #4cc9f0; --delete-color: #f72585; --light-bg: #e9ecef; --card-bg: #ffffff; --text-color: #212529; --muted-color: #6c757d; --bs-info-rgb: 13, 202, 240; --info-color: rgb(var(--bs-info-rgb)); --info-bg-subtle: rgba(var(--bs-info-rgb), 0.1); --info-border-subtle: rgba(var(--bs-info-rgb), 0.2); --warning-color: #ffc107;
-    }
-    body { background: var(--light-bg); font-family: 'Poppins', sans-serif; scroll-behavior: smooth; color: var(--text-color); }
-    h1, h2, h3 { text-align: center; margin-top: 20px; color: var(--secondary-color); font-weight: 600; letter-spacing: 0.5px; }
-    h1 { font-size: 2.5rem; margin-bottom: 1rem; } h2 { font-size: 1.75rem; margin-bottom: 1.5rem; } h3 { font-size: 1.25rem; margin-bottom: 1rem; text-align: left; color: var(--primary-color); }
-    .card { margin-bottom: 20px; border-radius: 10px; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1); border: none; transition: transform 0.2s ease, box-shadow 0.2s ease; padding: 1.5rem; background-color: var(--card-bg); } .card:hover { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); }
-    .table-wrap { max-height: 450px; overflow-y: auto; border-radius: 6px; border: 1px solid #dee2e6; }
-    .chart-container { max-width: 100%; height: 380px; margin: 0 auto 20px; position: relative; } .chart-loading-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.7); display: flex; justify-content: center; align-items: center; z-index: 10; border-radius: 10px; } .spinner-border { width: 3rem; height: 3rem; color: var(--primary-color); }
-    .btn-primary { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); border: none; transition: all 0.3s ease; } .btn-primary:hover { background: linear-gradient(135deg, var(--secondary-color), #2a2d95); transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-    .delete-btn { background-color: var(--delete-color); color: #fff; border: none; padding: 5px 10px; font-size: 0.8rem; cursor: pointer; border-radius: 4px; transition: all 0.2s ease; } .delete-btn:hover { background-color: #d64161; transform: scale(1.05); }
-    #exerciseLinkBox { margin-top: 10px; padding: 10px; border-radius: 5px; background-color: var(--light-bg); border: 1px dashed var(--primary-color); } .video-preview { display: flex; align-items: center; text-decoration: none; color: var(--primary-color); font-weight: 500; font-size: 0.9rem; } .video-preview i { margin-right: 8px; color: #ff0000; } .video-preview:hover { text-decoration: underline; color: var(--secondary-color); }
-    @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } .highlight-row { animation: slideIn 0.5s ease forwards; }
-    .nav-link { transition: all 0.3s ease; font-weight: 500; color: rgba(255,255,255,0.8); } .nav-link:hover, .nav-link.active { transform: scale(1.05); color: #ffffff; } .nav-tabs .nav-link.active { background-color: var(--primary-color); border-color: var(--primary-color); color: white; } .nav-tabs .nav-link:not(.active) {
-      color: var(--secondary-color); /* Dunklere Farbe für bessere Lesbarkeit */
-      background-color: transparent; /* Sicherstellen, dass kein Hintergrund gesetzt ist */
-      border-color: transparent transparent #dee2e6; /* Standard Bootstrap-Rand unten */
-    }
-    .form-tooltip { cursor: help; margin-left: 5px; color: var(--muted-color); }
-    .progress { height: 12px; margin-bottom: 12px; background-color: var(--light-bg); border-radius: 6px; } .progress-bar { background-color: var(--success-color); font-size: 0.7rem; font-weight: 600; color: #fff; text-shadow: 1px 1px 1px rgba(0,0,0,0.2); } .progress-label { font-size: 0.9rem; font-weight: 500; margin-bottom: 5px; display: flex; justify-content: space-between; }
-    .table-hover tbody tr:hover { background-color: rgba(67, 97, 238, 0.08); }
-    .navbar { position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); background: linear-gradient(135deg, var(--secondary-color), var(--primary-color)); }
-    .card.bg-primary-gradient { border-radius: 15px; background: linear-gradient(135deg, var(--primary-color), var(--success-color)); color: white; transition: transform 0.2s ease, box-shadow 0.2s ease; } .card.bg-primary-gradient:hover { transform: scale(1.03); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15); }
-    .set-card { background-color: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s ease; border: 1px solid #dee2e6; } .set-card:hover { background-color: var(--light-bg); border-color: var(--primary-color); } .set-card label { font-weight: 500; font-size: 0.9rem; margin-bottom: 5px; display: block; } .set-number { display: inline-block; width: 22px; height: 22px; background-color: var(--primary-color); color: white; border-radius: 50%; text-align: center; line-height: 22px; font-size: 0.75rem; margin-right: 8px; font-weight: bold; } .sets-container { max-height: 280px; overflow-y: auto; padding-right: 10px; margin-top: 10px; }
-    .workout-builder-area { border: 1px dashed var(--muted-color); padding: 1.5rem; border-radius: 8px; background-color: #f8f9fa; margin-bottom: 1.5rem; } .current-session-summary { margin-top: 1.5rem; border: 1px solid var(--primary-color); padding: 1rem; border-radius: 8px; background-color: #f0f3ff; } .current-session-summary h3 { margin-top: 0; margin-bottom: 1rem; font-size: 1.1rem; color: var(--secondary-color); } .session-exercise-item { background-color: white; padding: 10px 15px; margin-bottom: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); font-size: 0.9rem; } .session-exercise-item strong { color: var(--primary-color); } .session-exercise-details { color: var(--muted-color); font-size: 0.8rem; } .remove-exercise-btn { background: none; border: none; color: var(--delete-color); cursor: pointer; padding: 0 5px; font-size: 1rem; } .remove-exercise-btn:hover { color: #d64161; }
-    .recommendation-box { background-color: #e6fffa; border: 1px solid #00bfa5; color: #00796b; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; } .recommendation-box h3 { color: #00796b; margin-top: 0; font-size: 1.1rem; } .recommendation-box p { margin-bottom: 0; }
-    .muscle-group-stats .progress-label { font-size: 0.85rem; } .muscle-group-stats .progress { height: 15px; } .muscle-group-stats .progress-bar { font-size: 0.75rem; }
-    .stat-card { background: linear-gradient(135deg, var(--primary-color), var(--success-color)); color: white; padding: 1.5rem; border-radius: 10px; text-align: center; margin-bottom: 20px; transition: transform 0.2s ease; } .stat-card:hover { transform: translateY(-5px); } .stat-card h4 { font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem; color: white; } .stat-card p { font-size: 0.9rem; margin-bottom: 0; opacity: 0.9; color: white; } .stat-card i { font-size: 1.5rem; margin-bottom: 0.5rem; opacity: 0.8; }
-    #lastTrainingHint { font-size: 0.8rem; transition: opacity 0.5s ease-in-out; background-color: var(--info-bg-subtle); color: var(--info-color); border: 1px solid var(--info-border-subtle); padding: 0.5rem 0.75rem; border-radius: 0.25rem; margin-top: 0.5rem; }
-    .history-session-summary { background-color: #f8f9fa; font-weight: bold; color: var(--secondary-color); border-top: 2px solid var(--primary-color); border-bottom: 1px solid #dee2e6; } .history-session-summary td { padding-top: 0.8rem !important; padding-bottom: 0.8rem !important; }
-    .pr-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px dashed var(--light-bg); } .pr-list-item:last-child { border-bottom: none; } .pr-list-item strong { color: var(--primary-color); } .pr-list-item .details { font-size: 0.8rem; color: var(--muted-color); text-align: right; margin-left: 1rem; } .pr-icon { color: var(--warning-color); margin-left: 5px; font-size: 0.8em; vertical-align: middle; }
-    #exerciseSelect option.needs-rest-exercise { color: #dc3545; }
-    #exerciseSelect option.recommended-exercise { color: #198754; font-weight: bold; }
-
-    /* NEU: Style für Muskel-Info-Box */
-    #muscleInfoDisplay {
-        background-color: #f8f9fa; /* Helles Grau, passt zum Formular */
-        border: 1px solid #dee2e6; /* Leichter Rand */
-        border-radius: 0.375rem; /* Standard Bootstrap Radius */
-        padding: 0.75rem;
-        font-size: 0.85rem;
-        line-height: 1.5;
-    }
-    #muscleInfoDisplay h6 { /* Überschriften für Muskelgruppen */
-        font-size: 0.9rem;
-        font-weight: 600;
-        margin-bottom: 0.3rem;
-    }
-    #muscleInfoDisplay .badge { /* Styling für die Badges */
-        font-size: 0.8rem;
-        padding: 0.3em 0.6em;
-    }
-
-    @media (max-width: 768px) { .card { padding: 1rem; } h1 { font-size: 2rem; } h2 { font-size: 1.5rem; } h3 { font-size: 1.1rem; } .workout-builder-area { padding: 1rem; } .pr-list-item { flex-direction: column; align-items: flex-start; } .pr-list-item .details { text-align: left; margin-top: 3px; margin-left: 0; } }
-  </style>
-
-<style id="versionBadgeStyle">
-#appVersionBadge{font-size:.75rem;opacity:.9;vertical-align:middle}
-</style>
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BenchMark Pro (v4)</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon-192-maskable.png" />
+  <link rel="stylesheet" href="css/styles.css" />
 </head>
-
 <body>
-  <!-- NAV BAR -->
-  <nav class="navbar navbar-expand-md navbar-dark"> <div class="container-fluid"> <a class="navbar-brand" href="#"> <i class="fas fa-dumbbell me-2"></i>BenchMark Pro <span class="badge bg-dark ms-2" id="appVersionBadge">v3.2.1</span> </a> <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"> <span class="navbar-toggler-icon"></span> </button> <div class="collapse navbar-collapse" id="navbarContent"> <ul class="navbar-nav ms-auto"> <li class="nav-item"> <a class="nav-link" href="#" id="exportData"><i class="fas fa-download me-1"></i>Daten exportieren</a> </li> <li class="nav-item"> <a class="nav-link" href="#" id="importData"><i class="fas fa-upload me-1"></i>Daten importieren</a> </li> </ul> </div> </div> </nav>
+  <header class="app-header">
+    <div class="app-title">
+      <h1>BenchMark Pro</h1>
+      <span id="versionBadge" class="badge">v4</span>
+    </div>
 
-  <div class="container mt-4">
-    <h1>BenchMark Pro</h1>
+    <nav class="tabs" aria-label="Navigation">
+      <button class="tab is-active" data-tab="training">Training</button>
+      <button class="tab" data-tab="plans">Pläne</button>
+      <button class="tab" data-tab="history">Historie</button>
+      <button class="tab" data-tab="diagnostics">Diagnose</button>
+    </nav>
+  </header>
 
-    <!-- Tabs HTML -->
-    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist"> <li class="nav-item" role="presentation"> <button class="nav-link active" id="add-tab" data-bs-toggle="tab" data-bs-target="#add" type="button" role="tab"> <i class="fas fa-plus-circle me-1"></i>Neues Training </button> </li> <li class="nav-item" role="presentation"> <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab"> <i class="fas fa-history me-1"></i>Historie </button> </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link" id="plans-tab" data-bs-toggle="tab" data-bs-target="#plans" type="button" role="tab">
-            <i class="fas fa-layer-group me-1"></i>Pläne
-          </button>
-        </li> <li class="nav-item" role="presentation"> <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button" role="tab"> <i class="fas fa-chart-line me-1"></i>Statistiken & Analyse </button> </li> </ul>
+  <main class="container">
+    <section class="panel is-active" id="tab-training">
+      <h2>Training</h2>
+      <p class="muted">Phase 2: Defaults (Exercises + Pläne) + Plan-Editor. Noch kein Workout-Tracking.</p>
 
-    <!-- Tab Content HTML -->
-    <div class="tab-content" id="myTabContent">
-        <!-- Tab: Neues Training -->
-        <div class="tab-pane fade show active" id="add" role="tabpanel">
-             <div class="card"> <h2>Neues Training erstellen</h2> <div id="recommendationBox" class="recommendation-box" style="display: none;"> <h3><i class="fas fa-lightbulb me-2"></i>Trainingsempfehlung</h3> <p id="recommendationText">...</p> </div> <form id="workoutSessionForm"> <div class="row mb-3"> <div class="col-md-4"> <label for="dateInput" class="form-label">Datum <i class="fas fa-info-circle form-tooltip" title="Datum des Trainings"></i></label> <input type="date" id="dateInput" class="form-control" required /> <div class="invalid-feedback">Bitte gib ein gültiges Datum ein.</div> </div> <div class="col-md-8"> <label for="sessionNotesInput" class="form-label">Notizen zur Trainingseinheit <i class="fas fa-info-circle form-tooltip" title="Optionale Notizen zur gesamten Einheit (Gefühl, Ort etc.)"></i></label> <input type="text" id="sessionNotesInput" class="form-control" placeholder="z.B. Super Energie heute!" />
- </div> </div>
- <!-- Plan-Auswahl (Mini-Fix v3.2.1) -->
- <div class="row g-3 mt-1">
-   <div class="col-md-6">
-     <label for="planSelect" class="form-label">Plan <i class="fas fa-info-circle form-tooltip" title="Wähle einen Plan (A/B/C), um die Übungsreihenfolge sichtbar zu machen. Klick auf eine Übung übernimmt sie ins Dropdown."></i></label>
-     <select id="planSelect" class="form-select">
-       <option value="">Frei (kein Plan)</option>
-       <option value="A">HomeGym A</option>
-       <option value="B">HomeGym B</option>
-       <option value="C">HomeGym C</option>
-     </select>
-   </div>
-   <div class="col-12">
-     <div id="planQuickPick" class="list-group"></div>
-     <div id="planQuickPickHint" class="text-muted small mt-1" style="display:none;">Tipp: Klick auf eine Übung → wird im Übungsfeld vorausgewählt.</div>
-   </div>
- </div>
- </form> <div class="workout-builder-area"> <h3 class="fs-5 mb-3">Übung zur Einheit hinzufügen</h3> <form id="addExerciseForm" class="row g-3"> <div class="col-md-6"> <label for="exerciseSelect" class="form-label">Übung <i class="fas fa-info-circle form-tooltip" title="Wähle eine Übung (⭐=Empfehlung, ⚠️=Pause empfohlen) oder erstelle eine eigene"></i></label> <select id="exerciseSelect" class="form-select"></select> <div id="lastTrainingHint" style="display: none;"> <i class="fas fa-info-circle me-1"></i> Daten vom letzten Training dieser Übung geladen. </div> <div id="customExerciseGroup" class="mt-2" style="display: none;"> <label for="customExerciseInput" class="form-label">Eigene Übung <i class="fas fa-info-circle form-tooltip" title="Definiere Name, Kategorie und Muskeln für deine Übung"></i></label> <input type="text" id="customExerciseInput" class="form-control mb-2" placeholder="Name, z.B. Klimmzüge" /> <select id="customCategorySelect" class="form-select form-select-sm mb-2"> <option value="">Kategorie wählen...</option> <option value="Oberkörper">Oberkörper</option> <option value="Unterkörper">Unterkörper</option> <option value="Ganzkörper">Ganzkörper</option> <option value="Core">Core</option> <option value="Cardio">Cardio</option> <option value="Andere">Andere</option> </select> <input type="text" id="customPrimaryMusclesInput" class="form-control form-control-sm mb-2" placeholder="Primäre Muskeln (Komma-getrennt), z.B. Rücken, Bizeps"/> <input type="text" id="customSecondaryMusclesInput" class="form-control form-control-sm" placeholder="Sekundäre Muskeln (Komma-getrennt), z.B. Unterarm"/> <div class="invalid-feedback">Bitte alle Felder für die eigene Übung ausfüllen.</div> </div>
-             <!-- Video Link -->
-             <div id="exerciseLinkBox" class="mt-2" style="display: none;"> <a id="exerciseLinkPreview" href="#" target="_blank" class="video-preview"> <i class="fab fa-youtube fa-lg"></i> <span>Übungsvideo ansehen</span> </a> </div>
-             <!-- NEU: Muskel Info Anzeige -->
-             <div id="muscleInfoDisplay" class="mt-2" style="display: none;">
-                 <!-- Inhalt wird per JS gefüllt -->
-             </div>
-             <!-- ENDE Muskel Info Anzeige -->
-             </div> <div class="col-md-6"> <div class="row mb-3"> <div class="col-6"> <label for="setsInput" class="form-label">Sätze <i class="fas fa-info-circle form-tooltip" title="Anzahl der Sätze"></i></label> <div class="input-group"> <input type="number" id="setsInput" class="form-control" min="1" max="20" value="3" required /> <button class="btn btn-outline-secondary" type="button" id="generateSetsBtn"> <i class="fas fa-sync-alt"></i> </button> </div> <div class="invalid-feedback">1-20 Sätze.</div> </div> <div class="col-6"> <label for="weightInput" class="form-label">Gewicht (kg) <i class="fas fa-info-circle form-tooltip" title="Gewicht pro Satz (falls variiert, Durchschnitt oder wichtigsten Wert eintragen)"></i></label> <input type="number" id="weightInput" class="form-control" step="0.5" min="0" placeholder="z.B. 50" required/> <div class="invalid-feedback">Gewicht eingeben (0 erlaubt).</div> </div> </div> <label class="form-label">Wiederholungen pro Satz <i class="fas fa-info-circle form-tooltip" title="Wiederholungen für jeden Satz"></i></label> <div class="sets-container" id="setsContainer"> <!-- Dynamic set fields go here --> </div> </div> <div class="col-12 text-center mt-3"> <button type="submit" id="addExerciseBtn" class="btn btn-success"> <i class="fas fa-plus me-2"></i>Übung zur Session hinzufügen </button> </div> </form> </div> <div id="currentSessionSummary" style="display: none;"> <h3 class="border-bottom pb-2 mb-3">Aktuelle Trainingseinheit</h3> <div id="currentSessionList"> <!-- Added exercises will appear here --> </div> <div class="text-center mt-4"> <button type="button" id="saveSessionBtn" class="btn btn-primary btn-lg"> <i class="fas fa-save me-2"></i>Gesamte Trainingseinheit speichern </button> </div> </div> </div>
-        </div>
-
-        <!-- Tab: Historie -->
-        <div class="tab-pane fade" id="history" role="tabpanel">
-            <div class="card"> <h2>Trainingshistorie</h2> <div class="mb-3"> <input type="text" id="historySearch" class="form-control" placeholder="Historie durchsuchen..."> </div> <div class="table-wrap"> <table class="table table-striped table-hover align-middle" id="historyTable"> <thead class="table-dark sticky-top"> <tr> <th scope="col">Datum</th> <th scope="col">Übung</th> <th scope="col">Kategorie</th> <th scope="col">Sätze/Wdh.</th> <th scope="col">Gewicht <i class="fas fa-info-circle form-tooltip" title="Ein Stern ★ markiert den persönlichen Rekord für das höchste Gewicht bei dieser Übung."></i></th> <th scope="col">Volumen <i class="fas fa-info-circle form-tooltip" title="Eine Trophäe 🏆 markiert den persönlichen Rekord für das höchste Volumen bei dieser Übung."></i></th> <th scope="col">Aktion</th> </tr> </thead> <tbody id="historyTableBody"></tbody> </table> </div> <div id="emptyHistoryMessage" class="text-center p-4 d-none"> <i class="fas fa-running fa-2x mb-3 text-muted"></i> <p class="mb-0">Noch keine Trainingsdaten vorhanden.</p> </div> </div>
-        </div>
-
-        <!-- Tab: Statistiken & Analyse -->
-        <div class="tab-pane fade" id="stats" role="tabpanel"> <div class="row"> <div class="col-md-4 mb-4"> <div class="stat-card"> <i class="fas fa-calendar-check"></i> <h4 id="totalWorkouts">0</h4> <p>Trainingstage</p> </div> </div> <div class="col-md-4 mb-4"> <div class="stat-card" style="background: linear-gradient(135deg, #f72585, #b5179e);"> <i class="fas fa-bullseye"></i> <h4 id="totalExercises">0</h4> <p>Übungen geloggt</p> </div> </div> <div class="col-md-4 mb-4"> <div class="stat-card" style="background: linear-gradient(135deg, var(--success-color), #0a9396);"> <i class="fas fa-weight-hanging"></i> <h4 id="avgVolume">0 kg</h4> <p>Ø Volumen / Session (30T)</p> </div> </div> </div> <div class="card mb-4"> <h2>Muskelgruppen-Belastung (Punkte)</h2> <p class="text-muted text-center mb-4">Kumulierte Belastung (Primär: 1 Pkt./Satz, Sekundär: 0.5 Pkt./Satz).</p> <div class="row muscle-group-stats"> <div class="col-md-4 mb-3"> <h3 class="fs-6 text-center">Heute</h3> <div id="musclePointsToday"></div> </div> <div class="col-md-4 mb-3"> <h3 class="fs-6 text-center">Letzte 7 Tage</h3> <div id="musclePoints7d"></div> </div> <div class="col-md-4 mb-3"> <h3 class="fs-6 text-center">Letzte 30 Tage</h3> <div id="musclePoints30d"></div> </div> </div> </div> <div class="card mb-4"> <h2><i class="fas fa-trophy me-2 text-warning"></i>Persönliche Rekorde</h2> <div id="personalRecordsList"> <p class="text-muted text-center">Noch keine Rekorde vorhanden.</p> </div> </div>
-        <div class="card mb-4"> <h2 class="mb-4">Leistungstrend pro Übung</h2> <div class="row g-3 align-items-end"> <div class="col-md-5"> <label for="exerciseSelectStats" class="form-label">Übung:</label> <select id="exerciseSelectStats" class="form-select"></select> </div> <div class="col-md-4"> <label for="timeRangeSelect" class="form-label">Zeitraum:</label> <select id="timeRangeSelect" class="form-select"> <option value="30">Letzte 30 Tage</option> <option value="90">Letzte 3 Monate</option> <option value="180">Letzte 6 Monate</option> <option value="365">Letztes Jahr</option> <option value="all">Alle Zeiten</option> </select> </div> <div class="col-md-3"> <label for="chartTypeSelect" class="form-label">Anzeigen:</label> <select id="chartTypeSelect" class="form-select"> <option value="volume">Volumen</option> <option value="weight">Max. Gewicht</option> <option value="reps">Max. Wiederholungen</option> <option value="oneRepMax">Est. 1RM (Epley)</option> </select> </div> </div> <div class="chart-container mt-4"> <div class="chart-loading-overlay d-none"> <div class="spinner-border" role="status"> <span class="visually-hidden">Loading...</span> </div> </div> <canvas id="performanceChart"></canvas> <p id="chartNoDataMessage" class="text-center text-muted mt-3 d-none"></p> </div> </div>
-        <div class="card mb-4"> <h2>Häufigste Übungen</h2> <div id="topExercisesContainer" class="mt-3"></div> </div> </div>
-
-    
-        <!-- Tab: Pläne -->
-        <div class="tab-pane fade" id="plans" role="tabpanel">
-          <div class="card">
-            <h2>Workout-Pläne</h2>
-            <p class="text-muted">Pläne sind Templates: Übungsreihenfolge & Vorschlag. Du wählst sie im Tab „Neues Training“ aus.</p>
-            <div class="d-flex flex-wrap gap-2 mb-3">
-              <button type="button" class="btn btn-primary" id="addPlanBtn"><i class="fas fa-plus me-1"></i>Neuer Plan</button>
-              <button type="button" class="btn btn-outline-secondary" id="exportV2Btn"><i class="fas fa-download me-1"></i>Export (v2)</button>
-              <label class="btn btn-outline-secondary mb-0">
-                <i class="fas fa-upload me-1"></i>Import (Replace)
-                <input type="file" id="importV2Input" accept="application/json" hidden>
-              </label>
-            </div>
-            <div id="plansEmpty" class="text-muted">Noch keine Pläne. (Default: Home A/B/C sind automatisch da.)</div>
-            <div id="plansList" class="list-group"></div>
+      <div class="card">
+        <div class="row space">
+          <div>
+            <div class="label">State</div>
+            <div id="stateSummary" class="mono muted">…</div>
+          </div>
+          <div class="row">
+            <button id="btnSaveState" class="btn">Save State</button>
+            <button id="btnResetDev" class="btn btn-ghost" title="Nur für Entwicklung">Reset (dev)</button>
           </div>
         </div>
+      </div>
+    </section>
 
-</div> <!-- Ende Tab Content -->
-  </div> <!-- Ende Container -->
+    <section class="panel" id="tab-plans">
+      <div class="row space">
+        <h2>Pläne</h2>
+        <button id="btnAddPlan" class="btn">+ Neuer Plan</button>
+      </div>
 
-  <!-- Bootstrap Bundle -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-  <!-- App Logic -->
-  <script>
-    // --- Globale Variablen & Konstanten ---
-    const LOCAL_STORAGE_KEY = 'benchmark_pro_trainings';
-    const FREETEXT_VALUE = "FREETEXT";
-    const PLAN_STORAGE_KEY = 'benchmark_pro_plans_v1';
-    const DEFAULT_PLANS = {
-      A: { name: "HomeGym A", exercises: ["Box Squat","Bench Press","Barbell Row","Lateral Raise","Glute Bridge (bilateral)","McGill Big 3"] },
-      B: { name: "HomeGym B", exercises: ["Romanian Dead Lift","Incline Bench Press","Pull-ups (strict)","Pull-ups (Toe-assisted)","W-Raises"] },
-      C: { name: "HomeGym C", exercises: ["Box Squat","Bench Press (Close-Grip)","Inverted Row","Glute Bridge bilateral","W-Raises","McGill Big 3"] }
-    };
-
-    const allExercisesData = [
-        { name: "Kniebeuge", link: "https://youtu.be/Noj93QZFV_0?si=s7UbU8IqBkjL1KOS&t=22", category: "Unterkörper", primaryMuscles: ["Quadrizeps", "Gluteus"], secondaryMuscles: ["Adduktoren", "Beinbeuger", "Rumpf"] },
-        { name: "Bankdrücken", link: "https://www.youtube.com/results?search_query=Bankdrücken+korrekte+Ausführung", category: "Oberkörper", primaryMuscles: ["Brust"], secondaryMuscles: ["Trizeps", "Schulter (vorne)"] },
-        { name: "Einarmiges KH-Rudern", link: "https://www.youtube.com/results?search_query=Einarmiges+Kurzhantel-Rudern", category: "Oberkörper", primaryMuscles: ["Rücken (Latissimus)", "Bizeps"], secondaryMuscles: ["Schulter (hinten)", "Unterarm"] },
-        { name: "Hüftheben/Glute Bridge", link: "https://www.youtube.com/results?search_query=Hüftheben+Glute+Bridge", category: "Unterkörper", primaryMuscles: ["Gluteus"], secondaryMuscles: ["Beinbeuger", "Rücken (unten)"] },
-        { name: "Plank", link: "https://www.youtube.com/results?search_query=Plank+Ausführung", category: "Core", primaryMuscles: ["Rumpf"], secondaryMuscles: ["Schulter", "Rücken (oben)"] },
-        { name: "Bizepscurls", link: "https://www.youtube.com/results?search_query=Bizepscurls+korrekte+Ausführung", category: "Oberkörper", primaryMuscles: ["Bizeps"], secondaryMuscles: ["Unterarm"] },
-        { name: "Kreuzheben", link: "https://www.youtube.com/results?search_query=Kreuzheben+korrekte+Ausführung", category: "Ganzkörper", primaryMuscles: ["Rücken (unten)", "Gluteus", "Beinbeuger"], secondaryMuscles: ["Rücken (oben)", "Trapez", "Quadrizeps", "Unterarm", "Rumpf"] }, // Angepasst
-        { name: "Schulterdrücken", link: "https://www.youtube.com/results?search_query=Schulterdrücken+Overhead+Press", category: "Oberkörper", primaryMuscles: ["Schulter"], secondaryMuscles: ["Trizeps", "Trapez"] },
-        { name: "Ausfallschritte", link: "https://www.youtube.com/results?search_query=Ausfallschritte+korrekte+Ausführung", category: "Unterkörper", primaryMuscles: ["Quadrizeps", "Gluteus"], secondaryMuscles: ["Beinbeuger", "Adduktoren", "Rumpf"] },
-        { name: "Invertiertes Rudern", link: "https://www.youtube.com/results?search_query=Invertiertes+Rudern", category: "Oberkörper", primaryMuscles: ["Rücken (oben)", "Bizeps"], secondaryMuscles: ["Schulter (hinten)", "Unterarm"] },
-        { name: "Dead Bug", link: "https://www.youtube.com/results?search_query=dead+bug+exercise+korrekt", category: "Core", primaryMuscles: ["Rumpf"], secondaryMuscles: ["Hüftbeuger (kontrolliert)"] }, // Angepasst
-        { name: "Trizepsstrecken", link: "https://www.youtube.com/results?search_query=Trizepsstrecken+korrekte+Ausführung", category: "Oberkörper", primaryMuscles: ["Trizeps"], secondaryMuscles: [] }, // Angepasst
-        // --- NEUE ÜBUNGEN ---
-        { name: "Klimmzüge", link: "https://www.youtube.com/results?search_query=Klimmzüge+korrekte+Ausführung", category: "Oberkörper", primaryMuscles: ["Rücken (Latissimus)", "Bizeps"], secondaryMuscles: ["Rücken (oben)", "Schulter (hinten)", "Unterarm", "Rumpf"] },
-        { name: "Face Pulls", link: "https://www.youtube.com/results?search_query=Face+Pulls+korrekte+Ausführung", category: "Oberkörper", primaryMuscles: ["Schulter (hinten)", "Rücken (oben)"], secondaryMuscles: ["Außenrotatoren"] },
-        { name: "Schrägbankdrücken", link: "https://www.youtube.com/results?search_query=Schrägbankdrücken+korrekte+Ausführung", category: "Oberkörper", primaryMuscles: ["Brust (oben)", "Schulter (vorne)"], secondaryMuscles: ["Trizeps"] },
-        { name: "Seitheben", link: "https://www.youtube.com/results?search_query=Seitheben+korrekte+Ausführung", category: "Oberkörper", primaryMuscles: ["Schulter (seitlich)"], secondaryMuscles: ["Trapez"] },
-        { name: "Wadenheben", link: "https://www.youtube.com/results?search_query=Wadenheben+korrekte+Ausführung", category: "Unterkörper", primaryMuscles: ["Waden"], secondaryMuscles: [] },
-        { name: "Bulgarian Split Squat", link: "https://www.youtube.com/results?search_query=Bulgarian+Split+Squat+korrekte+Ausführung", category: "Unterkörper", primaryMuscles: ["Quadrizeps", "Gluteus"], secondaryMuscles: ["Beinbeuger", "Adduktoren", "Rumpf"] }
-        // --- ENDE NEUE ÜBUNGEN ---
-    ];
-    let currentWorkoutSession = { date: '', exercises: [], notes: '' };
-    let performanceChartInstance = null;
-    let dateInput, exerciseSelect, weightInput, setsInput, generateSetsBtn, setsContainer;
-    let planSelect, planQuickPick, planQuickPickHint;
-
-    let customExerciseGroup, customExerciseInput, exerciseLinkBox, exerciseLinkPreview;
-    let addExerciseBtn, saveSessionBtn, currentSessionSummary, currentSessionList;
-    let historyTableBody, emptyHistoryMessage;
-    let exerciseSelectStats, timeRangeSelect, performanceChartCanvas;
-    let totalWorkoutsStat, totalExercisesStat, topExercisesContainer;
-    let musclePointsContainerToday, musclePointsContainer7d, musclePointsContainer30d;
-    let recommendationBox, lastTrainingHintElement, muscleInfoDisplay; // NEU: muscleInfoDisplay
-    let avgVolumeStat, personalRecordsContainer;
-    let recommendedMusclesForFocus = [];
-    let musclesNeedingRest = [];
-
-    document.addEventListener('DOMContentLoaded', function() {
-      initApp();
-    });
-
-    /** Initializes the application */
-    function initApp() {
-        console.log("Initializing App...");
-        cacheDOMElements();
-        try {
-            migrateOldDataFormat();
-            setInitialDate();
-            initPlans();
-            renderPlanQuickPick();
-
-            // Wichtig: Erst Statistiken/Empfehlungen berechnen, DANN Dropdown füllen
-            updateStatisticsAndRecommendations(); // Sets global recommendedMusclesForFocus & musclesNeedingRest
-            populateExerciseDropdown(); // Uses global arrays
-            setupEventListeners();
-            setupPlanTabListeners();
-            renderPlansTab();
-            loadAndDisplayHistory();
-            generateSetFields();
-            updateSessionSummaryUI();
-            console.log("App Initialization Complete.");
-            const errorDiv = document.querySelector('.alert.alert-danger');
-            if (errorDiv) errorDiv.remove();
-        } catch (error) {
-             console.error("Critical error during app initialization:", error);
-             const body = document.querySelector('body');
-             if (body) {
-                 const errorDiv = document.createElement('div');
-                 errorDiv.className = 'alert alert-danger m-3';
-                 errorDiv.textContent = `Ein kritischer Fehler ist beim Initialisieren der App aufgetreten: ${error.message}. Bitte prüfe die Konsole (F12) und erwäge einen Datenexport/-backup oder Import.`;
-                 if (!document.querySelector('.alert.alert-danger')) { body.insertBefore(errorDiv, body.firstChild); }
-             }
-        }
-    }
-
-    /** Caches frequently used DOM elements. */
-    function cacheDOMElements() { dateInput = document.getElementById('dateInput'); exerciseSelect = document.getElementById('exerciseSelect'); weightInput = document.getElementById('weightInput'); setsInput = document.getElementById('setsInput'); generateSetsBtn = document.getElementById('generateSetsBtn'); setsContainer = document.getElementById('setsContainer'); customExerciseGroup = document.getElementById('customExerciseGroup'); customExerciseInput = document.getElementById('customExerciseInput'); exerciseLinkBox = document.getElementById('exerciseLinkBox'); exerciseLinkPreview = document.getElementById('exerciseLinkPreview'); addExerciseBtn = document.getElementById('addExerciseBtn'); saveSessionBtn = document.getElementById('saveSessionBtn'); currentSessionSummary = document.getElementById('currentSessionSummary'); currentSessionList = document.getElementById('currentSessionList'); historyTableBody = document.getElementById('historyTableBody'); emptyHistoryMessage = document.getElementById('emptyHistoryMessage'); exerciseSelectStats = document.getElementById('exerciseSelectStats'); timeRangeSelect = document.getElementById('timeRangeSelect'); performanceChartCanvas = document.getElementById('performanceChart'); totalWorkoutsStat = document.getElementById('totalWorkouts'); totalExercisesStat = document.getElementById('totalExercises'); topExercisesContainer = document.getElementById('topExercisesContainer'); musclePointsContainerToday = document.getElementById('musclePointsToday'); musclePointsContainer7d = document.getElementById('musclePoints7d'); musclePointsContainer30d = document.getElementById('musclePoints30d'); recommendationBox = document.getElementById('recommendationBox'); lastTrainingHintElement = document.getElementById('lastTrainingHint'); avgVolumeStat = document.getElementById('avgVolume'); personalRecordsContainer = document.getElementById('personalRecordsList'); planSelect = document.getElementById('planSelect'); planQuickPick = document.getElementById('planQuickPick'); planQuickPickHint = document.getElementById('planQuickPickHint'); muscleInfoDisplay = document.getElementById('muscleInfoDisplay'); } // NEU hinzugefügt
-
-    /** Checks stored data for old format entries and adds missing fields. */
-     function migrateOldDataFormat() {
-        console.log("Checking for data migration...");
-        let allData = [];
-        try {
-             allData = loadDataFromLocalStorage();
-             if (!Array.isArray(allData)) { console.error("Loaded data is not an array, migration aborted."); allData = []; }
-        } catch (e) { console.error("Failed to load or parse data for migration:", e); return; }
-        let dataWasModified = false;
-        const migratedData = allData.map(item => {
-            try {
-                if (!item || !item.id || !item.date || typeof item.date !== 'string') { return item; }
-                let modifiedItem = { ...item }; let itemModified = false;
-                if (modifiedItem.exercise && typeof modifiedItem.exercise === 'string' && !modifiedItem.exercises && !modifiedItem.category) {
-                    const exerciseName = modifiedItem.exercise; const masterData = allExercisesData.find(ex => ex.name === exerciseName);
-                    if (masterData) { modifiedItem.category = masterData.category; modifiedItem.primaryMuscles = [...masterData.primaryMuscles]; modifiedItem.secondaryMuscles = [...masterData.secondaryMuscles]; itemModified = true; }
-                    else { modifiedItem.category = 'Unbekannt'; modifiedItem.primaryMuscles = []; modifiedItem.secondaryMuscles = []; itemModified = true; }
-                    if (!modifiedItem.repsPerSet || !Array.isArray(modifiedItem.repsPerSet)) {
-                        if (modifiedItem.reps && modifiedItem.sets) { const numReps = parseInt(modifiedItem.reps); const numSets = parseInt(modifiedItem.sets); if (!isNaN(numReps) && numReps >= 0 && !isNaN(numSets) && numSets > 0) { modifiedItem.repsPerSet = Array(numSets).fill(numReps); itemModified = true; } else { modifiedItem.repsPerSet = []; } } else { modifiedItem.repsPerSet = []; }
-                    } else { modifiedItem.repsPerSet = modifiedItem.repsPerSet.map(r => parseInt(r) || 0); }
-                    if (modifiedItem.repsPerSet.length > 0) { modifiedItem.sets = modifiedItem.repsPerSet.length; } else { modifiedItem.sets = parseInt(modifiedItem.sets) || 0; }
-                    if (modifiedItem.volume === undefined || modifiedItem.volume === null || isNaN(parseFloat(modifiedItem.volume))) { modifiedItem.volume = calculateVolume(parseFloat(modifiedItem.weight) || 0, modifiedItem.repsPerSet); itemModified = true; } else { modifiedItem.volume = parseFloat(modifiedItem.volume); }
-                     modifiedItem.weight = parseFloat(modifiedItem.weight) || 0;
-                } else if (modifiedItem.exercises && Array.isArray(modifiedItem.exercises)) {
-                    modifiedItem.exercises = modifiedItem.exercises.map(exercise => {
-                         if (!exercise) return null; let exerciseModified = false;
-                         if (exercise.exerciseName && !exercise.category) { const masterData = allExercisesData.find(ex => ex.name === exercise.exerciseName); if (masterData) { exercise.category = masterData.category; exercise.primaryMuscles = [...masterData.primaryMuscles]; exercise.secondaryMuscles = [...masterData.secondaryMuscles]; exerciseModified = true; } else { exercise.category = 'Unbekannt'; exercise.primaryMuscles = []; exercise.secondaryMuscles = []; exerciseModified = true; } }
-                         if (exercise.volume === undefined || exercise.volume === null || isNaN(parseFloat(exercise.volume))) { exercise.volume = calculateVolume(parseFloat(exercise.weight) || 0, exercise.repsPerSet || []); exerciseModified = true; } else { exercise.volume = parseFloat(exercise.volume); }
-                          exercise.weight = parseFloat(exercise.weight) || 0; exercise.repsPerSet = Array.isArray(exercise.repsPerSet) ? exercise.repsPerSet.map(r => parseInt(r) || 0) : []; exercise.sets = exercise.repsPerSet.length;
-                         if (exerciseModified) itemModified = true; return exercise;
-                    }).filter(ex => ex !== null);
-                }
-                if (itemModified) dataWasModified = true; return modifiedItem;
-            } catch (error) { console.error("Error migrating single item, returning original:", item, error); return item; }
-        }).filter(item => item !== null);
-        if (dataWasModified && allData.length >= 0) { console.log("Data migration potentially finished, saving updated data."); saveDataToLocalStorage(migratedData); }
-        else if (!dataWasModified) { console.log("No data migration needed."); }
-     }
-
-    /** Sets the date input to today's date. */
-    function setInitialDate() { const today = new Date().toISOString().split('T')[0]; if (dateInput) dateInput.value = today; }
-
-    // --- Plan Handling (Mini-Fix v3.2.1) ---
-    function loadPlans() {
-        const raw = localStorage.getItem(PLAN_STORAGE_KEY);
-        if (!raw) return null;
-        try { return JSON.parse(raw); } catch { return null; }
-    }
-    function savePlans(plansObj) {
-        localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(plansObj));
-    }
-    function initPlans() {
-        const existing = loadPlans();
-        if (existing && typeof existing === 'object' && (existing.A || existing.B || existing.C)) return;
-        // Default-Pläne anlegen (nur wenn sie fehlen)
-        savePlans(DEFAULT_PLANS);
-    }
-    function getPlanById(planId) {
-        const plans = loadPlans() || DEFAULT_PLANS;
-        return plans?.[planId] || null;
-    }
-
-    function renderPlanQuickPick() {
-        if (!planQuickPick || !planSelect) return;
-
-        const planId = (planSelect.value || '').trim();
-        planQuickPick.innerHTML = '';
-        if (planQuickPickHint) planQuickPickHint.style.display = planId ? 'block' : 'none';
-
-        if (!planId) return;
-
-        const plan = getPlanById(planId);
-        if (!plan || !Array.isArray(plan.exercises)) return;
-
-        // Render: Buttons für jedes Exercise (klickbar -> setzt Dropdown)
-        plan.exercises.forEach((exName, idx) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-            const left = document.createElement('span'); left.textContent = `${idx+1}. ${exName}`;
-            const right = document.createElement('span'); right.className = 'badge bg-secondary'; right.textContent = 'aus Plan';
-            btn.appendChild(left); btn.appendChild(right);
-            btn.addEventListener('click', () => {
-                if (!exerciseSelect) return;
-                const optionExists = [...exerciseSelect.options].some(o => o.value === exName);
-                if (!optionExists) {
-                    // Minimal: Option dynamisch ergänzen, damit Quick-Pick immer funktioniert
-                    const opt = document.createElement('option');
-                    opt.value = exName;
-                    opt.textContent = exName;
-                    exerciseSelect.appendChild(opt);
-                }
-                exerciseSelect.value = exName;
-                exerciseSelect.dispatchEvent(new Event('change'));
-                // Fokus aufs Gewicht, damit du direkt tippen kannst
-                weightInput?.focus();
-            });
-            planQuickPick.appendChild(btn);
-        });
-    }
-
-
-    /** Populates the exercise dropdown with all available exercises, adding recommendation/warning icons. */
-    function populateExerciseDropdown() {
-        if (!exerciseSelect) return;
-        exerciseSelect.innerHTML = '<option value="" selected disabled>Übung wählen...</option>';
-        const sortedExercises = [...allExercisesData].sort((a, b) => a.name.localeCompare(b.name));
-        sortedExercises.forEach(exercise => {
-            const option = document.createElement('option');
-            option.value = exercise.name;
-            let prefix = ''; let cssClass = '';
-            const primaryMuscles = exercise.primaryMuscles || [];
-            const needsRest = primaryMuscles.some(muscle => musclesNeedingRest.includes(muscle));
-            if (needsRest) { prefix = '⚠️ '; cssClass = 'needs-rest-exercise'; }
-            else { const isRecommended = primaryMuscles.some(muscle => recommendedMusclesForFocus.includes(muscle)); if (isRecommended) { prefix = '⭐ '; cssClass = 'recommended-exercise'; } }
-            option.textContent = prefix + exercise.name;
-            if (cssClass) { option.classList.add(cssClass); }
-            exerciseSelect.appendChild(option);
-        });
-        const customOption = document.createElement('option'); customOption.value = FREETEXT_VALUE; customOption.textContent = "Eigene Übung hinzufügen..."; exerciseSelect.appendChild(customOption);
-    }
-
-    /** Sets up all necessary event listeners for the application. */
-    function setupEventListeners() { const addExerciseForm = document.getElementById('addExerciseForm'); if (addExerciseForm) addExerciseForm.addEventListener('submit', handleAddExerciseToSession); if (saveSessionBtn) saveSessionBtn.addEventListener('click', handleSaveWorkoutSession); if (exerciseSelect) exerciseSelect.addEventListener('change', handleExerciseSelectionChange); if (planSelect) planSelect.addEventListener('change', renderPlanQuickPick); if (generateSetsBtn) generateSetsBtn.addEventListener('click', generateSetFields); if (setsInput) setsInput.addEventListener('change', generateSetFields); const historySearchInput = document.getElementById('historySearch'); if(historySearchInput) historySearchInput.addEventListener('input', filterHistoryTable); if (exerciseSelectStats) exerciseSelectStats.addEventListener('change', updatePerformanceChart); if (timeRangeSelect) timeRangeSelect.addEventListener('change', updatePerformanceChart); const chartTypeSelect = document.getElementById('chartTypeSelect'); if (chartTypeSelect) chartTypeSelect.addEventListener('change', updatePerformanceChart); const exportBtn = document.getElementById('exportData'); const importBtn = document.getElementById('importData'); if (exportBtn) exportBtn.addEventListener('click', exportData); if (importBtn) importBtn.addEventListener('click', importData); if (currentSessionList) { currentSessionList.addEventListener('click', function(e) { if (e.target && (e.target.classList.contains('remove-exercise-btn') || e.target.closest('.remove-exercise-btn'))) { const button = e.target.closest('.remove-exercise-btn'); const indexToRemove = parseInt(button.getAttribute('data-index'), 10); if (!isNaN(indexToRemove)) removeExerciseFromSession(indexToRemove); } }); } if (historyTableBody) { historyTableBody.addEventListener('click', function(e) { if (e.target && (e.target.classList.contains('delete-btn') || e.target.closest('.delete-btn'))) { const button = e.target.closest('.delete-btn'); const sessionId = parseInt(button.getAttribute('data-session-id'), 10); const exerciseIndex = parseInt(button.getAttribute('data-exercise-index'), 10); if (!isNaN(sessionId)) handleDeleteTraining(sessionId, exerciseIndex); } }); } }
-
-    /** Handles the change event of the main exercise dropdown. */
-    function handleExerciseSelectionChange() {
-        const selectedValue = exerciseSelect.value;
-        if (lastTrainingHintElement) { lastTrainingHintElement.style.opacity = '0'; setTimeout(() => { if(lastTrainingHintElement.style.opacity === '0') lastTrainingHintElement.style.display = 'none'; }, 500); }
-
-        // NEU: Muskel-Info immer ausblenden/leeren bei Änderung
-        if (muscleInfoDisplay) {
-             muscleInfoDisplay.style.display = 'none';
-             muscleInfoDisplay.innerHTML = '';
-        }
-
-        if (selectedValue === FREETEXT_VALUE) {
-            customExerciseGroup.style.display = 'block';
-            exerciseLinkBox.style.display = 'none';
-            clearCustomExerciseFieldsValidity();
-            resetAddExerciseFormInputs(false);
-        } else if (selectedValue) {
-            customExerciseGroup.style.display = 'none';
-            updateExerciseLink(selectedValue);
-            const lastData = findLastTrainingDataForExercise(selectedValue);
-            fillFormWithLastTrainingData(lastData);
-            // NEU: Muskel-Info anzeigen
-            const exerciseData = allExercisesData.find(ex => ex.name === selectedValue);
-            displayMuscleGroupInfo(exerciseData); // Zeigt Infos an, wenn Daten vorhanden
-        } else {
-            customExerciseGroup.style.display = 'none';
-            exerciseLinkBox.style.display = 'none';
-            resetAddExerciseFormInputs(false);
-        }
-    }
-
-    /** Clears validation styles from custom exercise input fields. */
-    function clearCustomExerciseFieldsValidity() { if(customExerciseInput) customExerciseInput.classList.remove('is-invalid'); const customCategorySelect = document.getElementById('customCategorySelect'); const customPrimaryMusclesInput = document.getElementById('customPrimaryMusclesInput'); const customSecondaryMusclesInput = document.getElementById('customSecondaryMusclesInput'); if(customCategorySelect) customCategorySelect.classList.remove('is-invalid'); if(customPrimaryMusclesInput) customPrimaryMusclesInput.classList.remove('is-invalid'); if(customSecondaryMusclesInput) customSecondaryMusclesInput.classList.remove('is-invalid'); }
-
-    /** Updates the exercise video link display. */
-    function updateExerciseLink(exerciseName) { const exerciseData = allExercisesData.find(ex => ex.name === exerciseName); if (exerciseData && exerciseData.link) { exerciseLinkPreview.href = exerciseData.link; exerciseLinkPreview.querySelector('span').textContent = `Video: ${exerciseData.name}`; exerciseLinkBox.style.display = 'block'; } else { exerciseLinkBox.style.display = 'none'; } }
-
-    /** NEU: Displays muscle group info below the exercise selection. */
-    function displayMuscleGroupInfo(exerciseData) {
-        if (!muscleInfoDisplay || !exerciseData) {
-            if(muscleInfoDisplay) muscleInfoDisplay.style.display = 'none'; // Sicherstellen, dass es versteckt ist
-            return;
-        }
-
-        let htmlContent = '';
-        const primary = exerciseData.primaryMuscles || [];
-        const secondary = exerciseData.secondaryMuscles || [];
-
-        if (primary.length > 0) {
-            htmlContent += '<h6 class="mb-1 text-primary"><i class="fas fa-bullseye me-1"></i>Primär:</h6>';
-            htmlContent += '<div class="mb-2">';
-            primary.forEach(muscle => {
-                htmlContent += `<span class="badge text-bg-primary me-1 mb-1">${muscle}</span>`; // Bootstrap 5.3 text-bg-*
-            });
-            htmlContent += '</div>';
-        }
-
-        if (secondary.length > 0) {
-             htmlContent += '<h6 class="mb-1 text-secondary"><i class="fas fa-hands-helping me-1"></i>Sekundär:</h6>'; // Anderes Icon
-            htmlContent += '<div>';
-            secondary.forEach(muscle => {
-                htmlContent += `<span class="badge text-bg-secondary me-1 mb-1">${muscle}</span>`; // Bootstrap 5.3 text-bg-*
-            });
-            htmlContent += '</div>';
-        }
-
-        if (htmlContent) {
-             muscleInfoDisplay.innerHTML = htmlContent;
-             muscleInfoDisplay.style.display = 'block';
-        } else {
-            muscleInfoDisplay.style.display = 'none'; // Verstecken, wenn keine Muskeln definiert sind
-        }
-    }
-
-
-    /** Generates input fields for repetitions based on the number of sets. */
-    function generateSetFields() { if (!setsInput || !setsContainer) return; const numSets = parseInt(setsInput.value) || 0; if (numSets < 1 || numSets > 20) { setsInput.classList.add('is-invalid'); setsContainer.innerHTML = '<p class="text-danger">Bitte eine Satzzahl zwischen 1 und 20 wählen.</p>'; return; } else { setsInput.classList.remove('is-invalid'); } setsContainer.innerHTML = ''; for (let i = 1; i <= numSets; i++) { const setCard = document.createElement('div'); setCard.className = 'set-card'; setCard.innerHTML = ` <label for="repsInputSet${i}"> <span class="set-number">${i}</span> Wiederholungen Satz ${i} </label> <input type="number" id="repsInputSet${i}" class="form-control reps-input" min="0" placeholder="z.B. 10" required /> <div class="invalid-feedback">Wdh. eingeben (0 erlaubt).</div> `; setsContainer.appendChild(setCard); } }
-
-    /** Collects the repetition counts from the dynamically generated input fields. */
-    function collectRepsPerSet() { const repsInputs = setsContainer.querySelectorAll('.reps-input'); const repsPerSet = []; let isValid = true; if (repsInputs.length === 0) { const numSets = parseInt(setsInput.value) || 0; if (numSets > 0) { throw new Error('Keine Satz-Felder gefunden. Bitte Satzanzahl prüfen und ggf. aktualisieren.'); } else { return []; } } repsInputs.forEach(input => { const reps = parseInt(input.value); if (input.value.trim() === '' || isNaN(reps) || reps < 0) { input.classList.add('is-invalid'); isValid = false; } else { repsPerSet.push(reps); input.classList.remove('is-invalid'); } }); if (!isValid) { throw new Error('Ungültige Wiederholungszahl in einem oder mehreren Sätzen.'); } return repsPerSet; }
-
-    /** Validates the custom exercise input fields. */
-    function validateAndGetCustomExerciseData() { const nameInput = document.getElementById('customExerciseInput'); const categorySelect = document.getElementById('customCategorySelect'); const primaryMusclesInput = document.getElementById('customPrimaryMusclesInput'); const secondaryMusclesInput = document.getElementById('customSecondaryMusclesInput'); let isValid = true; const name = nameInput.value.trim(); const category = categorySelect.value; const primaryMusclesRaw = primaryMusclesInput.value.trim(); const secondaryMusclesRaw = secondaryMusclesInput.value.trim(); if (!name) { nameInput.classList.add('is-invalid'); isValid = false; } else { nameInput.classList.remove('is-invalid'); } if (!category) { categorySelect.classList.add('is-invalid'); isValid = false; } else { categorySelect.classList.remove('is-invalid'); } if (!primaryMusclesRaw) { primaryMusclesInput.classList.add('is-invalid'); isValid = false; } else { primaryMusclesInput.classList.remove('is-invalid'); } if (!isValid) return null; const parseMuscles = (rawString) => rawString ? rawString.split(',').map(m => m.trim()).filter(m => m) : []; return { name: name, category: category, primaryMuscles: parseMuscles(primaryMusclesRaw), secondaryMuscles: parseMuscles(secondaryMusclesRaw), link: null }; }
-
-    /** Handles adding the currently defined exercise to the temporary session state. */
-    function handleAddExerciseToSession(e) { e.preventDefault(); const form = document.getElementById('addExerciseForm'); form.classList.remove('was-validated'); let exerciseData; let exerciseName; try { if (exerciseSelect.value === FREETEXT_VALUE) { exerciseData = validateAndGetCustomExerciseData(); if (!exerciseData) { form.classList.add('was-validated'); throw new Error("Bitte fülle alle Felder für die eigene Übung korrekt aus."); } exerciseName = exerciseData.name; } else if (exerciseSelect.value) { exerciseName = exerciseSelect.value; exerciseData = allExercisesData.find(ex => ex.name === exerciseName); if (!exerciseData) throw new Error("Ausgewählte Standardübung nicht gefunden."); } else { exerciseSelect.classList.add('is-invalid'); throw new Error("Bitte wähle eine Übung aus."); } exerciseSelect.classList.remove('is-invalid'); const weight = parseFloat(weightInput.value); if (weightInput.value.trim() === '' || isNaN(weight) || weight < 0) { weightInput.classList.add('is-invalid'); throw new Error("Bitte gib ein gültiges, nicht-negatives Gewicht ein (0 ist erlaubt)."); } else { weightInput.classList.remove('is-invalid'); } const repsPerSet = collectRepsPerSet(); const sets = repsPerSet.length; if (sets === 0) { const intendedSets = parseInt(setsInput.value) || 0; if (intendedSets > 0) { throw new Error("Keine gültigen Wiederholungen für die angegebene Satzanzahl eingegeben."); } } const newExerciseEntry = { exerciseName: exerciseName, category: exerciseData.category || 'Unbekannt', primaryMuscles: exerciseData.primaryMuscles || [], secondaryMuscles: exerciseData.secondaryMuscles || [], weight: weight, sets: sets, repsPerSet: repsPerSet, volume: calculateVolume(weight, repsPerSet) }; currentWorkoutSession.exercises.push(newExerciseEntry); updateSessionSummaryUI(); resetAddExerciseForm(); form.classList.remove('was-validated'); } catch (error) { console.error("Fehler beim Hinzufügen der Übung:", error); alert(`Fehler: ${error.message}`); form.classList.add('was-validated'); if (error.message.includes("Gewicht")) weightInput?.classList.add('is-invalid'); if (error.message.includes("eigene Übung")) { /* handled by validate func */ } if (error.message.includes("Übung wählen")) exerciseSelect?.classList.add('is-invalid'); } }
-
-    /** Resets the fields in the 'Add Exercise' part of the form. */
-    function resetAddExerciseForm(resetExerciseDropdown = true) { if (resetExerciseDropdown && exerciseSelect) { exerciseSelect.value = ""; exerciseSelect.classList.remove('is-invalid'); } if (customExerciseGroup) customExerciseGroup.style.display = 'none'; if (exerciseLinkBox) exerciseLinkBox.style.display = 'none'; if(customExerciseInput) customExerciseInput.value = ''; const customCategorySelect = document.getElementById('customCategorySelect'); const customPrimaryMusclesInput = document.getElementById('customPrimaryMusclesInput'); const customSecondaryMusclesInput = document.getElementById('customSecondaryMusclesInput'); if(customCategorySelect) customCategorySelect.value = ''; if(customPrimaryMusclesInput) customPrimaryMusclesInput.value = ''; if(customSecondaryMusclesInput) customSecondaryMusclesInput.value = ''; clearCustomExerciseFieldsValidity(); if (weightInput) { weightInput.value = ''; weightInput.classList.remove('is-invalid'); } if (setsInput) { setsInput.value = 3; setsInput.classList.remove('is-invalid'); } generateSetFields(); const form = document.getElementById('addExerciseForm'); if (form) form.classList.remove('was-validated'); if (lastTrainingHintElement) { lastTrainingHintElement.style.opacity = '0'; lastTrainingHintElement.style.display = 'none'; } if (muscleInfoDisplay) { muscleInfoDisplay.innerHTML = ''; muscleInfoDisplay.style.display = 'none';} } // NEU: Muskel-Info leeren/verstecken
-
-    /** Resets only weight, sets, and reps inputs. */
-     function resetAddExerciseFormInputs(clearWeight = true) { if (clearWeight && weightInput) { weightInput.value = ''; weightInput.classList.remove('is-invalid'); } if (setsInput) { setsInput.value = 3; setsInput.classList.remove('is-invalid'); } generateSetFields(); if (lastTrainingHintElement) { lastTrainingHintElement.style.opacity = '0'; lastTrainingHintElement.style.display = 'none'; } }
-
-    /** Updates the UI element that summarizes the exercises added to the current session. */
-    function updateSessionSummaryUI() { if (!currentSessionSummary || !currentSessionList) return; if (currentWorkoutSession.exercises.length > 0) { currentSessionList.innerHTML = ''; currentWorkoutSession.exercises.forEach((ex, index) => { const item = document.createElement('div'); item.className = 'session-exercise-item'; item.innerHTML = ` <div> <strong>${ex.exerciseName}</strong> <span class="session-exercise-details ms-2">(${ex.sets} Sätze, ${ex.weight}kg)</span> </div> <button type="button" class="remove-exercise-btn" data-index="${index}" title="Übung entfernen"> <i class="fas fa-times-circle"></i> </button> `; currentSessionList.appendChild(item); }); currentSessionSummary.style.display = 'block'; } else { currentSessionSummary.style.display = 'none'; } }
-
-    /** Removes an exercise from the temporary session state by its index. */
-     function removeExerciseFromSession(index) { if (index >= 0 && index < currentWorkoutSession.exercises.length) { currentWorkoutSession.exercises.splice(index, 1); updateSessionSummaryUI(); } }
-
-    /** Handles saving the entire built workout session to localStorage. */
-    function handleSaveWorkoutSession() { const sessionDate = dateInput.value; const sessionNotes = document.getElementById('sessionNotesInput').value.trim(); if (!sessionDate) { alert("Bitte gib ein Datum für die Trainingseinheit an."); dateInput.classList.add('is-invalid'); return; } else { dateInput.classList.remove('is-invalid'); } if (currentWorkoutSession.exercises.length === 0) { alert("Bitte füge mindestens eine Übung zur Trainingseinheit hinzu."); return; } currentWorkoutSession.date = sessionDate; currentWorkoutSession.notes = sessionNotes; currentWorkoutSession.id = Date.now(); try { saveWorkoutSession(currentWorkoutSession); currentWorkoutSession = { date: '', exercises: [], notes: '' }; setInitialDate(); document.getElementById('sessionNotesInput').value = ''; updateSessionSummaryUI(); resetAddExerciseForm(); alert('Trainingseinheit erfolgreich gespeichert!'); loadAndDisplayHistory(); updateStatisticsAndRecommendations(); populateExerciseDropdown(); } catch (error) { console.error("Fehler beim Speichern der Trainingseinheit:", error); alert(`Speichern fehlgeschlagen: ${error.message}`); } }
-
-    // --- Data Handling ---
-    function saveWorkoutSession(sessionData) { let allSessions = loadDataFromLocalStorage(); allSessions.push(sessionData); saveDataToLocalStorage(allSessions); }
-    function loadDataFromLocalStorage() { const dataJson = localStorage.getItem(LOCAL_STORAGE_KEY); if (!dataJson) { return []; } try { const data = JSON.parse(dataJson); return Array.isArray(data) ? data : []; } catch (e) { console.error("Error parsing localStorage data:", e, "Raw data:", dataJson); return []; } }
-    function saveDataToLocalStorage(data) { try { const validData = data.filter(item => item !== null && item !== undefined); localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(validData)); } catch (e) { console.error("Error saving data to localStorage:", e); alert("Fehler: Konnte Daten nicht speichern."); } }
-    function handleDeleteTraining(sessionId, exerciseIndex) { if (!confirm('Möchtest du diesen Eintrag wirklich löschen?')) return; let allData = loadDataFromLocalStorage(); let dataChanged = false; const sessionIndex = allData.findIndex(item => item && item.id === sessionId); if (sessionIndex !== -1) { const item = allData[sessionIndex]; if (item.exercises && Array.isArray(item.exercises) && exerciseIndex !== -1) { if (exerciseIndex >= 0 && exerciseIndex < item.exercises.length) { item.exercises.splice(exerciseIndex, 1); if (item.exercises.length === 0) { allData.splice(sessionIndex, 1); } dataChanged = true; } } else { allData.splice(sessionIndex, 1); dataChanged = true; } } if (dataChanged) { saveDataToLocalStorage(allData); loadAndDisplayHistory(); updateStatisticsAndRecommendations(); populateExerciseDropdown(); } else { console.warn("Zu löschender Eintrag nicht gefunden:", sessionId, exerciseIndex); } }
-
-    // --- Prefill Logic ---
-    function findLastTrainingDataForExercise(exerciseName) { const allData = loadDataFromLocalStorage(); const flatExerciseList = getFlattenedExerciseHistory(allData); const exerciseHistory = flatExerciseList.filter(entry => entry.exerciseName === exerciseName) .sort((a, b) => { const dateA = new Date(a.date); const dateB = new Date(b.date); if (isNaN(dateA.getTime())) return 1; if (isNaN(dateB.getTime())) return -1; return dateB - dateA; }); if (exerciseHistory.length > 0) { const lastEntry = exerciseHistory[0]; const repsPerSet = lastEntry.repsPerSet || []; const sets = lastEntry.sets || 0; if (sets > 0 && repsPerSet.length === sets) { return { weight: lastEntry.weight || 0, sets: sets, repsPerSet: repsPerSet }; } } return null; }
-    function fillFormWithLastTrainingData(lastData) { if (!lastTrainingHintElement) return; lastTrainingHintElement.style.opacity = '0'; lastTrainingHintElement.style.display = 'none'; if (lastData && lastData.sets > 0 && Array.isArray(lastData.repsPerSet) && lastData.repsPerSet.length === lastData.sets) { weightInput.value = lastData.weight; setsInput.value = lastData.sets; generateSetFields(); setTimeout(() => { const repsInputs = setsContainer.querySelectorAll('.reps-input'); if (repsInputs.length === lastData.repsPerSet.length) { lastData.repsPerSet.forEach((reps, index) => { if (repsInputs[index]) repsInputs[index].value = reps; }); lastTrainingHintElement.style.display = 'block'; void lastTrainingHintElement.offsetWidth; lastTrainingHintElement.style.opacity = '1'; setTimeout(() => { lastTrainingHintElement.style.opacity = '0'; setTimeout(() => { if (lastTrainingHintElement.style.opacity === '0') lastTrainingHintElement.style.display = 'none'; }, 500); }, 3500); } else { console.warn("Prefill: Mismatch length."); } }, 50); } }
-
-    // --- History Display Logic ---
-    function loadAndDisplayHistory() { const allData = loadDataFromLocalStorage(); const flatExerciseList = getFlattenedExerciseHistory(allData); const sessionVolumes = calculateVolumePerSession(flatExerciseList); const personalRecords = calculatePersonalRecords(flatExerciseList); if (!historyTableBody || !emptyHistoryMessage) return; if (flatExerciseList.length === 0) { historyTableBody.innerHTML = ''; emptyHistoryMessage.classList.remove('d-none'); const historySearchInput = document.getElementById('historySearch'); if (historySearchInput) historySearchInput.disabled = true; return; } emptyHistoryMessage.classList.add('d-none'); const historySearchInput = document.getElementById('historySearch'); if(historySearchInput) historySearchInput.disabled = false; historyTableBody.innerHTML = ''; flatExerciseList.sort((a, b) => { const dateA = new Date(a.date); const dateB = new Date(b.date); if (isNaN(dateA.getTime())) return 1; if (isNaN(dateB.getTime())) return -1; return dateB - dateA; }); let currentDate = null; flatExerciseList.forEach(exerciseEntry => { if (exerciseEntry && exerciseEntry.date && exerciseEntry.exerciseName) { if (exerciseEntry.date !== currentDate) { if (currentDate !== null && sessionVolumes[currentDate]) { historyTableBody.appendChild(createSessionSummaryRow(currentDate, sessionVolumes[currentDate])); } currentDate = exerciseEntry.date; } historyTableBody.appendChild(createHistoryTableRow(exerciseEntry, personalRecords)); } else { console.warn("Skipping invalid entry during history table population:", exerciseEntry); } }); if (currentDate !== null && sessionVolumes[currentDate]) { historyTableBody.appendChild(createSessionSummaryRow(currentDate, sessionVolumes[currentDate])); } filterHistoryTable(); }
-    function getFlattenedExerciseHistory(allData) { const flatExerciseList = []; (allData || []).forEach(item => { if (!item || !item.id || !item.date || typeof item.date !== 'string') { return; } if (item.exercises && Array.isArray(item.exercises)) { item.exercises.forEach((exercise, index) => { if (!exercise || !exercise.exerciseName) { return; } const weight = parseFloat(exercise.weight) || 0; const repsPerSet = Array.isArray(exercise.repsPerSet) ? exercise.repsPerSet.map(r => parseInt(r) || 0) : []; const sets = repsPerSet.length; const volume = parseFloat(exercise.volume) || calculateVolume(weight, repsPerSet); flatExerciseList.push({ sessionId: item.id, exerciseIndex: index, date: item.date, notes: item.notes || '', exerciseName: exercise.exerciseName, category: exercise.category || 'Unbekannt', primaryMuscles: Array.isArray(exercise.primaryMuscles) ? exercise.primaryMuscles : [], secondaryMuscles: Array.isArray(exercise.secondaryMuscles) ? exercise.secondaryMuscles : [], weight: weight, sets: sets, repsPerSet: repsPerSet, volume: volume }); }); } else if (item.exercise && !item.exercises) { const weight = parseFloat(item.weight) || 0; let repsPerSet = []; let sets = 0; if (item.repsPerSet && Array.isArray(item.repsPerSet)) { repsPerSet = item.repsPerSet.map(r => parseInt(r) || 0); sets = repsPerSet.length; } else if (item.reps && item.sets) { const numReps = parseInt(item.reps); const numSets = parseInt(item.sets); if (!isNaN(numReps) && numReps >= 0 && !isNaN(numSets) && numSets > 0) { repsPerSet = Array(numSets).fill(numReps); sets = numSets; } else { sets = parseInt(item.sets) || 0; } } else { sets = parseInt(item.sets) || 0; } flatExerciseList.push({ sessionId: item.id, exerciseIndex: -1, date: item.date, exerciseName: item.exercise, category: item.category || 'Unbekannt', primaryMuscles: Array.isArray(item.primaryMuscles) ? item.primaryMuscles : [], secondaryMuscles: Array.isArray(item.secondaryMuscles) ? item.secondaryMuscles : [], sets: sets, repsPerSet: repsPerSet, weight: weight, volume: parseFloat(item.volume) || calculateVolume(weight, repsPerSet), notes: item.notes || '' }); } }); return flatExerciseList; }
-    function createHistoryTableRow(exerciseEntry, personalRecords) { const row = document.createElement('tr'); let formattedDate = exerciseEntry.date; if (exerciseEntry.date && typeof exerciseEntry.date === 'string') { const dateParts = exerciseEntry.date.split('-'); if (dateParts.length === 3) { const year = parseInt(dateParts[0]); const month = parseInt(dateParts[1]); const day = parseInt(dateParts[2]); if (year > 1900 && year < 3000 && month >= 1 && month <= 12 && day >= 1 && day <= 31) { formattedDate = `${dateParts[2]}.${dateParts[1]}.${dateParts[0]}`; } else { /* console.warn("Invalid date parts:", exerciseEntry.date); */ } } } let repsDisplay = 'N/A'; const actualSets = exerciseEntry.sets || 0; const repsPerSet = exerciseEntry.repsPerSet || []; if (actualSets > 0 && repsPerSet.length === actualSets) { const firstRep = repsPerSet[0]; const allSame = repsPerSet.every(rep => rep === firstRep); if (allSame) { repsDisplay = `${actualSets} × ${firstRep}`; } else { repsDisplay = `${actualSets} × (${repsPerSet.join(', ')})`; } } else if (actualSets > 0) { repsDisplay = `${actualSets} Sätze (Wdh.?)`; } const weightDisplay = `${exerciseEntry.weight} kg`; const volumeDisplay = Math.round(exerciseEntry.volume || 0); let weightPrIcon = ''; let volumePrIcon = ''; const exercisePRs = personalRecords[exerciseEntry.exerciseName]; if (exercisePRs) { if (exerciseEntry.weight == exercisePRs.maxWeight?.value && exerciseEntry.weight > 0) { weightPrIcon = ' <i class="fas fa-star pr-icon" title="Persönlicher Rekord (Gewicht)"></i>'; } if (volumeDisplay == exercisePRs.maxVolume?.value && volumeDisplay > 0) { volumePrIcon = ' <i class="fas fa-trophy pr-icon" title="Persönlicher Rekord (Volumen)"></i>'; } } row.innerHTML = `<td>${formattedDate}</td><td>${exerciseEntry.exerciseName || 'Unbekannt'}</td><td>${exerciseEntry.category || 'Unbekannt'}</td><td>${repsDisplay}</td><td>${weightDisplay}${weightPrIcon}</td><td>${volumeDisplay > 0 ? volumeDisplay + ' kg' : '-'}${volumePrIcon}</td><td> <button class="delete-btn" data-session-id="${exerciseEntry.sessionId}" data-exercise-index="${exerciseEntry.exerciseIndex}" title="Diesen Eintrag löschen"> <i class="fas fa-trash"></i> </button> </td>`; row.setAttribute('data-search-terms', `${formattedDate} ${exerciseEntry.exerciseName} ${exerciseEntry.category} ${exerciseEntry.notes || ''}`.toLowerCase()); return row; }
-    function createSessionSummaryRow(dateString, totalVolume) { const row = document.createElement('tr'); row.classList.add('history-session-summary'); let formattedDate = dateString; if (dateString && typeof dateString === 'string') { const dateParts = dateString.split('-'); if (dateParts.length === 3) formattedDate = `${dateParts[2]}.${dateParts[1]}.${dateParts[0]}`; } const volumeFormatted = Math.round(totalVolume); row.innerHTML = `<td colspan="5"><strong>Gesamtvolumen ${formattedDate}:</strong></td> <td colspan="2"><strong>${volumeFormatted} kg</strong></td>`; row.setAttribute('data-search-terms', ''); return row; }
-    function filterHistoryTable() { const historySearchInput = document.getElementById('historySearch'); if (!historySearchInput || !historyTableBody) return; const searchTerm = historySearchInput.value.toLowerCase(); const rows = historyTableBody.querySelectorAll('tr'); rows.forEach(row => { const searchTerms = row.getAttribute('data-search-terms'); if (searchTerms && searchTerms.includes(searchTerm)) { row.style.display = ''; } else { row.style.display = 'none'; } }); }
-
-    // --- Statistics & Analysis Logic ---
-    /** Updates all statistics sections and generates recommendations. */
-    function updateStatisticsAndRecommendations() { const allData = loadDataFromLocalStorage(); const flatHistory = getFlattenedExerciseHistory(allData); updateBasicStats(flatHistory); const pointsToday = calculateMusclePoints(flatHistory, 'today'); const pointsYesterday = calculateMusclePoints(flatHistory, 'yesterday'); const points7d = calculateMusclePoints(flatHistory, '7days'); const points30d = calculateMusclePoints(flatHistory, '30days'); displayMusclePoints(pointsToday, musclePointsContainerToday); displayMusclePoints(points7d, musclePointsContainer7d); displayMusclePoints(points30d, musclePointsContainer30d); musclesNeedingRest = getMusclesNeedingRest(pointsToday, pointsYesterday); generateAndDisplayRecommendation(points7d); populateStatsExerciseDropdown(flatHistory); updatePerformanceChart(); updateTopExercisesDisplay(flatHistory); const sessionVolumes = calculateVolumePerSession(flatHistory); displayAverageSessionVolume(sessionVolumes, 30); const personalRecords = calculatePersonalRecords(flatHistory); displayPersonalRecords(personalRecords); }
-    /** Updates basic stats */
-    function updateBasicStats(flatHistory) { const validDates = flatHistory.map(entry => entry.date).filter(date => date && typeof date === 'string'); const uniqueWorkoutDays = new Set(validDates); const totalExerciseEntries = flatHistory.length; if (totalWorkoutsStat) totalWorkoutsStat.textContent = uniqueWorkoutDays.size; if (totalExercisesStat) totalExercisesStat.textContent = totalExerciseEntries; }
-    /** Calculates muscle group load points for a given period ('today', 'yesterday', '7days', '30days'). */
-    function calculateMusclePoints(flatHistory, period) { const musclePoints = {}; const now = new Date(); const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()); let startDate, endDate; switch (period) { case 'today': startDate = todayStart; endDate = new Date(todayStart); endDate.setDate(endDate.getDate() + 1); break; case 'yesterday': endDate = todayStart; startDate = new Date(todayStart); startDate.setDate(startDate.getDate() - 1); break; case '7days': endDate = new Date(todayStart); endDate.setDate(endDate.getDate() + 1); startDate = new Date(endDate); startDate.setDate(endDate.getDate() - 7); break; case '30days': endDate = new Date(todayStart); endDate.setDate(endDate.getDate() + 1); startDate = new Date(endDate); startDate.setDate(endDate.getDate() - 30); break; default: return {}; } flatHistory.forEach(exercise => { const itemDate = exercise.date && typeof exercise.date === 'string' ? new Date(exercise.date) : null; if (itemDate && !isNaN(itemDate.getTime()) && itemDate >= startDate && itemDate < endDate) { const sets = exercise.sets || 0; if (sets > 0) { (exercise.primaryMuscles || []).forEach(muscle => { musclePoints[muscle] = (musclePoints[muscle] || 0) + (sets * 1.0); }); (exercise.secondaryMuscles || []).forEach(muscle => { musclePoints[muscle] = (musclePoints[muscle] || 0) + (sets * 0.5); }); } } }); return musclePoints; }
-    /** Displays muscle points */
-    function displayMusclePoints(pointsData, containerElement) { if (!containerElement) return; containerElement.innerHTML = ''; const sortedMuscles = Object.entries(pointsData).filter(([muscle, points]) => points > 0 && typeof muscle === 'string' && muscle !== 'Unbekannt' && muscle.trim() !== '').sort((a, b) => b[1] - a[1]); if (sortedMuscles.length === 0) { containerElement.innerHTML = '<p class="text-muted text-center">Keine Daten für diesen Zeitraum.</p>'; return; } const maxPoints = sortedMuscles.length > 0 ? sortedMuscles[0][1] : 1; sortedMuscles.forEach(([muscle, points]) => { const percentage = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0; const pointsFormatted = Math.round(points * 10) / 10; const div = document.createElement('div'); div.className = 'mb-2'; div.innerHTML = `<div class="progress-label"> <span>${muscle}</span> <span>${pointsFormatted} Pkt.</span> </div> <div class="progress"> <div class="progress-bar" role="progressbar" style="width: ${percentage}%;" aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100">${percentage}%</div> </div>`; containerElement.appendChild(div); }); }
-    /** Calculates muscles needing rest (trained heavily in last 48h). */
-    function getMusclesNeedingRest(pointsToday, pointsYesterday, threshold = 6) { const combinedPoints = { ...pointsYesterday }; Object.entries(pointsToday).forEach(([muscle, points]) => { combinedPoints[muscle] = (combinedPoints[muscle] || 0) + points; }); const restingMuscles = Object.entries(combinedPoints) .filter(([muscle, points]) => points >= threshold && typeof muscle === 'string' && muscle !== 'Unbekannt' && muscle.trim() !== '') .map(([muscle]) => muscle); return restingMuscles; }
-    /** Generates recommendation based on 7d points and sets global variable. */
-    function generateAndDisplayRecommendation(pointsData7d) { recommendedMusclesForFocus = []; if (!recommendationBox) return; const allDefinedMuscles = new Set(); allExercisesData.forEach(ex => { (ex.primaryMuscles || []).forEach(m => { if (typeof m === 'string' && m.trim() !== '') allDefinedMuscles.add(m); }); (ex.secondaryMuscles || []).forEach(m => { if (typeof m === 'string' && m.trim() !== '') allDefinedMuscles.add(m); }); }); const musclePointsMap = new Map(); allDefinedMuscles.forEach(muscle => { musclePointsMap.set(muscle, pointsData7d[muscle] || 0); }); const sortedMuscles = [...musclePointsMap.entries()].sort((a, b) => a[1] - b[1]); const lowPointThreshold = 2; const lowPointMuscles = sortedMuscles.filter(([muscle, points]) => points <= lowPointThreshold); let recommendationText; let showRecommendation = false; if (lowPointMuscles.length > 5) { recommendationText = "Du warst zuletzt nicht sehr aktiv. Bei den Muskelgruppen hast Du freie Auswahl!"; showRecommendation = true; } else if (lowPointMuscles.length > 0) { recommendedMusclesForFocus = lowPointMuscles.slice(0, 5).map(entry => entry[0]); const muscleNames = recommendedMusclesForFocus.join(', '); recommendationText = `Deine Belastung war zuletzt für ${muscleNames} ${recommendedMusclesForFocus.length > 1 ? 'am geringsten' : 'gering'}. Eventuell Fokus darauf legen?`; showRecommendation = true; } else { recommendationText = "Gute Verteilung! Trainiere nach Plan oder konzentriere dich auf deine Ziele."; showRecommendation = true; } if (showRecommendation) { document.getElementById('recommendationText').textContent = recommendationText; recommendationBox.style.display = 'block'; } else { recommendationBox.style.display = 'none'; } }
-    /** Populates stats dropdown */
-    function populateStatsExerciseDropdown(flatHistory) { if (!exerciseSelectStats) return; const uniqueExercises = new Set(flatHistory.map(entry => entry.exerciseName).filter(name => typeof name === 'string' && name.trim() !== '')); const sortedUniqueExercises = [...uniqueExercises].sort(); const currentSelectedValue = exerciseSelectStats.value; exerciseSelectStats.innerHTML = ''; if (sortedUniqueExercises.length === 0) { const option = document.createElement('option'); option.textContent = "Keine Übungen gefunden"; option.disabled = true; exerciseSelectStats.appendChild(option); exerciseSelectStats.value = ""; } else { const placeholder = document.createElement('option'); placeholder.value = ""; placeholder.textContent = "Übung für Chart wählen..."; placeholder.disabled = true; placeholder.selected = true; exerciseSelectStats.appendChild(placeholder); sortedUniqueExercises.forEach(exerciseName => { const option = document.createElement('option'); option.value = exerciseName; option.textContent = exerciseName; exerciseSelectStats.appendChild(option); }); if (currentSelectedValue && sortedUniqueExercises.includes(currentSelectedValue)) { exerciseSelectStats.value = currentSelectedValue; } else { exerciseSelectStats.value = ""; } } }
-    /** Calculates optimal Y axis */
-    function calculateOptimalYAxis(dataPoints) { const validPoints = dataPoints.filter(p => typeof p === 'number' && isFinite(p)); if (validPoints.length === 0) { return { min: 0, max: 10 }; } let minValue = Math.min(...validPoints); let maxValue = Math.max(...validPoints); if (minValue === maxValue) { if (minValue === 0) return { min: 0, max: 10 }; const buffer = Math.max(1, Math.abs(minValue * 0.2)); return { min: Math.max(0, Math.floor(minValue - buffer)), max: Math.ceil(maxValue + buffer) }; } const range = maxValue - minValue; const buffer = Math.max(1, range * 0.15); let suggestedMin = minValue - buffer; let suggestedMax = maxValue + buffer; suggestedMin = Math.max(0, suggestedMin); const step = range > 100 ? 10 : range > 20 ? 5 : range > 5 ? 1 : 0.5; return { min: Math.floor(suggestedMin / step) * step, max: Math.ceil(suggestedMax / step) * step }; }
-    /** Calculates estimated 1RM using the Epley formula. */
-    function calculateEstimated1RM(weight, reps) { weight = Number(weight) || 0; reps = Number(reps) || 0; if (reps <= 0 || weight <= 0) { return 0; } if (reps === 1) { return weight; } return weight * (1 + reps / 30); }
-    /** Updates the performance chart */
-    function updatePerformanceChart() { if (!performanceChartCanvas || !exerciseSelectStats || !timeRangeSelect) return; const selectedExercise = exerciseSelectStats.value; const selectedTimeRange = timeRangeSelect.value; const selectedChartType = document.getElementById('chartTypeSelect').value; const loadingOverlay = performanceChartCanvas.previousElementSibling; const noDataMessage = document.getElementById('chartNoDataMessage'); noDataMessage.classList.add('d-none'); if (!selectedExercise) { if (performanceChartInstance) { performanceChartInstance.destroy(); performanceChartInstance = null; } noDataMessage.textContent = "Bitte wähle eine Übung aus."; noDataMessage.classList.remove('d-none'); loadingOverlay?.classList.add('d-none'); return; } loadingOverlay?.classList.remove('d-none'); setTimeout(() => { try { const allData = loadDataFromLocalStorage(); const flatHistory = getFlattenedExerciseHistory(allData); let exerciseEntries = flatHistory.filter(entry => entry.exerciseName === selectedExercise); if (selectedTimeRange !== 'all') { const days = parseInt(selectedTimeRange, 10); if (!isNaN(days)) { const cutoffDate = new Date(); cutoffDate.setDate(cutoffDate.getDate() - days); cutoffDate.setHours(0, 0, 0, 0); exerciseEntries = exerciseEntries.filter(entry => { const entryDate = entry.date && typeof entry.date === 'string' ? new Date(entry.date) : null; return entryDate && !isNaN(entryDate.getTime()) && entryDate >= cutoffDate; }); } } exerciseEntries.sort((a, b) => { const dateA = new Date(a.date); const dateB = new Date(b.date); if (isNaN(dateA.getTime())) return 1; if (isNaN(dateB.getTime())) return -1; return dateA - dateB; }); if (exerciseEntries.length < 2 && !(exerciseEntries.length === 1 && selectedTimeRange === 'all')) { if (performanceChartInstance) { performanceChartInstance.destroy(); performanceChartInstance = null; } noDataMessage.textContent = "Nicht genügend Datenpunkte für diese Auswahl vorhanden."; noDataMessage.classList.remove('d-none'); loadingOverlay?.classList.add('d-none'); return; } let chartDataPoints = []; let yAxisLabel = ''; let datasetLabel = ''; let pointBackgroundColor = '#4361ee'; let borderColor = '#4361ee'; switch(selectedChartType) { case 'weight': const maxWeightPerDay = exerciseEntries.reduce((acc, entry) => { const dateStr = entry.date; const weight = entry.weight; if(dateStr && typeof dateStr === 'string') { if (!acc[dateStr] || weight > acc[dateStr]) acc[dateStr] = weight; } return acc; }, {}); chartDataPoints = Object.entries(maxWeightPerDay).map(([date, weight]) => ({x: date, y: Number(weight)})); yAxisLabel = 'Max. Gewicht (kg)'; datasetLabel = 'Max. Gewicht'; pointBackgroundColor = '#3f37c9'; borderColor = '#3f37c9'; break; case 'reps': const maxRepsPerDay = exerciseEntries.reduce((acc, entry) => { const dateStr = entry.date; const maxRepsInEntry = (entry.repsPerSet && entry.repsPerSet.length > 0) ? Math.max(...entry.repsPerSet.map(r => Number(r))) : 0; if(dateStr && typeof dateStr === 'string') { if (!acc[dateStr] || maxRepsInEntry > acc[dateStr]) acc[dateStr] = maxRepsInEntry; } return acc; }, {}); chartDataPoints = Object.entries(maxRepsPerDay).map(([date, reps]) => ({x: date, y: Number(reps)})); yAxisLabel = 'Max. Wiederholungen'; datasetLabel = 'Max. Wdh.'; pointBackgroundColor = '#4cc9f0'; borderColor = '#4cc9f0'; break; case 'oneRepMax': const maxEst1RMPerDay = exerciseEntries.reduce((acc, entry) => { const dateStr = entry.date; let max1RMForEntry = 0; if (entry.repsPerSet && entry.repsPerSet.length > 0) { entry.repsPerSet.forEach(reps => { const estimated1RM = calculateEstimated1RM(entry.weight, reps); if (estimated1RM > max1RMForEntry) max1RMForEntry = estimated1RM; }); } if(dateStr && typeof dateStr === 'string') { if (!acc[dateStr] || max1RMForEntry > acc[dateStr]) acc[dateStr] = max1RMForEntry; } return acc; }, {}); chartDataPoints = Object.entries(maxEst1RMPerDay).map(([date, rm]) => ({x: date, y: Math.round(rm * 10) / 10 })); yAxisLabel = 'Geschätztes 1RM (kg)'; datasetLabel = 'Est. 1RM'; pointBackgroundColor = '#9b59b6'; borderColor = '#9b59b6'; break; case 'volume': default: const volumePerDay = exerciseEntries.reduce((acc, entry) => { const dateStr = entry.date; const volume = entry.volume; if(dateStr && typeof dateStr === 'string') { acc[dateStr] = (acc[dateStr] || 0) + volume; } return acc; }, {}); chartDataPoints = Object.entries(volumePerDay).map(([date, volume]) => ({x: date, y: Math.round(volume)})); yAxisLabel = 'Volumen (kg)'; datasetLabel = 'Volumen'; pointBackgroundColor = '#f72585'; borderColor = '#f72585'; break; } const invalidDataPoint = chartDataPoints.find(p => !p || typeof p.x !== 'string' || typeof p.y !== 'number' || isNaN(p.y)); if (invalidDataPoint) { console.error("Ungültige Datenpunkte für Chart generiert:", chartDataPoints, "Erster Fehler bei:", invalidDataPoint); throw new Error("Konnte keine gültigen Daten für den Chart erstellen."); } const yAxisValues = chartDataPoints.map(p => p.y); const yAxisConfig = calculateOptimalYAxis(yAxisValues); if (performanceChartInstance) { performanceChartInstance.destroy(); } performanceChartInstance = new Chart(performanceChartCanvas, { type: 'line', data: { datasets: [{ label: datasetLabel, data: chartDataPoints, borderColor: borderColor, backgroundColor: pointBackgroundColor, pointRadius: chartDataPoints.length > 1 ? 4 : 6, pointHoverRadius: 6, tension: chartDataPoints.length > 1 ? 0.1 : 0, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { type: 'time', time: { unit: 'day', tooltipFormat: 'dd.MM.yyyy', displayFormats: { day: 'dd.MM', week: 'dd.MM', month: 'MMM yy', year: 'yyyy' } }, title: { display: true, text: 'Datum' } }, y: { min: yAxisConfig.min, max: yAxisConfig.max, title: { display: true, text: yAxisLabel } } }, plugins: { tooltip: { mode: 'index', intersect: false }, legend: { display: true } } } }); } catch (error) { console.error("Fehler beim Erstellen des Performance-Charts:", error); if (performanceChartInstance) { performanceChartInstance.destroy(); performanceChartInstance = null; } noDataMessage.textContent = `Fehler beim Laden der Chart-Daten. (${error.message}). Details siehe Konsole.`; noDataMessage.classList.remove('d-none'); } finally { loadingOverlay?.classList.add('d-none'); } }, 10); }
-    /** Updates the display for the most frequently performed exercises. */
-    function updateTopExercisesDisplay(flatHistory) { if (!topExercisesContainer) return; const exerciseCounts = {}; let validEntriesCount = 0; flatHistory.forEach(entry => { if (entry && typeof entry.exerciseName === 'string' && entry.exerciseName.trim() !== '') { exerciseCounts[entry.exerciseName] = (exerciseCounts[entry.exerciseName] || 0) + 1; validEntriesCount++; } }); const sortedExercises = Object.entries(exerciseCounts).sort((a, b) => b[1] - a[1]).slice(0, 5); topExercisesContainer.innerHTML = ''; if (sortedExercises.length === 0) { topExercisesContainer.innerHTML = '<p class="text-muted text-center">Noch keine Übungen erfasst.</p>'; return; } sortedExercises.forEach(([exercise, count]) => { const percentage = validEntriesCount > 0 ? Math.round((count / validEntriesCount) * 100) : 0; const div = document.createElement('div'); div.className = 'mb-2'; div.innerHTML = `<div class="progress-label"> <span>${exercise}</span> <span>${count} Mal (${percentage}%)</span> </div> <div class="progress"> <div class="progress-bar" role="progressbar" style="width: ${percentage}%; background-color: var(--secondary-color);" aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100">${percentage}%</div> </div>`; topExercisesContainer.appendChild(div); }); }
-    /** Calculates the total volume for each distinct day in the history. */
-    function calculateVolumePerSession(flatHistory) { return flatHistory.reduce((acc, entry) => { if (entry.date && typeof entry.date === 'string' && typeof entry.volume === 'number' && isFinite(entry.volume)) { acc[entry.date] = (acc[entry.date] || 0) + entry.volume; } return acc; }, {}); }
-    /** Calculates and displays the average session volume for a given period. */
-     function displayAverageSessionVolume(sessionVolumes, days) { if (!avgVolumeStat) return; const now = new Date(); const cutoffDate = new Date(); cutoffDate.setDate(now.getDate() - days); cutoffDate.setHours(0, 0, 0, 0); let totalVolumeLastPeriod = 0; let sessionCountLastPeriod = 0; Object.entries(sessionVolumes).forEach(([dateStr, volume]) => { const sessionDate = new Date(dateStr); if (!isNaN(sessionDate.getTime()) && sessionDate >= cutoffDate && sessionDate <= now) { totalVolumeLastPeriod += volume; sessionCountLastPeriod++; } }); const averageVolume = sessionCountLastPeriod > 0 ? Math.round(totalVolumeLastPeriod / sessionCountLastPeriod) : 0; avgVolumeStat.textContent = `${averageVolume} kg`; }
-    /** Calculates Personal Records (Max Weight, Max Volume) for each exercise. */
-    function calculatePersonalRecords(flatHistory) { return flatHistory.reduce((acc, entry) => { if (!entry.exerciseName || typeof entry.weight !== 'number' || typeof entry.volume !== 'number') { return acc; } const name = entry.exerciseName; if (!acc[name]) { acc[name] = { maxWeight: { value: -1, date: null, details: '' }, maxVolume: { value: -1, date: null, details: '' } }; } if (entry.weight > 0 && entry.weight >= acc[name].maxWeight.value) { if (entry.weight > acc[name].maxWeight.value || !acc[name].maxWeight.date || new Date(entry.date) >= new Date(acc[name].maxWeight.date)) { acc[name].maxWeight = { value: entry.weight, date: entry.date, details: `${entry.sets}×(${entry.repsPerSet.join(',')})` }; } } if (entry.volume > 0 && entry.volume >= acc[name].maxVolume.value) { if (entry.volume > acc[name].maxVolume.value || !acc[name].maxVolume.date || new Date(entry.date) >= new Date(acc[name].maxVolume.date)) { acc[name].maxVolume = { value: Math.round(entry.volume), date: entry.date, details: `${entry.sets}×(${entry.repsPerSet.join(',')}) @${entry.weight}kg` }; } } return acc; }, {}); }
-    /** Displays the calculated Personal Records in the statistics tab. */
-     function displayPersonalRecords(personalRecords) { if (!personalRecordsContainer) return; const sortedExercises = Object.keys(personalRecords).sort(); if (sortedExercises.length === 0) { personalRecordsContainer.innerHTML = '<p class="text-muted text-center">Noch keine Rekorde vorhanden.</p>'; return; } personalRecordsContainer.innerHTML = ''; sortedExercises.forEach(exerciseName => { const prs = personalRecords[exerciseName]; const prItemDiv = document.createElement('div'); prItemDiv.className = 'mb-3'; let content = `<h5>${exerciseName}</h5>`; let hasRecord = false; if (prs.maxWeight && prs.maxWeight.value > 0) { hasRecord = true; const formattedDate = prs.maxWeight.date ? new Date(prs.maxWeight.date).toLocaleDateString('de-DE') : 'N/A'; content += `<div class="pr-list-item"> <span><i class="fas fa-star pr-icon me-1"></i>Max. Gewicht:</span> <span class="details"> <strong>${prs.maxWeight.value} kg</strong> (${prs.maxWeight.details}) am ${formattedDate} </span> </div>`; } if (prs.maxVolume && prs.maxVolume.value > 0) { hasRecord = true; const formattedDate = prs.maxVolume.date ? new Date(prs.maxVolume.date).toLocaleDateString('de-DE') : 'N/A'; content += `<div class="pr-list-item"> <span><i class="fas fa-trophy pr-icon me-1"></i>Max. Volumen:</span> <span class="details"> <strong>${prs.maxVolume.value} kg</strong> (${prs.maxVolume.details}) am ${formattedDate} </span> </div>`; } if (hasRecord) { prItemDiv.innerHTML = content; personalRecordsContainer.appendChild(prItemDiv); } }); if (personalRecordsContainer.innerHTML === '') { personalRecordsContainer.innerHTML = '<p class="text-muted text-center">Noch keine Rekorde vorhanden.</p>'; } }
-
-    // --- Utility Functions ---
-    function calculateVolume(weight, repsPerSet) { if (!Array.isArray(repsPerSet) || repsPerSet.length === 0) return 0; const totalReps = repsPerSet.reduce((sum, reps) => sum + (Number(reps) || 0), 0); return (Number(weight) || 0) * totalReps; }
-
-    // --- Import / Export ---
-    function exportData() { try { const data = loadDataFromLocalStorage(); const dataJson = JSON.stringify(data, null, 2); const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(dataJson); const downloadAnchorNode = document.createElement('a'); const timestamp = new Date().toISOString().slice(0, 10); downloadAnchorNode.setAttribute("href", dataStr); downloadAnchorNode.setAttribute("download", `benchmark_pro_backup_${timestamp}.json`); document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove(); } catch (error) { console.error("Fehler beim Exportieren der Daten:", error); alert("Datenexport fehlgeschlagen."); } }
-    function importData() { console.log("Import button clicked."); const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = e => { const file = e.target.files[0]; if (!file) { console.log("No file selected."); return; } console.log(`File selected: ${file.name}`); const reader = new FileReader(); reader.onload = function(event) { console.log("File read ok."); try { const importedData = JSON.parse(event.target.result); console.log("JSON parsed ok."); if (Array.isArray(importedData)) { console.log("Data is array. Confirming overwrite."); if (confirm('WARNUNG: Diese Aktion überschreibt alle aktuell gespeicherten Trainingsdaten! Fortfahren?')) { console.log("User confirmed."); try { saveDataToLocalStorage(importedData); console.log("Data saved to localStorage."); console.log("Re-initializing app..."); initApp(); alert('Daten erfolgreich importiert!'); console.log("Import finished."); const historyTab = document.getElementById('history-tab'); if (historyTab) { const tabInstance = bootstrap.Tab.getOrCreateInstance(historyTab); if (tabInstance) tabInstance.show(); } } catch (saveError) { console.error("Error saving imported data:", saveError); alert(`Fehler beim Speichern der importierten Daten: ${saveError.message}`); } } else { console.log("User cancelled."); } } else { console.error("Imported data is not an array:", importedData); alert('Import fehlgeschlagen: Die Datei scheint kein gültiges Trainingsdaten-Array zu enthalten.'); } } catch (error) { console.error("Error parsing/processing import file:", error); alert(`Import fehlgeschlagen: ${error.message}`); } }; reader.onerror = function(error) { console.error("Error reading file:", error); alert('Fehler beim Lesen der Datei.'); }; reader.readAsText(file); }; input.click(); } // Diese Klammer schließt input.onchange und somit die Funktion importData
-
-  </script> <!-- Diese schließende Klammer war wahrscheinlich der Übeltäter -->
-
-
-<script>
-  // PWA SW registration (v3.2.1)
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./service-worker.js', { scope: './' })
-        .then(() => console.log('SW registered'))
-        .catch(err => console.warn('SW register failed', err));
-    });
-  }
-
-// ---- Runtime marker ----
-const BENCHMARK_PRO_VERSION = 'v3.2.1';
-console.log('BenchMark Pro loaded:', BENCHMARK_PRO_VERSION);
-
-    // --- v3.2.1 Mini-Fix (Plans Tab sichtbar + editierbar) ---
-    function setupPlanTabListeners() {
-      const addBtn = document.getElementById('addPlanBtn');
-      const exportBtn = document.getElementById('exportV2Btn');
-      const importInput = document.getElementById('importV2Input');
-
-      if (addBtn) {
-        addBtn.addEventListener('click', () => {
-          const id = prompt("Plan-ID (z.B. A, B, C oder frei wie 'D'):", "");
-          if (!id) return;
-          const plans = loadPlans();
-          if (plans[id]) {
-            alert("Plan existiert bereits.");
-            return;
-          }
-          plans[id] = { name: id, exercises: [] };
-          savePlans(plans);
-          renderPlansTab();
-          try { initPlans(); } catch(e) {}
-          try { renderPlanQuickPick(); } catch(e) {}
-        });
-      }
-
-      if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-          const payload = { version: 2, exportedAt: new Date().toISOString(), plans: loadPlans() };
-          downloadJson(payload, 'benchmarkpro_plans_v2.json');
-        });
-      }
-
-      if (importInput) {
-        importInput.addEventListener('change', async (e) => {
-          const file = e.target.files && e.target.files[0];
-          if (!file) return;
-          try {
-            const txt = await file.text();
-            const obj = JSON.parse(txt);
-            const incoming = obj?.plans ?? obj;
-            const normalized = normalizePlans(incoming);
-            savePlans(normalized);
-            renderPlansTab();
-            try { initPlans(); } catch(e) {}
-            try { renderPlanQuickPick(); } catch(e) {}
-            alert("Pläne importiert ✅");
-          } catch (err) {
-            console.error(err);
-            alert("Import fehlgeschlagen. Erwartet JSON mit {plans:{...}} oder direkt {A:{...},...}");
-          } finally {
-            e.target.value = "";
-          }
-        });
-      }
-    }
-
-    function renderPlansTab() {
-      const container = document.getElementById('plansList');
-      if (!container) return;
-
-      const plans = loadPlans();
-      const entries = Object.entries(plans);
-
-      if (entries.length === 0) {
-        container.innerHTML = '<p class="text-muted">Keine Pläne vorhanden.</p>';
-        return;
-      }
-
-      container.innerHTML = entries.map(([id, p]) => {
-        const safeName = escapeHtml(p?.name ?? id);
-        const exercises = (p?.exercises ?? []).join('\n');
-        const safeExercises = escapeHtml(exercises);
-        const isCore = ['A','B','C'].includes(id);
-
-        return `
-          <div class="card mb-3">
-            <div class="card-body">
-              <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                <div>
-                  <div class="fw-bold">${escapeHtml(id)}</div>
-                  <div class="text-muted small">Template (Plan) → wird im Tab „Neues Training“ als Quick-Pick genutzt.</div>
-                </div>
-                ${isCore ? '<span class="badge bg-secondary">Default</span>' : ''}
-              </div>
-
-              <div class="row g-2 mt-2">
-                <div class="col-12 col-md-4">
-                  <label class="form-label">Plan-Name</label>
-                  <input class="form-control" data-plan-name="${escapeHtml(id)}" value="${safeName}">
-                </div>
-                <div class="col-12 col-md-8">
-                  <label class="form-label">Übungen (eine pro Zeile)</label>
-                  <textarea class="form-control" rows="5" data-plan-exercises="${escapeHtml(id)}">${safeExercises}</textarea>
-                </div>
-              </div>
-
-              <div class="d-flex gap-2 mt-3">
-                <button class="btn btn-primary" data-plan-save="${escapeHtml(id)}"><i class="fas fa-save me-1"></i>Speichern</button>
-                ${isCore ? '' : `<button class="btn btn-outline-danger" data-plan-delete="${escapeHtml(id)}"><i class="fas fa-trash me-1"></i>Löschen</button>`}
-              </div>
-            </div>
+      <div class="card">
+        <div class="row space">
+          <div>
+            <div class="label">Exercises</div>
+            <div class="muted">Namens-/Alias-Liste (v4.2 wird das sauber normalisieren).</div>
           </div>
-        `;
-      }).join('');
+          <button id="btnAddExercise" class="btn btn-ghost">+ Übung</button>
+        </div>
+        <div id="exerciseList" class="list"></div>
+      </div>
 
-      // Wire save/delete buttons (delegation wäre schöner, aber keep it simple)
-      container.querySelectorAll('[data-plan-save]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = btn.getAttribute('data-plan-save');
-          const nameEl = container.querySelector(`[data-plan-name="${CSS.escape(id)}"]`);
-          const exEl = container.querySelector(`[data-plan-exercises="${CSS.escape(id)}"]`);
-          const name = (nameEl?.value ?? id).trim() || id;
-          const exercises = (exEl?.value ?? '')
-            .split(/\r?\n/)
-            .map(s => s.trim())
-            .filter(Boolean);
+      <div id="plansList" class="stack"></div>
+    </section>
 
-          const plans = loadPlans();
-          plans[id] = { name, exercises };
-          savePlans(plans);
-          // Refresh other UI parts
-          try { initPlans(); } catch(e) {}
-          try { renderPlanQuickPick(); } catch(e) {}
-          alert(`Plan ${id} gespeichert ✅`);
-        });
-      });
+    <section class="panel" id="tab-history">
+      <h2>Historie</h2>
+      <p class="muted">Phase 2: Placeholder.</p>
+      <div class="card"><div class="muted">Workouts kommen in Phase 3.</div></div>
+    </section>
 
-      container.querySelectorAll('[data-plan-delete]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = btn.getAttribute('data-plan-delete');
-          if (!confirm(`Plan ${id} wirklich löschen?`)) return;
-          const plans = loadPlans();
-          delete plans[id];
-          savePlans(plans);
-          renderPlansTab();
-          try { initPlans(); } catch(e) {}
-          try { renderPlanQuickPick(); } catch(e) {}
-        });
-      });
-    }
+    <section class="panel" id="tab-diagnostics">
+      <h2>Diagnose</h2>
+      <div class="card">
+        <div class="kv">
+          <div class="kv-row"><div>AppVersion</div><div class="mono" id="diagAppVersion">…</div></div>
+          <div class="kv-row"><div>DataVersion</div><div class="mono" id="diagDataVersion">…</div></div>
+          <div class="kv-row"><div>StorageKey</div><div class="mono" id="diagStorageKey">…</div></div>
+          <div class="kv-row"><div>Last saved</div><div class="mono" id="diagLastSaved">…</div></div>
+        </div>
 
-    function normalizePlans(input) {
-      const out = {};
-      if (!input || typeof input !== 'object') return out;
-      for (const [id, p] of Object.entries(input)) {
-        if (!id) continue;
-        const name = (p && typeof p === 'object' && 'name' in p) ? String(p.name ?? id) : String(id);
-        const exercisesRaw = (p && typeof p === 'object' && Array.isArray(p.exercises)) ? p.exercises : [];
-        const exercises = exercisesRaw.map(x => String(x).trim()).filter(Boolean);
-        out[id] = { name, exercises };
-      }
-      return out;
-    }
+        <div class="row space mt">
+          <button id="btnExport" class="btn">Export JSON</button>
+          <label class="btn btn-ghost" for="fileImport">Import JSON (Replace)</label>
+          <input id="fileImport" type="file" accept="application/json" hidden />
+        </div>
 
-    function downloadJson(obj, filename) {
-      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
+        <div class="muted mt">Phase 2: Import/Export ersetzt komplett. Merge kommt später.</div>
+      </div>
+    </section>
 
-    function escapeHtml(str) {
-      return String(str)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
-    }
+    <footer class="footer muted">
+      BenchMark Pro • v4 Phase 2
+    </footer>
+  </main>
 
-  </script>
-
+  <script type="module" src="src/app.js"></script>
 </body>
 </html>

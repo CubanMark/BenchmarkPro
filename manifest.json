@@ -1,10 +1,10 @@
 {
   "name": "BenchMark Pro",
   "short_name": "BenchMark",
-  "start_url": "./index.html?v=v3.2.1",
+  "start_url": "./?v=4.0.0-phase2",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#111827",
+  "background_color": "#0B1220",
+  "theme_color": "#0B1220",
   "icons": [
     {
       "src": "icons/icon-192-maskable.png",
