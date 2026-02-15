@@ -27,27 +27,39 @@ export function getDefaultExercises() {
   {
     "id": "barbell_row",
     "name": "Barbell Row",
-    "aliases": []
+    "aliases": [
+      "Barbell Rows"
+    ]
   },
   {
     "id": "lateral_raise",
     "name": "Lateral Raise",
-    "aliases": []
+    "aliases": [
+      "Lateral Raises"
+    ]
   },
   {
     "id": "glute_bridge_bilateral",
     "name": "Glute Bridge (bilateral)",
-    "aliases": []
+    "aliases": [
+      "Glute Bridge bilateral",
+      "Glute Bridge"
+    ]
   },
   {
     "id": "mcgill_big_3",
     "name": "McGill Big 3",
-    "aliases": []
+    "aliases": [
+      "McGill Big Three"
+    ]
   },
   {
     "id": "romanian_dead_lift",
     "name": "Romanian Dead Lift",
-    "aliases": []
+    "aliases": [
+      "RDL",
+      "Romanian Deadlift"
+    ]
   },
   {
     "id": "incline_bench_press",
@@ -57,32 +69,41 @@ export function getDefaultExercises() {
   {
     "id": "pull_ups_strict",
     "name": "Pull-ups (strict)",
-    "aliases": []
+    "aliases": [
+      "Pullups (strict)",
+      "Pull ups (strict)"
+    ]
   },
   {
     "id": "pull_ups_toe_assisted",
     "name": "Pull-ups (Toe-assisted)",
-    "aliases": []
+    "aliases": [
+      "Pull-ups (toe assisted)",
+      "Pullups (Toe-assisted)"
+    ]
   },
   {
     "id": "w_raises",
     "name": "W-Raises",
-    "aliases": []
+    "aliases": [
+      "W Raises"
+    ]
   },
   {
     "id": "bench_press_close_grip",
     "name": "Bench Press (Close-Grip)",
-    "aliases": []
+    "aliases": [
+      "CGBP",
+      "Close Grip Bench Press"
+    ]
   },
   {
     "id": "inverted_row",
     "name": "Inverted Row",
-    "aliases": []
-  },
-  {
-    "id": "glute_bridge_bilateral",
-    "name": "Glute Bridge bilateral",
-    "aliases": []
+    "aliases": [
+      "Body Row",
+      "Inverted Rows"
+    ]
   }
 ];
 }

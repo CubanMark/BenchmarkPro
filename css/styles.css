@@ -104,3 +104,12 @@ textarea{min-height:110px;resize:vertical;font-family:var(--mono);font-size:13px
   padding:10px 12px;border-radius:14px;background: rgba(255,255,255,.02);
 }
 .pill .name{font-weight:600}
+
+
+/* Phase 3 helpers */
+.btn-xs{ padding:6px 10px; font-size:12px; }
+.w70{ width:90px; max-width:90px; }
+.set-row{ padding:6px 0; border-top: 1px solid rgba(255,255,255,0.08); }
+.sets .set-row:first-child{ border-top: none; }
+details.card > summary{ list-style: none; }
+details.card > summary::-webkit-details-marker{ display:none; }
