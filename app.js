@@ -20,15 +20,19 @@ const defaults = {
 
 ensureDefaults(state, defaults);
 
-// Wait for the window to fully load before accessing DOM elements
+// Add event listeners after the window is fully loaded
 window.onload = function() {
+  console.log("Window loaded, checking DOM elements");
+
   // Wait a moment to make sure elements are available
   setTimeout(function() {
-    const importButton = document.getElementById('import-json'); // Make sure the element exists
+    const importButton = document.getElementById('import-json');
     if (importButton) {
+      console.log("Import button found. Adding event listener.");
       importButton.addEventListener('click', function () {
         const fileInput = document.getElementById('file-input');
         if (fileInput && fileInput.files.length > 0) {
+          console.log("File selected, reading...");
           const file = fileInput.files[0];
           const reader = new FileReader();
           reader.onload = function (event) {
@@ -40,20 +44,22 @@ window.onload = function() {
           };
           reader.readAsText(file);
         } else {
+          console.error("No file selected");
           toast("Keine Datei ausgewählt", "error");
         }
       });
     } else {
-      console.error("Import-Button nicht gefunden");
+      console.error("Import button not found");
     }
 
     const exportButton = document.getElementById('export-json');
     if (exportButton) {
+      console.log("Export button found. Adding event listener.");
       exportButton.addEventListener('click', function () {
         exportStateToFile();
       });
     } else {
-      console.error("Export-Button nicht gefunden");
+      console.error("Export button not found");
     }
 
     // Ensure that the tabs are functioning after DOM is loaded
