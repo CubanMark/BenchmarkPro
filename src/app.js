@@ -1,12 +1,18 @@
 import { APP_VERSION, DATA_VERSION, STORAGE_KEY } from "./version.js";
-import { loadState, saveState, exportState, importStateReplace, resetState } from "./storage.js";
+import { loadState, saveState, exportState, parseImportFile, applyImportedState, resetState } from "./storage.js";
 import { getDefaultExercises, getDefaultPlans } from "./models.js";
+import { runMigrations } from "./migrations.js";
 import { ensureDefaults, createPlan, deletePlan, updatePlanFromTextarea } from "./plans.js";
 import { upsertExercise } from "./exercises.js";
 import { createWorkout, getWorkout, addSetToWorkout, deleteSetFromWorkout, removeExerciseFromWorkout, ensureExerciseItem, sortWorkoutsNewestFirst, humanWorkoutTitle, deleteWorkout, setWorkoutNotes } from "./workouts.js";
 import { $, $all, setActiveTab, toast } from "./ui.js";
 
 let state = loadState();
+
+// Run migrations (v4->v4). Legacy imports are handled separately.
+const mig = runMigrations(state);
+state = mig.state;
+
 
 const defaults = {
   exercises: getDefaultExercises(),
@@ -17,6 +23,8 @@ ensureDefaults(state, defaults);
 
 // ensure meta
 state.meta = state.meta || {};
+state.meta.lastMigration = mig;
+
 state.meta.activeWorkoutId = state.meta.activeWorkoutId || null;
 
 function persist(){
@@ -42,6 +50,13 @@ function renderDiagnostics(){
   $("#diagDataVersion").textContent = String(state.dataVersion ?? DATA_VERSION);
   $("#diagStorageKey").textContent = STORAGE_KEY;
   $("#diagLastSaved").textContent = state.meta?.updatedAt || "—";
+  const lm = state.meta?.lastMigration;
+  if (lm && typeof lm === "object") {
+    const tag = lm.ran ? `ran ${lm.from}→${lm.to}` : `noop ${lm.from}→${lm.to}`;
+    $("#diagLastMigration").textContent = tag;
+  } else {
+    $("#diagLastMigration").textContent = "—";
+  }
 }
 
 function renderExercises(){
@@ -305,6 +320,7 @@ function setupActions(){
     state = loadState();
     ensureDefaults(state, defaults);
     state.meta = state.meta || {};
+
     state.meta.activeWorkoutId = null;
     persist();
     rerenderAll();
@@ -489,24 +505,72 @@ function setupActions(){
     a.remove();
   });
 
-  $("#fileImport").addEventListener("change", async (ev) => {
-    const file = ev.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    try {
-      state = importStateReplace(text);
-      ensureDefaults(state, defaults);
-      state.meta = state.meta || {};
-      state.meta.activeWorkoutId = null; // avoid dangling ids
-      persist();
-      rerenderAll();
-      toast("Import ok ✅");
-    } catch (e) {
-      toast(String(e?.message || e));
-    } finally {
-      ev.target.value = "";
-    }
-  });
+  let pendingImport = null;
+
+function hideImportPreview(){
+  pendingImport = null;
+  const box = $("#importPreview");
+  box.style.display = "none";
+  $("#importKind").textContent = "—";
+  $("#importWorkouts").textContent = "—";
+  $("#importPlans").textContent = "—";
+  $("#importExercises").textContent = "—";
+  $("#importNote").textContent = "";
+}
+
+function showImportPreview(preview){
+  const box = $("#importPreview");
+  box.style.display = "block";
+  $("#importKind").textContent = preview.kind;
+  $("#importWorkouts").textContent = String(preview.counts?.workouts ?? 0);
+  $("#importPlans").textContent = String(preview.counts?.plans ?? 0);
+  $("#importExercises").textContent = String(preview.counts?.exercises ?? 0);
+  $("#importNote").textContent = preview.note || "";
+}
+
+$("#fileImport").addEventListener("change", async (ev) => {
+  const file = ev.target.files?.[0];
+  if (!file) return;
+  const text = await file.text();
+  try {
+    const { preview, state: imported } = parseImportFile(text);
+    pendingImport = imported;
+    showImportPreview(preview);
+    toast("Import-Vorschau bereit ✅");
+  } catch (e) {
+    hideImportPreview();
+    toast(String(e?.message || e));
+  } finally {
+    ev.target.value = "";
+  }
+});
+
+$("#btnCancelImport").addEventListener("click", () => {
+  hideImportPreview();
+  toast("Import abgebrochen");
+});
+
+$("#btnApplyImport").addEventListener("click", () => {
+  if (!pendingImport) return;
+  try {
+    state = applyImportedState(pendingImport);
+    // Ensure defaults exist (and keep imported custom exercises/plans/workouts)
+    ensureDefaults(state, defaults);
+    state.meta = state.meta || {};
+    state.meta.activeWorkoutId = null; // avoid dangling ids after replace
+    // run migrations for imported v4 state
+    const mig2 = runMigrations(state);
+    state = mig2.state;
+    state.meta.lastMigration = mig2;
+    persist();
+    rerenderAll();
+    hideImportPreview();
+    toast("Import angewendet ✅");
+  } catch (e) {
+    toast(String(e?.message || e));
+  }
+});
+;
 }
 
 function boot(){
