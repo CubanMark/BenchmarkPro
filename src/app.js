@@ -23,7 +23,7 @@ ensureDefaults(state, defaults);
 
 // ensure meta
 state.meta = state.meta || {};
-state.meta.lastMigration = mig;
+state.meta.lastMigration = { ran: mig.ran, from: mig.from, to: mig.to, at: new Date().toISOString() };
 
 state.meta.activeWorkoutId = state.meta.activeWorkoutId || null;
 
@@ -561,7 +561,7 @@ $("#btnApplyImport").addEventListener("click", () => {
     // run migrations for imported v4 state
     const mig2 = runMigrations(state);
     state = mig2.state;
-    state.meta.lastMigration = mig2;
+    state.meta.lastMigration = { ran: mig2.ran, from: mig2.from, to: mig2.to, at: new Date().toISOString() };
     persist();
     rerenderAll();
     hideImportPreview();
