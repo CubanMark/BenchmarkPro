@@ -184,9 +184,9 @@
     const FREETEXT_VALUE = "FREETEXT";
     const PLAN_STORAGE_KEY = 'benchmark_pro_plans_v1';
     const DEFAULT_PLANS = {
-      A: { name: "HomeGym A", exercises: ["Bankdrücken","Klimmzüge","Schulterdrücken","Trizepsstrecken","Face Pulls","Plank"] },
-      B: { name: "HomeGym B", exercises: ["Kniebeuge","Kreuzheben","Ausfallschritte","Wadenheben","Dead Bug"] },
-      C: { name: "HomeGym C", exercises: ["Schrägbankdrücken","Einarmiges KH-Rudern","Seitheben","Bizepscurls","Hüftheben/Glute Bridge","Invertiertes Rudern"] }
+      A: { name: "HomeGym A", exercises: ["Box Squat","Bench Press","Barbell Row","Lateral Raise","Glute Bridge (bilateral)","McGill Big 3"] },
+      B: { name: "HomeGym B", exercises: ["Romanian Dead Lift","Incline Bench Press","Pull-ups (strict)","Pull-ups (Toe-assisted)","W-Raises"] },
+      C: { name: "HomeGym C", exercises: ["Box Squat","Bench Press (Close-Grip)","Inverted Row","Glute Bridge bilateral","W-Raises","McGill Big 3"] }
     };
 
     const allExercisesData = [
@@ -354,8 +354,11 @@
                 if (!exerciseSelect) return;
                 const optionExists = [...exerciseSelect.options].some(o => o.value === exName);
                 if (!optionExists) {
-                    alert(`Übung „${exName}“ ist im Dropdown nicht verfügbar. (Tipp: Schreibweise prüfen oder als freie Übung hinzufügen.)`);
-                    return;
+                    // Minimal: Option dynamisch ergänzen, damit Quick-Pick immer funktioniert
+                    const opt = document.createElement('option');
+                    opt.value = exName;
+                    opt.textContent = exName;
+                    exerciseSelect.appendChild(opt);
                 }
                 exerciseSelect.value = exName;
                 exerciseSelect.dispatchEvent(new Event('change'));
