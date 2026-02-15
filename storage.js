@@ -59,6 +59,10 @@ export function parseImportFile(fileText) {
 // Apply the imported state
 export function applyImportedState(importedState) {
   const newState = { ...importedState, appVersion: APP_VERSION, dataVersion: DATA_VERSION };
+
+  // Reset activeWorkoutId after Replace to avoid persistence issues
+  newState.meta.activeWorkoutId = null;
+
   return newState;
 }
 
