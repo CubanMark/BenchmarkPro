@@ -113,7 +113,25 @@
     <div class="tab-content" id="myTabContent">
         <!-- Tab: Neues Training -->
         <div class="tab-pane fade show active" id="add" role="tabpanel">
-             <div class="card"> <h2>Neues Training erstellen</h2> <div id="recommendationBox" class="recommendation-box" style="display: none;"> <h3><i class="fas fa-lightbulb me-2"></i>Trainingsempfehlung</h3> <p id="recommendationText">...</p> </div> <form id="workoutSessionForm"> <div class="row mb-3"> <div class="col-md-4"> <label for="dateInput" class="form-label">Datum <i class="fas fa-info-circle form-tooltip" title="Datum des Trainings"></i></label> <input type="date" id="dateInput" class="form-control" required /> <div class="invalid-feedback">Bitte gib ein gültiges Datum ein.</div> </div> <div class="col-md-8"> <label for="sessionNotesInput" class="form-label">Notizen zur Trainingseinheit <i class="fas fa-info-circle form-tooltip" title="Optionale Notizen zur gesamten Einheit (Gefühl, Ort etc.)"></i></label> <input type="text" id="sessionNotesInput" class="form-control" placeholder="z.B. Super Energie heute!" /> </div> </div> </form> <div class="workout-builder-area"> <h3 class="fs-5 mb-3">Übung zur Einheit hinzufügen</h3> <form id="addExerciseForm" class="row g-3"> <div class="col-md-6"> <label for="exerciseSelect" class="form-label">Übung <i class="fas fa-info-circle form-tooltip" title="Wähle eine Übung (⭐=Empfehlung, ⚠️=Pause empfohlen) oder erstelle eine eigene"></i></label> <select id="exerciseSelect" class="form-select"></select> <div id="lastTrainingHint" style="display: none;"> <i class="fas fa-info-circle me-1"></i> Daten vom letzten Training dieser Übung geladen. </div> <div id="customExerciseGroup" class="mt-2" style="display: none;"> <label for="customExerciseInput" class="form-label">Eigene Übung <i class="fas fa-info-circle form-tooltip" title="Definiere Name, Kategorie und Muskeln für deine Übung"></i></label> <input type="text" id="customExerciseInput" class="form-control mb-2" placeholder="Name, z.B. Klimmzüge" /> <select id="customCategorySelect" class="form-select form-select-sm mb-2"> <option value="">Kategorie wählen...</option> <option value="Oberkörper">Oberkörper</option> <option value="Unterkörper">Unterkörper</option> <option value="Ganzkörper">Ganzkörper</option> <option value="Core">Core</option> <option value="Cardio">Cardio</option> <option value="Andere">Andere</option> </select> <input type="text" id="customPrimaryMusclesInput" class="form-control form-control-sm mb-2" placeholder="Primäre Muskeln (Komma-getrennt), z.B. Rücken, Bizeps"/> <input type="text" id="customSecondaryMusclesInput" class="form-control form-control-sm" placeholder="Sekundäre Muskeln (Komma-getrennt), z.B. Unterarm"/> <div class="invalid-feedback">Bitte alle Felder für die eigene Übung ausfüllen.</div> </div>
+             <div class="card"> <h2>Neues Training erstellen</h2> <div id="recommendationBox" class="recommendation-box" style="display: none;"> <h3><i class="fas fa-lightbulb me-2"></i>Trainingsempfehlung</h3> <p id="recommendationText">...</p> </div> <form id="workoutSessionForm"> <div class="row mb-3"> <div class="col-md-4"> <label for="dateInput" class="form-label">Datum <i class="fas fa-info-circle form-tooltip" title="Datum des Trainings"></i></label> <input type="date" id="dateInput" class="form-control" required /> <div class="invalid-feedback">Bitte gib ein gültiges Datum ein.</div> </div> <div class="col-md-8"> <label for="sessionNotesInput" class="form-label">Notizen zur Trainingseinheit <i class="fas fa-info-circle form-tooltip" title="Optionale Notizen zur gesamten Einheit (Gefühl, Ort etc.)"></i></label> <input type="text" id="sessionNotesInput" class="form-control" placeholder="z.B. Super Energie heute!" />
+ </div> </div>
+ <!-- Plan-Auswahl (Mini-Fix v3.2.1) -->
+ <div class="row g-3 mt-1">
+   <div class="col-md-6">
+     <label for="planSelect" class="form-label">Plan <i class="fas fa-info-circle form-tooltip" title="Wähle einen Plan (A/B/C), um die Übungsreihenfolge sichtbar zu machen. Klick auf eine Übung übernimmt sie ins Dropdown."></i></label>
+     <select id="planSelect" class="form-select">
+       <option value="">Frei (kein Plan)</option>
+       <option value="A">HomeGym A</option>
+       <option value="B">HomeGym B</option>
+       <option value="C">HomeGym C</option>
+     </select>
+   </div>
+   <div class="col-12">
+     <div id="planQuickPick" class="list-group"></div>
+     <div id="planQuickPickHint" class="text-muted small mt-1" style="display:none;">Tipp: Klick auf eine Übung → wird im Übungsfeld vorausgewählt.</div>
+   </div>
+ </div>
+ </form> <div class="workout-builder-area"> <h3 class="fs-5 mb-3">Übung zur Einheit hinzufügen</h3> <form id="addExerciseForm" class="row g-3"> <div class="col-md-6"> <label for="exerciseSelect" class="form-label">Übung <i class="fas fa-info-circle form-tooltip" title="Wähle eine Übung (⭐=Empfehlung, ⚠️=Pause empfohlen) oder erstelle eine eigene"></i></label> <select id="exerciseSelect" class="form-select"></select> <div id="lastTrainingHint" style="display: none;"> <i class="fas fa-info-circle me-1"></i> Daten vom letzten Training dieser Übung geladen. </div> <div id="customExerciseGroup" class="mt-2" style="display: none;"> <label for="customExerciseInput" class="form-label">Eigene Übung <i class="fas fa-info-circle form-tooltip" title="Definiere Name, Kategorie und Muskeln für deine Übung"></i></label> <input type="text" id="customExerciseInput" class="form-control mb-2" placeholder="Name, z.B. Klimmzüge" /> <select id="customCategorySelect" class="form-select form-select-sm mb-2"> <option value="">Kategorie wählen...</option> <option value="Oberkörper">Oberkörper</option> <option value="Unterkörper">Unterkörper</option> <option value="Ganzkörper">Ganzkörper</option> <option value="Core">Core</option> <option value="Cardio">Cardio</option> <option value="Andere">Andere</option> </select> <input type="text" id="customPrimaryMusclesInput" class="form-control form-control-sm mb-2" placeholder="Primäre Muskeln (Komma-getrennt), z.B. Rücken, Bizeps"/> <input type="text" id="customSecondaryMusclesInput" class="form-control form-control-sm" placeholder="Sekundäre Muskeln (Komma-getrennt), z.B. Unterarm"/> <div class="invalid-feedback">Bitte alle Felder für die eigene Übung ausfüllen.</div> </div>
              <!-- Video Link -->
              <div id="exerciseLinkBox" class="mt-2" style="display: none;"> <a id="exerciseLinkPreview" href="#" target="_blank" class="video-preview"> <i class="fab fa-youtube fa-lg"></i> <span>Übungsvideo ansehen</span> </a> </div>
              <!-- NEU: Muskel Info Anzeige -->
@@ -164,6 +182,13 @@
     // --- Globale Variablen & Konstanten ---
     const LOCAL_STORAGE_KEY = 'benchmark_pro_trainings';
     const FREETEXT_VALUE = "FREETEXT";
+    const PLAN_STORAGE_KEY = 'benchmark_pro_plans_v1';
+    const DEFAULT_PLANS = {
+      A: { name: "HomeGym A", exercises: ["Bankdrücken","Klimmzüge","Schulterdrücken","Trizepsstrecken","Face Pulls","Plank"] },
+      B: { name: "HomeGym B", exercises: ["Kniebeuge","Kreuzheben","Ausfallschritte","Wadenheben","Dead Bug"] },
+      C: { name: "HomeGym C", exercises: ["Schrägbankdrücken","Einarmiges KH-Rudern","Seitheben","Bizepscurls","Hüftheben/Glute Bridge","Invertiertes Rudern"] }
+    };
+
     const allExercisesData = [
         { name: "Kniebeuge", link: "https://youtu.be/Noj93QZFV_0?si=s7UbU8IqBkjL1KOS&t=22", category: "Unterkörper", primaryMuscles: ["Quadrizeps", "Gluteus"], secondaryMuscles: ["Adduktoren", "Beinbeuger", "Rumpf"] },
         { name: "Bankdrücken", link: "https://www.youtube.com/results?search_query=Bankdrücken+korrekte+Ausführung", category: "Oberkörper", primaryMuscles: ["Brust"], secondaryMuscles: ["Trizeps", "Schulter (vorne)"] },
@@ -189,6 +214,8 @@
     let currentWorkoutSession = { date: '', exercises: [], notes: '' };
     let performanceChartInstance = null;
     let dateInput, exerciseSelect, weightInput, setsInput, generateSetsBtn, setsContainer;
+    let planSelect, planQuickPick, planQuickPickHint;
+
     let customExerciseGroup, customExerciseInput, exerciseLinkBox, exerciseLinkPreview;
     let addExerciseBtn, saveSessionBtn, currentSessionSummary, currentSessionList;
     let historyTableBody, emptyHistoryMessage;
@@ -211,6 +238,9 @@
         try {
             migrateOldDataFormat();
             setInitialDate();
+            initPlans();
+            renderPlanQuickPick();
+
             // Wichtig: Erst Statistiken/Empfehlungen berechnen, DANN Dropdown füllen
             updateStatisticsAndRecommendations(); // Sets global recommendedMusclesForFocus & musclesNeedingRest
             populateExerciseDropdown(); // Uses global arrays
@@ -234,7 +264,7 @@
     }
 
     /** Caches frequently used DOM elements. */
-    function cacheDOMElements() { dateInput = document.getElementById('dateInput'); exerciseSelect = document.getElementById('exerciseSelect'); weightInput = document.getElementById('weightInput'); setsInput = document.getElementById('setsInput'); generateSetsBtn = document.getElementById('generateSetsBtn'); setsContainer = document.getElementById('setsContainer'); customExerciseGroup = document.getElementById('customExerciseGroup'); customExerciseInput = document.getElementById('customExerciseInput'); exerciseLinkBox = document.getElementById('exerciseLinkBox'); exerciseLinkPreview = document.getElementById('exerciseLinkPreview'); addExerciseBtn = document.getElementById('addExerciseBtn'); saveSessionBtn = document.getElementById('saveSessionBtn'); currentSessionSummary = document.getElementById('currentSessionSummary'); currentSessionList = document.getElementById('currentSessionList'); historyTableBody = document.getElementById('historyTableBody'); emptyHistoryMessage = document.getElementById('emptyHistoryMessage'); exerciseSelectStats = document.getElementById('exerciseSelectStats'); timeRangeSelect = document.getElementById('timeRangeSelect'); performanceChartCanvas = document.getElementById('performanceChart'); totalWorkoutsStat = document.getElementById('totalWorkouts'); totalExercisesStat = document.getElementById('totalExercises'); topExercisesContainer = document.getElementById('topExercisesContainer'); musclePointsContainerToday = document.getElementById('musclePointsToday'); musclePointsContainer7d = document.getElementById('musclePoints7d'); musclePointsContainer30d = document.getElementById('musclePoints30d'); recommendationBox = document.getElementById('recommendationBox'); lastTrainingHintElement = document.getElementById('lastTrainingHint'); avgVolumeStat = document.getElementById('avgVolume'); personalRecordsContainer = document.getElementById('personalRecordsList'); muscleInfoDisplay = document.getElementById('muscleInfoDisplay'); } // NEU hinzugefügt
+    function cacheDOMElements() { dateInput = document.getElementById('dateInput'); exerciseSelect = document.getElementById('exerciseSelect'); weightInput = document.getElementById('weightInput'); setsInput = document.getElementById('setsInput'); generateSetsBtn = document.getElementById('generateSetsBtn'); setsContainer = document.getElementById('setsContainer'); customExerciseGroup = document.getElementById('customExerciseGroup'); customExerciseInput = document.getElementById('customExerciseInput'); exerciseLinkBox = document.getElementById('exerciseLinkBox'); exerciseLinkPreview = document.getElementById('exerciseLinkPreview'); addExerciseBtn = document.getElementById('addExerciseBtn'); saveSessionBtn = document.getElementById('saveSessionBtn'); currentSessionSummary = document.getElementById('currentSessionSummary'); currentSessionList = document.getElementById('currentSessionList'); historyTableBody = document.getElementById('historyTableBody'); emptyHistoryMessage = document.getElementById('emptyHistoryMessage'); exerciseSelectStats = document.getElementById('exerciseSelectStats'); timeRangeSelect = document.getElementById('timeRangeSelect'); performanceChartCanvas = document.getElementById('performanceChart'); totalWorkoutsStat = document.getElementById('totalWorkouts'); totalExercisesStat = document.getElementById('totalExercises'); topExercisesContainer = document.getElementById('topExercisesContainer'); musclePointsContainerToday = document.getElementById('musclePointsToday'); musclePointsContainer7d = document.getElementById('musclePoints7d'); musclePointsContainer30d = document.getElementById('musclePoints30d'); recommendationBox = document.getElementById('recommendationBox'); lastTrainingHintElement = document.getElementById('lastTrainingHint'); avgVolumeStat = document.getElementById('avgVolume'); personalRecordsContainer = document.getElementById('personalRecordsList'); planSelect = document.getElementById('planSelect'); planQuickPick = document.getElementById('planQuickPick'); planQuickPickHint = document.getElementById('planQuickPickHint'); muscleInfoDisplay = document.getElementById('muscleInfoDisplay'); } // NEU hinzugefügt
 
     /** Checks stored data for old format entries and adds missing fields. */
      function migrateOldDataFormat() {
@@ -278,6 +308,63 @@
     /** Sets the date input to today's date. */
     function setInitialDate() { const today = new Date().toISOString().split('T')[0]; if (dateInput) dateInput.value = today; }
 
+    // --- Plan Handling (Mini-Fix v3.2.1) ---
+    function loadPlans() {
+        const raw = localStorage.getItem(PLAN_STORAGE_KEY);
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch { return null; }
+    }
+    function savePlans(plansObj) {
+        localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(plansObj));
+    }
+    function initPlans() {
+        const existing = loadPlans();
+        if (existing && typeof existing === 'object' && (existing.A || existing.B || existing.C)) return;
+        // Default-Pläne anlegen (nur wenn sie fehlen)
+        savePlans(DEFAULT_PLANS);
+    }
+    function getPlanById(planId) {
+        const plans = loadPlans() || DEFAULT_PLANS;
+        return plans?.[planId] || null;
+    }
+
+    function renderPlanQuickPick() {
+        if (!planQuickPick || !planSelect) return;
+
+        const planId = (planSelect.value || '').trim();
+        planQuickPick.innerHTML = '';
+        if (planQuickPickHint) planQuickPickHint.style.display = planId ? 'block' : 'none';
+
+        if (!planId) return;
+
+        const plan = getPlanById(planId);
+        if (!plan || !Array.isArray(plan.exercises)) return;
+
+        // Render: Buttons für jedes Exercise (klickbar -> setzt Dropdown)
+        plan.exercises.forEach((exName, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+            const left = document.createElement('span'); left.textContent = `${idx+1}. ${exName}`;
+            const right = document.createElement('span'); right.className = 'badge bg-secondary'; right.textContent = 'aus Plan';
+            btn.appendChild(left); btn.appendChild(right);
+            btn.addEventListener('click', () => {
+                if (!exerciseSelect) return;
+                const optionExists = [...exerciseSelect.options].some(o => o.value === exName);
+                if (!optionExists) {
+                    alert(`Übung „${exName}“ ist im Dropdown nicht verfügbar. (Tipp: Schreibweise prüfen oder als freie Übung hinzufügen.)`);
+                    return;
+                }
+                exerciseSelect.value = exName;
+                exerciseSelect.dispatchEvent(new Event('change'));
+                // Fokus aufs Gewicht, damit du direkt tippen kannst
+                weightInput?.focus();
+            });
+            planQuickPick.appendChild(btn);
+        });
+    }
+
+
     /** Populates the exercise dropdown with all available exercises, adding recommendation/warning icons. */
     function populateExerciseDropdown() {
         if (!exerciseSelect) return;
@@ -299,7 +386,7 @@
     }
 
     /** Sets up all necessary event listeners for the application. */
-    function setupEventListeners() { const addExerciseForm = document.getElementById('addExerciseForm'); if (addExerciseForm) addExerciseForm.addEventListener('submit', handleAddExerciseToSession); if (saveSessionBtn) saveSessionBtn.addEventListener('click', handleSaveWorkoutSession); if (exerciseSelect) exerciseSelect.addEventListener('change', handleExerciseSelectionChange); if (generateSetsBtn) generateSetsBtn.addEventListener('click', generateSetFields); if (setsInput) setsInput.addEventListener('change', generateSetFields); const historySearchInput = document.getElementById('historySearch'); if(historySearchInput) historySearchInput.addEventListener('input', filterHistoryTable); if (exerciseSelectStats) exerciseSelectStats.addEventListener('change', updatePerformanceChart); if (timeRangeSelect) timeRangeSelect.addEventListener('change', updatePerformanceChart); const chartTypeSelect = document.getElementById('chartTypeSelect'); if (chartTypeSelect) chartTypeSelect.addEventListener('change', updatePerformanceChart); const exportBtn = document.getElementById('exportData'); const importBtn = document.getElementById('importData'); if (exportBtn) exportBtn.addEventListener('click', exportData); if (importBtn) importBtn.addEventListener('click', importData); if (currentSessionList) { currentSessionList.addEventListener('click', function(e) { if (e.target && (e.target.classList.contains('remove-exercise-btn') || e.target.closest('.remove-exercise-btn'))) { const button = e.target.closest('.remove-exercise-btn'); const indexToRemove = parseInt(button.getAttribute('data-index'), 10); if (!isNaN(indexToRemove)) removeExerciseFromSession(indexToRemove); } }); } if (historyTableBody) { historyTableBody.addEventListener('click', function(e) { if (e.target && (e.target.classList.contains('delete-btn') || e.target.closest('.delete-btn'))) { const button = e.target.closest('.delete-btn'); const sessionId = parseInt(button.getAttribute('data-session-id'), 10); const exerciseIndex = parseInt(button.getAttribute('data-exercise-index'), 10); if (!isNaN(sessionId)) handleDeleteTraining(sessionId, exerciseIndex); } }); } }
+    function setupEventListeners() { const addExerciseForm = document.getElementById('addExerciseForm'); if (addExerciseForm) addExerciseForm.addEventListener('submit', handleAddExerciseToSession); if (saveSessionBtn) saveSessionBtn.addEventListener('click', handleSaveWorkoutSession); if (exerciseSelect) exerciseSelect.addEventListener('change', handleExerciseSelectionChange); if (planSelect) planSelect.addEventListener('change', renderPlanQuickPick); if (generateSetsBtn) generateSetsBtn.addEventListener('click', generateSetFields); if (setsInput) setsInput.addEventListener('change', generateSetFields); const historySearchInput = document.getElementById('historySearch'); if(historySearchInput) historySearchInput.addEventListener('input', filterHistoryTable); if (exerciseSelectStats) exerciseSelectStats.addEventListener('change', updatePerformanceChart); if (timeRangeSelect) timeRangeSelect.addEventListener('change', updatePerformanceChart); const chartTypeSelect = document.getElementById('chartTypeSelect'); if (chartTypeSelect) chartTypeSelect.addEventListener('change', updatePerformanceChart); const exportBtn = document.getElementById('exportData'); const importBtn = document.getElementById('importData'); if (exportBtn) exportBtn.addEventListener('click', exportData); if (importBtn) importBtn.addEventListener('click', importData); if (currentSessionList) { currentSessionList.addEventListener('click', function(e) { if (e.target && (e.target.classList.contains('remove-exercise-btn') || e.target.closest('.remove-exercise-btn'))) { const button = e.target.closest('.remove-exercise-btn'); const indexToRemove = parseInt(button.getAttribute('data-index'), 10); if (!isNaN(indexToRemove)) removeExerciseFromSession(indexToRemove); } }); } if (historyTableBody) { historyTableBody.addEventListener('click', function(e) { if (e.target && (e.target.classList.contains('delete-btn') || e.target.closest('.delete-btn'))) { const button = e.target.closest('.delete-btn'); const sessionId = parseInt(button.getAttribute('data-session-id'), 10); const exerciseIndex = parseInt(button.getAttribute('data-exercise-index'), 10); if (!isNaN(sessionId)) handleDeleteTraining(sessionId, exerciseIndex); } }); } }
 
     /** Handles the change event of the main exercise dropdown. */
     function handleExerciseSelectionChange() {
