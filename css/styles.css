@@ -1,115 +1,27 @@
+/* Grundlegendes Styling für die Tabs und Inhalte */
+.tabs {
+  display: flex;
+  margin-bottom: 20px;
+}
 
-:root{
-  --bg:#0b1220;
-  --text:#e7eefc;
-  --muted:#a9b7d6;
-  --line:#24365d;
-  --accent:#5aa7ff;
-  --danger:#ff5a7a;
-  --shadow: 0 10px 30px rgba(0,0,0,.35);
-  --radius: 16px;
-  --pad: 18px;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+.tab {
+  padding: 10px 20px;
+  margin-right: 10px;
+  cursor: pointer;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
 }
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  font-family:var(--sans);
-  color:var(--text);
-  background: radial-gradient(1100px 700px at 30% 15%, #1b2f5c 0%, var(--bg) 60%) fixed;
-}
-.app-header{padding:18px 18px 8px}
-.app-title{display:flex;align-items:center;gap:12px}
-h1{font-size:20px;margin:0}
-h2{margin:10px 0 12px;font-size:22px}
-.badge{
-  margin-left:auto;
-  font-family:var(--mono);
-  font-size:12px;
-  padding:6px 10px;
-  border:1px solid var(--line);
-  border-radius:999px;
-  background: rgba(255,255,255,.04);
-}
-.tabs{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-.tab{
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.03);
-  color:var(--text);
-  padding:10px 14px;
-  border-radius:12px;
-  cursor:pointer;
-}
-.tab.is-active{
-  border-color: rgba(90,167,255,.75);
-  box-shadow: 0 0 0 3px rgba(90,167,255,.15);
-}
-.container{padding:0 18px 30px;max-width:1100px;margin:0 auto}
-.panel{display:none}
-.panel.is-active{display:block}
-.card{
-  background: rgba(12,20,38,.55);
-  border:1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--pad);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
-}
-.stack{display:flex;flex-direction:column;gap:14px;margin-top:14px}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.space{justify-content:space-between}
-.label{font-size:12px;letter-spacing:.02em;color:var(--muted);text-transform:uppercase}
-.muted{color:var(--muted)}
-.mono{font-family:var(--mono)}
-.btn{
-  border:1px solid rgba(90,167,255,.55);
-  background: rgba(90,167,255,.12);
-  color:var(--text);
-  padding:10px 14px;
-  border-radius: 12px;
-  cursor:pointer;
-  font-weight:600;
-}
-.btn:hover{background: rgba(90,167,255,.18)}
-.btn:active{transform: translateY(1px)}
-.btn-ghost{border:1px solid var(--line);background: rgba(255,255,255,.03)}
-.btn-danger{border-color: rgba(255,90,122,.65);background: rgba(255,90,122,.12)}
-.btn-danger:hover{background: rgba(255,90,122,.18)}
-.kv{display:flex;flex-direction:column;gap:10px}
-.kv-row{
-  display:flex;justify-content:space-between;gap:10px;
-  border-bottom:1px solid rgba(36,54,93,.6);
-  padding-bottom:10px;
-}
-.kv-row:last-child{border-bottom:none;padding-bottom:0}
-.mt{margin-top:14px}
-.footer{text-align:center;padding:22px 0 8px}
-.input, textarea{
-  width:100%;
-  border:1px solid var(--line);
-  background: rgba(255,255,255,.03);
-  color:var(--text);
-  border-radius: 12px;
-  padding: 10px 12px;
-  outline:none;
-}
-textarea{min-height:110px;resize:vertical;font-family:var(--mono);font-size:13px}
-.small{font-size:13px}
-.list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
-.pill{
-  display:flex;justify-content:space-between;gap:10px;align-items:center;
-  border:1px solid rgba(36,54,93,.7);
-  padding:10px 12px;border-radius:14px;background: rgba(255,255,255,.02);
-}
-.pill .name{font-weight:600}
 
+.tab.is-active {
+  background-color: #007bff;
+  color: white;
+}
 
-/* Phase 3 helpers */
-.btn-xs{ padding:6px 10px; font-size:12px; }
-.w70{ width:90px; max-width:90px; }
-.set-row{ padding:6px 0; border-top: 1px solid rgba(255,255,255,0.08); }
-.sets .set-row:first-child{ border-top: none; }
-details.card > summary{ list-style: none; }
-details.card > summary::-webkit-details-marker{ display:none; }
+.panel {
+  display: none; /* Alle Panels standardmäßig ausblenden */
+}
+
+.panel.is-active {
+  display: block; /* Zeigt den Inhalt des aktiven Tabs */
+}
