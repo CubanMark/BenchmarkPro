@@ -245,6 +245,8 @@
             updateStatisticsAndRecommendations(); // Sets global recommendedMusclesForFocus & musclesNeedingRest
             populateExerciseDropdown(); // Uses global arrays
             setupEventListeners();
+            setupPlanTabListeners();
+            renderPlansTab();
             loadAndDisplayHistory();
             generateSetFields();
             updateSessionSummaryUI();
@@ -562,7 +564,181 @@
 // ---- Runtime marker ----
 const BENCHMARK_PRO_VERSION = 'v3.2.1';
 console.log('BenchMark Pro loaded:', BENCHMARK_PRO_VERSION);
-</script>
+
+    // --- v3.2.1 Mini-Fix (Plans Tab sichtbar + editierbar) ---
+    function setupPlanTabListeners() {
+      const addBtn = document.getElementById('addPlanBtn');
+      const exportBtn = document.getElementById('exportV2Btn');
+      const importInput = document.getElementById('importV2Input');
+
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          const id = prompt("Plan-ID (z.B. A, B, C oder frei wie 'D'):", "");
+          if (!id) return;
+          const plans = loadPlans();
+          if (plans[id]) {
+            alert("Plan existiert bereits.");
+            return;
+          }
+          plans[id] = { name: id, exercises: [] };
+          savePlans(plans);
+          renderPlansTab();
+          try { initPlans(); } catch(e) {}
+          try { renderPlanQuickPick(); } catch(e) {}
+        });
+      }
+
+      if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+          const payload = { version: 2, exportedAt: new Date().toISOString(), plans: loadPlans() };
+          downloadJson(payload, 'benchmarkpro_plans_v2.json');
+        });
+      }
+
+      if (importInput) {
+        importInput.addEventListener('change', async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          try {
+            const txt = await file.text();
+            const obj = JSON.parse(txt);
+            const incoming = obj?.plans ?? obj;
+            const normalized = normalizePlans(incoming);
+            savePlans(normalized);
+            renderPlansTab();
+            try { initPlans(); } catch(e) {}
+            try { renderPlanQuickPick(); } catch(e) {}
+            alert("Pläne importiert ✅");
+          } catch (err) {
+            console.error(err);
+            alert("Import fehlgeschlagen. Erwartet JSON mit {plans:{...}} oder direkt {A:{...},...}");
+          } finally {
+            e.target.value = "";
+          }
+        });
+      }
+    }
+
+    function renderPlansTab() {
+      const container = document.getElementById('plansList');
+      if (!container) return;
+
+      const plans = loadPlans();
+      const entries = Object.entries(plans);
+
+      if (entries.length === 0) {
+        container.innerHTML = '<p class="text-muted">Keine Pläne vorhanden.</p>';
+        return;
+      }
+
+      container.innerHTML = entries.map(([id, p]) => {
+        const safeName = escapeHtml(p?.name ?? id);
+        const exercises = (p?.exercises ?? []).join('\n');
+        const safeExercises = escapeHtml(exercises);
+        const isCore = ['A','B','C'].includes(id);
+
+        return `
+          <div class="card mb-3">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                <div>
+                  <div class="fw-bold">${escapeHtml(id)}</div>
+                  <div class="text-muted small">Template (Plan) → wird im Tab „Neues Training“ als Quick-Pick genutzt.</div>
+                </div>
+                ${isCore ? '<span class="badge bg-secondary">Default</span>' : ''}
+              </div>
+
+              <div class="row g-2 mt-2">
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Plan-Name</label>
+                  <input class="form-control" data-plan-name="${escapeHtml(id)}" value="${safeName}">
+                </div>
+                <div class="col-12 col-md-8">
+                  <label class="form-label">Übungen (eine pro Zeile)</label>
+                  <textarea class="form-control" rows="5" data-plan-exercises="${escapeHtml(id)}">${safeExercises}</textarea>
+                </div>
+              </div>
+
+              <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-primary" data-plan-save="${escapeHtml(id)}"><i class="fas fa-save me-1"></i>Speichern</button>
+                ${isCore ? '' : `<button class="btn btn-outline-danger" data-plan-delete="${escapeHtml(id)}"><i class="fas fa-trash me-1"></i>Löschen</button>`}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Wire save/delete buttons (delegation wäre schöner, aber keep it simple)
+      container.querySelectorAll('[data-plan-save]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-plan-save');
+          const nameEl = container.querySelector(`[data-plan-name="${CSS.escape(id)}"]`);
+          const exEl = container.querySelector(`[data-plan-exercises="${CSS.escape(id)}"]`);
+          const name = (nameEl?.value ?? id).trim() || id;
+          const exercises = (exEl?.value ?? '')
+            .split(/\r?\n/)
+            .map(s => s.trim())
+            .filter(Boolean);
+
+          const plans = loadPlans();
+          plans[id] = { name, exercises };
+          savePlans(plans);
+          // Refresh other UI parts
+          try { initPlans(); } catch(e) {}
+          try { renderPlanQuickPick(); } catch(e) {}
+          alert(`Plan ${id} gespeichert ✅`);
+        });
+      });
+
+      container.querySelectorAll('[data-plan-delete]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-plan-delete');
+          if (!confirm(`Plan ${id} wirklich löschen?`)) return;
+          const plans = loadPlans();
+          delete plans[id];
+          savePlans(plans);
+          renderPlansTab();
+          try { initPlans(); } catch(e) {}
+          try { renderPlanQuickPick(); } catch(e) {}
+        });
+      });
+    }
+
+    function normalizePlans(input) {
+      const out = {};
+      if (!input || typeof input !== 'object') return out;
+      for (const [id, p] of Object.entries(input)) {
+        if (!id) continue;
+        const name = (p && typeof p === 'object' && 'name' in p) ? String(p.name ?? id) : String(id);
+        const exercisesRaw = (p && typeof p === 'object' && Array.isArray(p.exercises)) ? p.exercises : [];
+        const exercises = exercisesRaw.map(x => String(x).trim()).filter(Boolean);
+        out[id] = { name, exercises };
+      }
+      return out;
+    }
+
+    function downloadJson(obj, filename) {
+      const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+  </script>
 
 </body>
 </html>
