@@ -25,6 +25,7 @@
 
   <main class="container">
     
+    <!-- TRAINING TAB -->
     <section class="panel is-active" id="tab-training">
       <div class="row space">
         <h2>Training</h2>
@@ -96,6 +97,7 @@
       </div>
     </section>
 
+    <!-- PLANS TAB -->
     <section class="panel" id="tab-plans">
       <div class="row space">
         <h2>Pläne</h2>
@@ -118,6 +120,7 @@
       </details>
     </section>
 
+    <!-- HISTORY TAB -->
     <section class="panel" id="tab-history">
       <div class="row space">
         <h2>Historie</h2>
@@ -125,7 +128,9 @@
       </div>
       <div id="historyList" class="mt"></div>
     </section>
-<section class="panel" id="tab-diagnostics">
+
+    <!-- DIAGNOSTICS TAB (FIXED) -->
+    <section class="panel" id="tab-diagnostics">
       <h2>Diagnose</h2>
       <div class="card">
         <div class="kv">
@@ -144,6 +149,26 @@
 
         <div class="muted mt">Phase 2: Import/Export ersetzt komplett. Merge kommt später.</div>
       </div>
+
+      <!-- FIX START: Fehlender Import-Preview Block wurde hier eingefügt -->
+      <div id="importPreview" class="card mt" style="display:none; border:1px solid var(--accent)">
+        <div class="label" style="color:var(--accent)">Import Vorschau</div>
+        <div class="mt">
+          <div class="kv">
+            <div class="kv-row"><div>Typ</div><div class="mono" id="importKind">—</div></div>
+            <div class="kv-row"><div>Workouts</div><div class="mono" id="importWorkouts">—</div></div>
+            <div class="kv-row"><div>Plans</div><div class="mono" id="importPlans">—</div></div>
+            <div class="kv-row"><div>Exercises</div><div class="mono" id="importExercises">—</div></div>
+          </div>
+          <div id="importNote" class="muted small mt"></div>
+        </div>
+        <div class="row space mt">
+          <button id="btnCancelImport" class="btn btn-ghost">Abbrechen</button>
+          <button id="btnApplyImport" class="btn">Import anwenden</button>
+        </div>
+      </div>
+      <!-- FIX END -->
+
     </section>
 
     <footer class="footer muted">
