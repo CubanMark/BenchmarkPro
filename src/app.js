@@ -190,6 +190,27 @@ function exerciseNameById(exId){
   return state.exercises.find(e=>e.id===exId)?.name || exId;
 }
 
+/**
+ * Berechnet pro exerciseId das maximale Gewicht (nur finite, >0) aus allen Workouts.
+ * excludeWorkoutId: optional – dieses Workout wird aus der Berechnung ausgeschlossen (für laufendes Max im aktuellen Workout).
+ */
+function getMaxWeightByExerciseId(excludeWorkoutId = null) {
+  const maxByEx = Object.create(null);
+  for (const w of state.workouts) {
+    if (excludeWorkoutId != null && w.id === excludeWorkoutId) continue;
+    for (const item of w.items || []) {
+      const exId = item.exerciseId;
+      for (const s of item.sets || []) {
+        const weight = Number(s?.weight);
+        if (Number.isFinite(weight) && weight > 0) {
+          if (!(exId in maxByEx) || weight > maxByEx[exId]) maxByEx[exId] = weight;
+        }
+      }
+    }
+  }
+  return maxByEx;
+}
+
 function renderWorkoutItems(workout){
   const root = $("#workoutItems");
   if (!root) {
@@ -198,18 +219,25 @@ function renderWorkoutItems(workout){
   }
   root.innerHTML = "";
 
+  const maxBeforeThisWorkout = getMaxWeightByExerciseId(workout.id);
+
   for (const item of workout.items) {
     const exName = exerciseNameById(item.exerciseId);
     const card = document.createElement("div");
     card.className = "card";
     card.dataset.exerciseId = item.exerciseId;
 
+    let runningMax = maxBeforeThisWorkout[item.exerciseId] ?? 0;
     const setsHtml = item.sets.map((s, idx) => {
       const w = Number.isFinite(s.weight) ? s.weight : "";
       const r = Number.isFinite(s.reps) ? s.reps : "";
+      const weightNum = Number(s?.weight);
+      const isPr = Number.isFinite(weightNum) && weightNum > 0 && weightNum > runningMax;
+      if (isPr) runningMax = weightNum;
+      const prLabel = isPr ? " 🔥 PR" : "";
       return `<div class="row space set-row">
         <div class="mono">${idx+1}.</div>
-        <div class="mono">${w} kg × ${r}</div>
+        <div class="mono">${w} kg × ${r}${prLabel}</div>
         <button class="btn btn-danger btn-xs" data-action="del-set" data-idx="${idx}" title="Set löschen">x</button>
       </div>`;
     }).join("");
