@@ -7,6 +7,18 @@ import { upsertExercise } from "./exercises.js";
 import { createWorkout, getWorkout, addSetToWorkout, deleteSetFromWorkout, removeExerciseFromWorkout, ensureExerciseItem, sortWorkoutsNewestFirst, humanWorkoutTitle, deleteWorkout, setWorkoutNotes } from "./workouts.js";
 import { $, $all, setActiveTab, toast } from "./ui.js";
 
+/**
+ * Bindet einen Event-Listener, wenn das Element existiert. Sonst console.warn (kein throw).
+ */
+function on(selector, event, handler) {
+  const el = $(selector);
+  if (!el) {
+    console.warn("[BenchMarkPro] Fehlendes Element:", selector);
+    return;
+  }
+  el.addEventListener(event, handler);
+}
+
 let state = loadState();
 
 // Run migrations (v4->v4). Legacy imports are handled separately.
@@ -81,6 +93,10 @@ function planToTextarea(plan){
 
 function renderPlans(){
   const root = $("#plansList");
+  if (!root) {
+    console.warn("[BenchMarkPro] Fehlendes Element: #plansList");
+    return;
+  }
   root.innerHTML = "";
 
   for (const plan of state.plans) {
@@ -148,8 +164,14 @@ function renderNewWorkoutControls(){
   const modeSel = $("#newWorkoutMode");
   const planSel = $("#newWorkoutPlan");
   const dateInp = $("#newWorkoutDate");
+  if (!modeSel || !planSel || !dateInp) {
+    if (!modeSel) console.warn("[BenchMarkPro] Fehlendes Element: #newWorkoutMode");
+    if (!planSel) console.warn("[BenchMarkPro] Fehlendes Element: #newWorkoutPlan");
+    if (!dateInp) console.warn("[BenchMarkPro] Fehlendes Element: #newWorkoutDate");
+    return;
+  }
 
-  if (dateInp && !dateInp.value) {
+  if (!dateInp.value) {
     const d = new Date();
     dateInp.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   }
@@ -170,6 +192,10 @@ function exerciseNameById(exId){
 
 function renderWorkoutItems(workout){
   const root = $("#workoutItems");
+  if (!root) {
+    console.warn("[BenchMarkPro] Fehlendes Element: #workoutItems");
+    return;
+  }
   root.innerHTML = "";
 
   for (const item of workout.items) {
@@ -221,9 +247,14 @@ function renderWorkoutItems(workout){
 }
 
 function renderActiveWorkout(){
-  const workoutId = state.meta.activeWorkoutId;
   const card = $("#activeWorkoutCard");
   const newCard = $("#newWorkoutCard");
+  if (!card || !newCard) {
+    if (!card) console.warn("[BenchMarkPro] Fehlendes Element: #activeWorkoutCard");
+    if (!newCard) console.warn("[BenchMarkPro] Fehlendes Element: #newWorkoutCard");
+    return;
+  }
+  const workoutId = state.meta.activeWorkoutId;
   if (!workoutId) {
     card.style.display = "none";
     newCard.style.display = "";
@@ -308,13 +339,13 @@ function startWorkout(){
 }
 
 function setupActions(){
-  $("#btnSaveState").addEventListener("click", () => {
+  on("#btnSaveState", "click", () => {
     persist();
     rerenderAll();
     toast("State gespeichert ✅");
   });
 
-  $("#btnResetDev").addEventListener("click", () => {
+  on("#btnResetDev", "click", () => {
     if (!confirm("Reset (dev): State komplett löschen?")) return;
     resetState();
     state = loadState();
@@ -326,14 +357,14 @@ function setupActions(){
     rerenderAll();
   });
 
-  $("#btnAddPlan").addEventListener("click", () => {
+  on("#btnAddPlan", "click", () => {
     createPlan(state);
     persist();
     rerenderAll();
     toast("Neuer Plan angelegt ✅");
   });
 
-  $("#btnAddExercise").addEventListener("click", (ev) => {
+  on("#btnAddExercise", "click", (ev) => {
     // prevent <details> toggle when clicking button in summary
     ev.preventDefault();
     ev.stopPropagation();
@@ -348,7 +379,7 @@ function setupActions(){
     toast("Übung angelegt ✅");
   });
 
-  $("#plansList").addEventListener("click", (ev) => {
+  on("#plansList", "click", (ev) => {
     const btn = ev.target.closest("button[data-action]");
     if (!btn) return;
     const action = btn.dataset.action;
@@ -375,23 +406,23 @@ function setupActions(){
   });
 
   // Training controls
-  $("#btnStartWorkout").addEventListener("click", startWorkout);
-  $("#btnNewWorkout").addEventListener("click", () => {
+  on("#btnStartWorkout", "click", startWorkout);
+  on("#btnNewWorkout", "click", () => {
     if (state.meta.activeWorkoutId) {
       toast("Es läuft schon ein aktives Workout.");
       return;
     }
-    $("#newWorkoutCard").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("#newWorkoutCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
-  $("#btnEndWorkout").addEventListener("click", () => {
+  on("#btnEndWorkout", "click", () => {
     state.meta.activeWorkoutId = null;
     persist();
     rerenderAll();
     toast("Workout geschlossen ✅");
   });
 
-  $("#btnDeleteWorkout").addEventListener("click", () => {
+  on("#btnDeleteWorkout", "click", () => {
     const id = state.meta.activeWorkoutId;
     if (!id) return;
     if (!confirm("Workout wirklich löschen?")) return;
@@ -402,7 +433,7 @@ function setupActions(){
     toast("Workout gelöscht ✅");
   });
 
-  $("#activeWorkoutNotes").addEventListener("input", (ev) => {
+  on("#activeWorkoutNotes", "input", (ev) => {
     const id = state.meta.activeWorkoutId;
     const w = id ? getWorkout(state, id) : null;
     if (!w) return;
@@ -411,7 +442,7 @@ function setupActions(){
     renderDiagnostics();
   });
 
-  $("#btnAddExerciseToWorkout").addEventListener("click", () => {
+  on("#btnAddExerciseToWorkout", "click", () => {
     const id = state.meta.activeWorkoutId;
     const w = id ? getWorkout(state, id) : null;
     if (!w) return;
@@ -422,7 +453,7 @@ function setupActions(){
     renderActiveWorkout();
   });
 
-  $("#workoutItems").addEventListener("click", (ev) => {
+  on("#workoutItems", "click", (ev) => {
     const btn = ev.target.closest("button[data-action]");
     if (!btn) return;
     const action = btn.dataset.action;
@@ -470,7 +501,7 @@ function setupActions(){
   });
 
   // History actions
-  $("#historyList").addEventListener("click", (ev) => {
+  on("#historyList", "click", (ev) => {
     const btn = ev.target.closest("button[data-action]");
     if (!btn) return;
     const action = btn.dataset.action;
@@ -495,7 +526,7 @@ function setupActions(){
     }
   });
 
-  $("#btnExport").addEventListener("click", () => {
+  on("#btnExport", "click", () => {
     const blob = new Blob([exportState(state)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -534,7 +565,7 @@ function showImportPreview(preview, validation){
   }
 }
 
-$("#fileImport").addEventListener("change", async (ev) => {
+on("#fileImport", "change", async (ev) => {
   const file = ev.target.files?.[0];
   if (!file) return;
   const text = await file.text();
@@ -551,12 +582,12 @@ $("#fileImport").addEventListener("change", async (ev) => {
   }
 });
 
-$("#btnCancelImport").addEventListener("click", () => {
+on("#btnCancelImport", "click", () => {
   hideImportPreview();
   toast("Import abgebrochen");
 });
 
-$("#btnApplyImport").addEventListener("click", () => {
+on("#btnApplyImport", "click", () => {
   if (!pendingImport) return;
   if (!pendingImport.validation || !pendingImport.validation.ok) {
     toast("Import abgebrochen: Ungültige Daten. Bitte Validierungsfehler beheben.");
