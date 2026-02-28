@@ -1,0 +1,5 @@
+- Keine Ordner-Umstrukturierungen.
+- Keine Refactors ohne Nachfrage.
+- Ändere nur Dateien, die du vorab nennst.
+- Am Ende: Liste der geänderten Dateien + warum.
+- Nach Implementierung: kurze manuelle Smoke-Testliste.
