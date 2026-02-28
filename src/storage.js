@@ -40,6 +40,95 @@ export function exportState(state) {
 }
 
 /** -------------------------
+ *  Validation (v4 state)
+ *  ------------------------- */
+const BACKUP_KEY_PREFIX = "benchmarkpro_v4_backup_";
+
+/**
+ * Validates state for v4 schema. No throw.
+ * @returns {{ ok: true } | { ok: false, errors: string[] }}
+ */
+export function validateStateV4(state) {
+  const errors = [];
+  if (!state || typeof state !== "object") {
+    return { ok: false, errors: ["state ist kein Objekt"] };
+  }
+  if (state.dataVersion !== 4) {
+    errors.push(`dataVersion muss 4 sein (ist: ${state.dataVersion})`);
+  }
+  if (!Array.isArray(state.plans)) {
+    errors.push("plans muss ein Array sein");
+  }
+  if (!Array.isArray(state.exercises)) {
+    errors.push("exercises muss ein Array sein");
+  }
+  if (!Array.isArray(state.workouts)) {
+    errors.push("workouts muss ein Array sein");
+  }
+  if (errors.length) return { ok: false, errors };
+
+  const workouts = state.workouts;
+  for (let i = 0; i < workouts.length; i++) {
+    const w = workouts[i];
+    const prefix = `Workout[${i}]`;
+    if (typeof w.id !== "string" || !w.id) {
+      errors.push(`${prefix}: id muss nicht-leerer String sein`);
+    }
+    if (typeof w.date !== "string") {
+      errors.push(`${prefix}: date muss String sein`);
+    }
+    if (!Array.isArray(w.items)) {
+      errors.push(`${prefix}: items muss ein Array sein`);
+    } else {
+      for (let j = 0; j < w.items.length; j++) {
+        const item = w.items[j];
+        const itemPrefix = `${prefix}.items[${j}]`;
+        if (typeof item.exerciseId !== "string") {
+          errors.push(`${itemPrefix}: exerciseId muss String sein`);
+        }
+        if (!Array.isArray(item.sets)) {
+          errors.push(`${itemPrefix}: sets muss ein Array sein`);
+        } else {
+          for (let k = 0; k < item.sets.length; k++) {
+            const s = item.sets[k];
+            const setPrefix = `${itemPrefix}.sets[${k}]`;
+            const reps = s?.reps;
+            const weight = s?.weight;
+            if (reps != null && !Number.isFinite(Number(reps))) {
+              errors.push(`${setPrefix}: reps muss endliche Zahl oder null sein`);
+            }
+            if (weight != null && !Number.isFinite(Number(weight))) {
+              errors.push(`${setPrefix}: weight muss endliche Zahl oder null sein`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (errors.length) return { ok: false, errors };
+  return { ok: true };
+}
+
+/**
+ * Saves current state as backup to localStorage.
+ * Key: benchmarkpro_v4_backup_<YYYYMMDD_HHMMSS>
+ * @returns {string} backup key
+ */
+export function createBackup(state) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const h = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const sec = String(now.getSeconds()).padStart(2, "0");
+  const key = `${BACKUP_KEY_PREFIX}${y}${m}${d}_${h}${min}${sec}`;
+  localStorage.setItem(key, JSON.stringify(state));
+  return key;
+}
+
+/** -------------------------
  *  Import (Preview + Apply)
  *  ------------------------- */
 
@@ -247,12 +336,14 @@ export function parseImportFile(fileText) {
   if (isLikelyState(parsed)) {
     const state = parsed;
     const preview = previewFromState(state);
-    return { kind: "v4", preview, state };
+    const validation = validateStateV4(state);
+    return { kind: "v4", preview, state, validation };
   }
 
   // legacy best-effort
   if (parsed && typeof parsed === "object") {
     const converted = convertLegacyToV4(parsed);
+    const validation = validateStateV4(converted);
     const preview = {
       kind: "legacy",
       appVersion: parsed?.appVersion || parsed?.version || "v3(?)",
@@ -264,7 +355,7 @@ export function parseImportFile(fileText) {
       },
       note: "Legacy-Import: Übungsnamen werden als neue Exercises/Aliases übernommen. Normalisierung folgt in v4.2."
     };
-    return { kind: "legacy", preview, state: converted };
+    return { kind: "legacy", preview, state: converted, validation };
   }
 
   throw new Error("Import abgelehnt: Unbekanntes Format.");

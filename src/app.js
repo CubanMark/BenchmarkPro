@@ -1,5 +1,5 @@
 import { APP_VERSION, DATA_VERSION, STORAGE_KEY } from "./version.js";
-import { loadState, saveState, exportState, parseImportFile, applyImportedState, resetState } from "./storage.js";
+import { loadState, saveState, exportState, parseImportFile, applyImportedState, resetState, createBackup } from "./storage.js";
 import { getDefaultExercises, getDefaultPlans } from "./models.js";
 import { runMigrations } from "./migrations.js";
 import { ensureDefaults, createPlan, deletePlan, updatePlanFromTextarea } from "./plans.js";
@@ -518,14 +518,20 @@ function hideImportPreview(){
   $("#importNote").textContent = "";
 }
 
-function showImportPreview(preview){
+function showImportPreview(preview, validation){
   const box = $("#importPreview");
   box.style.display = "block";
   $("#importKind").textContent = preview.kind;
   $("#importWorkouts").textContent = String(preview.counts?.workouts ?? 0);
   $("#importPlans").textContent = String(preview.counts?.plans ?? 0);
   $("#importExercises").textContent = String(preview.counts?.exercises ?? 0);
-  $("#importNote").textContent = preview.note || "";
+  if (validation && !validation.ok && validation.errors && validation.errors.length) {
+    $("#importNote").textContent = "Validierung fehlgeschlagen:\n" + validation.errors.join("\n");
+    $("#importNote").style.color = "var(--danger)";
+  } else {
+    $("#importNote").style.color = "";
+    $("#importNote").textContent = preview.note || "";
+  }
 }
 
 $("#fileImport").addEventListener("change", async (ev) => {
@@ -533,10 +539,10 @@ $("#fileImport").addEventListener("change", async (ev) => {
   if (!file) return;
   const text = await file.text();
   try {
-    const { preview, state: imported } = parseImportFile(text);
-    pendingImport = imported;
-    showImportPreview(preview);
-    toast("Import-Vorschau bereit ✅");
+    const { preview, state: imported, validation } = parseImportFile(text);
+    pendingImport = { state: imported, validation };
+    showImportPreview(preview, validation);
+    toast(validation && !validation.ok ? "Import-Vorschau (ungültige Daten)" : "Import-Vorschau bereit ✅");
   } catch (e) {
     hideImportPreview();
     toast(String(e?.message || e));
@@ -552,8 +558,14 @@ $("#btnCancelImport").addEventListener("click", () => {
 
 $("#btnApplyImport").addEventListener("click", () => {
   if (!pendingImport) return;
+  if (!pendingImport.validation || !pendingImport.validation.ok) {
+    toast("Import abgebrochen: Ungültige Daten. Bitte Validierungsfehler beheben.");
+    return;
+  }
   try {
-    state = applyImportedState(pendingImport);
+    const backupKey = createBackup(state);
+    toast("Backup angelegt: " + backupKey);
+    state = applyImportedState(pendingImport.state);
     // Ensure defaults exist (and keep imported custom exercises/plans/workouts)
     ensureDefaults(state, defaults);
     state.meta = state.meta || {};
@@ -570,7 +582,6 @@ $("#btnApplyImport").addEventListener("click", () => {
     toast(String(e?.message || e));
   }
 });
-;
 }
 
 function boot(){
