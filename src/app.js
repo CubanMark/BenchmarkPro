@@ -534,6 +534,7 @@ function setupActions(){
     document.body.appendChild(a);
     a.click();
     a.remove();
+    toast("Export erfolgreich ✅");
   });
 
   let pendingImport = null;
