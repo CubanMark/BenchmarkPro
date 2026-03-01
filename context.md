@@ -1,9 +1,8 @@
 # BenchMark Pro – Operational Context
 
 ## Current State
-Version: 4.2.0  
-Core system stable.  
-Motivation layer: PR badge, PR counter, weekly recency + consistency (UI-only).   
+Version: 4.3.0  
+Core system stable. Dashboard-Kacheln (Recency + Consistency, Ampel/Badges), PR-Badge und PR-Zähler (UI-only). Import mit Validierung, Backup vor Apply, Preview-Hinweis und hervorgehobenem Apply-Button. DOM-Null-Safety (on-Helper, Guards).
 No multi-profile support yet.
 
 ## Next Focus

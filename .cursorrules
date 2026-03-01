@@ -14,3 +14,8 @@ Do not propose structural changes that contradict context.md
 After completing a task, update only the Current State section 
   in context.md. Keep updates concise (max 3–4 lines).
 Do not modify other sections of context.md unless explicitly requested.
+
+# Autonomy Level 1 (Refactor-with-Plan)
+- Small refactors are allowed if you first provide a short plan (max 5 bullets) and list all files to be changed.
+- Do not modify persistence / migration / import-export logic (src/storage.js, src/migrations.js) unless explicitly requested.
+- If you touch any of those high-risk files, stop and ask for confirmation first.
