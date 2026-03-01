@@ -113,3 +113,16 @@ textarea{min-height:110px;resize:vertical;font-family:var(--mono);font-size:13px
 .sets .set-row:first-child{ border-top: none; }
 details.card > summary{ list-style: none; }
 details.card > summary::-webkit-details-marker{ display:none; }
+
+/* PR counter in active workout */
+.active-workout-pr{
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-family: var(--mono);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(90,167,255,.4);
+  background: rgba(90,167,255,.08);
+  color: var(--accent);
+}

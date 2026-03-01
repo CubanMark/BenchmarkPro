@@ -190,6 +190,27 @@ function exerciseNameById(exId){
   return state.exercises.find(e=>e.id===exId)?.name || exId;
 }
 
+/** Liefert Hinweistext zum letzten Training: Abstand des letzten Workout-Datums zu heute (nur aus Daten berechnet). */
+function getLastWorkoutHint() {
+  const sorted = sortWorkoutsNewestFirst(state.workouts);
+  if (!sorted.length) return "";
+  const lastDateStr = sorted[0].date;
+  if (!lastDateStr) return "";
+  const last = new Date(lastDateStr + "T12:00:00");
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  last.setHours(12, 0, 0, 0);
+  let diffDays = Math.floor((today - last) / (24 * 60 * 60 * 1000));
+  if (diffDays < 0) diffDays = 0;
+  const dayWord = diffDays === 1 ? "Tag" : "Tagen";
+  if (diffDays === 0) return "Heute schon trainiert.";
+  if (diffDays === 1) return "Letztes Training: gestern";
+  if (diffDays === 2) return "Letztes Training: vor 2 Tagen";
+  if (diffDays <= 7) return `Letztes Training: vor ${diffDays} ${dayWord}`;
+  if (diffDays <= 14) return "Letztes Training: vor 1 Woche";
+  return `Letztes Training: vor ${diffDays} ${dayWord}`;
+}
+
 /**
  * Berechnet pro exerciseId das maximale Gewicht (nur finite, >0) aus allen Workouts.
  * excludeWorkoutId: optional – dieses Workout wird aus der Berechnung ausgeschlossen (für laufendes Max im aktuellen Workout).
@@ -209,6 +230,23 @@ function getMaxWeightByExerciseId(excludeWorkoutId = null) {
     }
   }
   return maxByEx;
+}
+
+/** Zählt PR-Sets in einem Workout (gleiche Logik wie beim Anzeigen der 🔥 PR-Badges). */
+function countPrsInWorkout(workout) {
+  const maxBeforeThisWorkout = getMaxWeightByExerciseId(workout.id);
+  let count = 0;
+  for (const item of workout.items || []) {
+    let runningMax = maxBeforeThisWorkout[item.exerciseId] ?? 0;
+    for (const s of item.sets || []) {
+      const weightNum = Number(s?.weight);
+      if (Number.isFinite(weightNum) && weightNum > 0 && weightNum > runningMax) {
+        count++;
+        runningMax = weightNum;
+      }
+    }
+  }
+  return count;
 }
 
 function renderWorkoutItems(workout){
@@ -304,6 +342,18 @@ function renderActiveWorkout(){
   $("#activeWorkoutTitle").textContent = humanWorkoutTitle(state, workout);
   $("#activeWorkoutNotes").value = workout.notes || "";
 
+  const prCountEl = $("#activeWorkoutPrCount");
+  if (prCountEl) {
+    const n = countPrsInWorkout(workout);
+    if (n === 0) {
+      prCountEl.textContent = "";
+      prCountEl.className = "muted small";
+    } else {
+      prCountEl.className = "active-workout-pr";
+      prCountEl.textContent = n === 1 ? "🔥 1 PR in diesem Training" : `🔥 ${n} PRs in diesem Training`;
+    }
+  }
+
   fillExerciseSelect($("#addExerciseSelect"), { includePlaceholder: true });
   renderWorkoutItems(workout);
 }
@@ -342,11 +392,20 @@ function rerenderAll(){
   renderHeader();
   renderStateSummary();
   renderDiagnostics();
+  renderLastWorkoutHint();
   renderPlans();
   renderExercises();
   renderNewWorkoutControls();
   renderActiveWorkout();
   renderHistory();
+}
+
+function renderLastWorkoutHint(){
+  const el = $("#lastWorkoutHint");
+  if (!el) return;
+  const text = getLastWorkoutHint();
+  el.textContent = text;
+  el.style.display = text ? "" : "none";
 }
 
 function setupTabs(){

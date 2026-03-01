@@ -3,7 +3,7 @@
 ## Current State
 Version: 4.2.0  
 Core system stable.  
-PR badge (max weight per exercise) implemented as UI-only feature.  
+PR badge, PR counter (active workout), and "Letztes Training"-Hint (Abstand zu heute: vor X Tagen / heute / gestern) as UI-only.  
 No multi-profile support yet.
 
 ## Next Focus
