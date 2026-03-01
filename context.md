@@ -3,7 +3,7 @@
 ## Current State
 Version: 4.2.0  
 Core system stable.  
-PR badge, PR counter (active workout). Dashboard-Kacheln: Recency (Letztes Training, Ampel grün/gelb/rot) + Consistency (Diese Woche, Zähler + Badge Stark/Gut/Dranbleiben/Problematisch) als UI-only.  
+Motivation layer: PR badge, PR counter, weekly recency + consistency (UI-only).   
 No multi-profile support yet.
 
 ## Next Focus
