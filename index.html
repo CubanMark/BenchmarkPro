@@ -33,7 +33,18 @@
           <button id="btnNewWorkout" class="btn">+ Neues Training</button>
         </div>
       </div>
-      <div id="lastWorkoutHint" class="muted small mt" aria-hidden="true"></div>
+      <div id="dashboardTiles" class="dashboard-grid mt" aria-label="Übersicht Training">
+        <div id="recencyTile" class="card dashboard-tile">
+          <div class="label">Letztes Training</div>
+          <div id="recencyValue" class="dashboard-tile-value">—</div>
+          <div id="recencySub" class="muted small"></div>
+        </div>
+        <div id="consistencyTile" class="card dashboard-tile">
+          <div class="label">Diese Woche</div>
+          <div id="consistencyValue" class="dashboard-tile-value">0</div>
+          <span id="consistencyBadge" class="dashboard-tile-badge">Problematisch</span>
+        </div>
+      </div>
 
       <div id="newWorkoutCard" class="card">
         <div class="label">Neues Training starten</div>

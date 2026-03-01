@@ -192,23 +192,64 @@ function exerciseNameById(exId){
 
 /** Liefert Hinweistext zum letzten Training: Abstand des letzten Workout-Datums zu heute (nur aus Daten berechnet). */
 function getLastWorkoutHint() {
+  const r = getLastWorkoutRecency();
+  if (r === null) return "";
+  if (r.days === 0) return "Heute schon trainiert.";
+  if (r.days === 1) return "Letztes Training: gestern";
+  const dayWord = r.days === 1 ? "Tag" : "Tage";
+  return `Letztes Training: vor ${r.days} ${dayWord}`;
+}
+
+/** Liefert Recency für Dashboard: { days, display, tier } mit tier green/yellow/red (Ampel). */
+function getLastWorkoutRecency() {
   const sorted = sortWorkoutsNewestFirst(state.workouts);
-  if (!sorted.length) return "";
+  if (!sorted.length) return null;
   const lastDateStr = sorted[0].date;
-  if (!lastDateStr) return "";
+  if (!lastDateStr) return null;
   const last = new Date(lastDateStr + "T12:00:00");
   const today = new Date();
   today.setHours(12, 0, 0, 0);
   last.setHours(12, 0, 0, 0);
-  let diffDays = Math.floor((today - last) / (24 * 60 * 60 * 1000));
-  if (diffDays < 0) diffDays = 0;
-  const dayWord = diffDays === 1 ? "Tag" : "Tagen";
-  if (diffDays === 0) return "Heute schon trainiert.";
-  if (diffDays === 1) return "Letztes Training: gestern";
-  if (diffDays === 2) return "Letztes Training: vor 2 Tagen";
-  if (diffDays <= 7) return `Letztes Training: vor ${diffDays} ${dayWord}`;
-  if (diffDays <= 14) return "Letztes Training: vor 1 Woche";
-  return `Letztes Training: vor ${diffDays} ${dayWord}`;
+  let days = Math.floor((today - last) / (24 * 60 * 60 * 1000));
+  if (days < 0) days = 0;
+  const display = days === 0 ? "Heute" : String(days);
+  let tier = "red";
+  if (days < 3) tier = "green";
+  else if (days <= 6) tier = "yellow";
+  return { days, display, tier };
+}
+
+/** ISO-Woche (Mo–So): Liefert den Montag der Woche von dateStr als "YYYY-MM-DD" (lokal, nicht toISOString). */
+function getISOWeekKey(dateStr) {
+  if (!dateStr || typeof dateStr !== "string") return null;
+  const d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d.getTime())) return null;
+  const isoWeekday = d.getDay() === 0 ? 7 : d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - (isoWeekday - 1));
+  const y = monday.getFullYear();
+  const m = String(monday.getMonth() + 1).padStart(2, "0");
+  const day = String(monday.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Wochentraining: Unique Tage in aktueller ISO-Woche, Status Perfect/Gut/Akzeptabel/Problematisch. */
+function getWeeklyConsistency() {
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const todayKey = getISOWeekKey(todayStr);
+  if (!todayKey) return { count: 0, label: "Problematisch" };
+  const uniqueDates = new Set();
+  for (const w of state.workouts || []) {
+    const key = getISOWeekKey(w.date);
+    if (key === todayKey && w.date) uniqueDates.add(w.date);
+  }
+  const count = uniqueDates.size;
+  let label = "Problematisch";
+  if (count >= 3) label = "Stark";
+  else if (count === 2) label = "Gut";
+  else if (count === 1) label = "Dranbleiben";
+  return { count, label };
 }
 
 /**
@@ -392,7 +433,7 @@ function rerenderAll(){
   renderHeader();
   renderStateSummary();
   renderDiagnostics();
-  renderLastWorkoutHint();
+  renderDashboardTiles();
   renderPlans();
   renderExercises();
   renderNewWorkoutControls();
@@ -400,12 +441,32 @@ function rerenderAll(){
   renderHistory();
 }
 
-function renderLastWorkoutHint(){
-  const el = $("#lastWorkoutHint");
-  if (!el) return;
-  const text = getLastWorkoutHint();
-  el.textContent = text;
-  el.style.display = text ? "" : "none";
+function renderDashboardTiles(){
+  const recencyTile = $("#recencyTile");
+  const recencyValue = $("#recencyValue");
+  const recencySub = $("#recencySub");
+  const consistencyValue = $("#consistencyValue");
+  const consistencyBadge = $("#consistencyBadge");
+  if (!recencyTile || !recencyValue || !consistencyValue) return;
+
+  const rec = getLastWorkoutRecency();
+  if (rec !== null) {
+    recencyValue.textContent = rec.display;
+    recencySub.textContent = rec.days === 0 ? "trainiert" : rec.days === 1 ? "Tag Pause" : "Tage Pause";
+    recencyTile.classList.remove("recency-green", "recency-yellow", "recency-red");
+    recencyTile.classList.add("recency-" + rec.tier);
+  } else {
+    recencyValue.textContent = "—";
+    recencySub.textContent = "Noch kein Training";
+    recencyTile.classList.remove("recency-green", "recency-yellow", "recency-red");
+  }
+
+  const { count, label } = getWeeklyConsistency();
+  consistencyValue.textContent = String(count);
+  if (consistencyBadge) {
+    consistencyBadge.textContent = label;
+    consistencyBadge.className = "dashboard-tile-badge consistency-badge-" + (count >= 3 ? "stark" : count === 2 ? "gut" : count === 1 ? "dranbleiben" : "problematisch");
+  }
 }
 
 function setupTabs(){

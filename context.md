@@ -3,7 +3,7 @@
 ## Current State
 Version: 4.2.0  
 Core system stable.  
-PR badge, PR counter (active workout), and "Letztes Training"-Hint (Abstand zu heute: vor X Tagen / heute / gestern) as UI-only.  
+PR badge, PR counter (active workout). Dashboard-Kacheln: Recency (Letztes Training, Ampel grün/gelb/rot) + Consistency (Diese Woche, Zähler + Badge Stark/Gut/Dranbleiben/Problematisch) als UI-only.  
 No multi-profile support yet.
 
 ## Next Focus

@@ -6,6 +6,8 @@
   --line:#24365d;
   --accent:#5aa7ff;
   --danger:#ff5a7a;
+  --success:#4ade80;
+  --warning:#facc15;
   --shadow: 0 10px 30px rgba(0,0,0,.35);
   --radius: 16px;
   --pad: 18px;
@@ -113,6 +115,50 @@ textarea{min-height:110px;resize:vertical;font-family:var(--mono);font-size:13px
 .sets .set-row:first-child{ border-top: none; }
 details.card > summary{ list-style: none; }
 details.card > summary::-webkit-details-marker{ display:none; }
+
+/* Dashboard tiles (Recency + Consistency) */
+.dashboard-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 420px) {
+  .dashboard-grid{ grid-template-columns: 1fr; }
+}
+.dashboard-tile{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  justify-content: center;
+  text-align: center;
+}
+.dashboard-tile .label{ text-align: center; }
+.dashboard-tile-value{
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--mono);
+  line-height: 1.2;
+}
+.dashboard-tile-badge{
+  display: inline-block;
+  align-self: center;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.recency-green .dashboard-tile-value{ color: var(--success); }
+.recency-green { border-color: rgba(74,222,128,.35); background: rgba(74,222,128,.06); }
+.recency-yellow .dashboard-tile-value{ color: var(--warning); }
+.recency-yellow { border-color: rgba(250,204,21,.4); background: rgba(250,204,21,.06); }
+.recency-red .dashboard-tile-value{ color: var(--danger); }
+.recency-red { border-color: rgba(255,90,122,.4); background: rgba(255,90,122,.06); }
+
+.consistency-badge-stark{ color: var(--success); border: 1px solid rgba(74,222,128,.4); background: rgba(74,222,128,.08); }
+.consistency-badge-gut{ color: var(--accent); border: 1px solid rgba(90,167,255,.4); background: rgba(90,167,255,.08); }
+.consistency-badge-dranbleiben{ color: var(--warning); border: 1px solid rgba(250,204,21,.4); background: rgba(250,204,21,.08); }
+.consistency-badge-problematisch{ color: var(--danger); border: 1px solid rgba(255,90,122,.4); background: rgba(255,90,122,.08); }
 
 /* PR counter in active workout */
 .active-workout-pr{
