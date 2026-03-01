@@ -1,5 +1,16 @@
-- Keine Ordner-Umstrukturierungen.
-- Keine Refactors ohne Nachfrage.
-- Ändere nur Dateien, die du vorab nennst.
-- Am Ende: Liste der geänderten Dateien + warum.
-- Nach Implementierung: kurze manuelle Smoke-Testliste.
+# Structural Rules
+- No folder restructuring.
+- No refactors without explicit request.
+- Only modify files relevant to the current task — list any file 
+  not previously discussed before changing it.
+- After implementation: list changed files and why.
+- After implementation: provide a short manual smoke test checklist.
+
+# Context Discipline
+Before performing any task, read context.md.
+Respect fixed decisions and current focus.
+Do not propose structural changes that contradict context.md 
+  unless explicitly requested.
+After completing a task, update only the Current State section 
+  in context.md. Keep updates concise (max 3–4 lines).
+Do not modify other sections of context.md unless explicitly requested.
