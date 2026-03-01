@@ -160,6 +160,24 @@ details.card > summary::-webkit-details-marker{ display:none; }
 .consistency-badge-dranbleiben{ color: var(--warning); border: 1px solid rgba(250,204,21,.4); background: rgba(250,204,21,.08); }
 .consistency-badge-problematisch{ color: var(--danger); border: 1px solid rgba(255,90,122,.4); background: rgba(255,90,122,.08); }
 
+/* Import preview */
+.import-confirm-hint{
+  font-size: 13px;
+  color: var(--warning);
+  margin: 0;
+  font-weight: 600;
+}
+.btn-import-apply{
+  background: rgba(90,167,255,.25);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(90,167,255,.2);
+}
+.btn-import-apply:hover{ background: rgba(90,167,255,.35); }
+.btn-import-cancel{
+  font-weight: 500;
+  opacity: .85;
+}
+
 /* PR counter in active workout */
 .active-workout-pr{
   display: inline-block;
