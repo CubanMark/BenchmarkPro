@@ -324,6 +324,95 @@ function convertLegacyToV4(legacy) {
   return state;
 }
 
+/**
+ * Convert "flat" format: trainings[] (one row per exercise per day) + planDefinitions{}.
+ * Each training: { date, workout, exercise, repsPerSet[], weight, notes }.
+ * planDefinitions: { A: { name, exercises: [{ name, link }] }, ... }.
+ */
+function convertFlatTrainingsToV4(parsed) {
+  const state = createEmptyState();
+  const trainings = Array.isArray(parsed?.trainings) ? parsed.trainings : [];
+  const planDefs = parsed?.planDefinitions && typeof parsed.planDefinitions === "object" ? parsed.planDefinitions : {};
+
+  const nameToId = new Map();
+  function upsertExerciseByName(name) {
+    const clean = String(name || "").trim();
+    if (!clean) return null;
+    const key = clean.toLowerCase();
+    if (nameToId.has(key)) return nameToId.get(key);
+    const existing = state.exercises.find((e) => e.name.toLowerCase() === key || (e.aliases || []).some((a) => String(a).toLowerCase() === key));
+    if (existing) {
+      nameToId.set(key, existing.id);
+      return existing.id;
+    }
+    let id = toSlugId(clean);
+    let i = 2;
+    while (state.exercises.some((e) => e.id === id)) id = `${toSlugId(clean)}_${i++}`;
+    state.exercises.push({ id, name: clean, aliases: [] });
+    nameToId.set(key, id);
+    return id;
+  }
+
+  function planKeyToId(key) {
+    if (!key || typeof key !== "string") return null;
+    const k = key.trim();
+    if (/^a$/i.test(k)) return "homegym_a";
+    if (/^b$/i.test(k)) return "homegym_b";
+    if (/^c$/i.test(k)) return "homegym_c";
+    return toSlugId(k);
+  }
+
+  // Plans from planDefinitions
+  Object.keys(planDefs).forEach((key) => {
+    const def = planDefs[key];
+    const name = def?.name || `Plan ${key}`;
+    const exerciseIds = (def?.exercises || []).map((e) => upsertExerciseByName(e?.name || e)).filter(Boolean);
+    const id = planKeyToId(key) || toSlugId(name);
+    if (!state.plans.some((p) => p.id === id)) {
+      state.plans.push({ id, name, exerciseIds });
+    }
+  });
+
+  // Ensure all exercises from trainings exist
+  trainings.forEach((t) => upsertExerciseByName(t?.exercise));
+
+  // Workouts: group by date
+  const dateSet = new Set();
+  trainings.forEach((t) => {
+    const ymd = parseDateToYMD(t?.date);
+    if (ymd) dateSet.add(ymd);
+  });
+  const dates = Array.from(dateSet).sort();
+  dates.forEach((ymd, idx) => {
+    const entries = trainings.filter((t) => parseDateToYMD(t?.date) === ymd);
+    const first = entries[0];
+    const planId = planKeyToId(first?.workout) || null;
+    const items = entries.map((entry) => {
+      const exerciseId = upsertExerciseByName(entry?.exercise);
+      if (!exerciseId) return null;
+      const weight = Number(entry?.weight) ?? 0;
+      const sets = (entry?.repsPerSet || []).map((r) => ({ reps: Number(r) ?? 0, weight, note: "" }));
+      return { exerciseId, sets };
+    }).filter(Boolean);
+    state.workouts.push({
+      id: `w_${ymd}_${String(idx + 1).padStart(3, "0")}`,
+      date: ymd,
+      planId,
+      notes: String(first?.notes || "").trim(),
+      items,
+    });
+  });
+
+  return state;
+}
+
+function isFlatTrainingsFormat(parsed) {
+  const arr = parsed?.trainings;
+  if (!Array.isArray(arr) || arr.length === 0) return false;
+  const first = arr[0];
+  return first && typeof first === "object" && Array.isArray(first?.repsPerSet) && (first?.exercise != null || first?.date != null);
+}
+
 export function parseImportFile(fileText) {
   let parsed;
   try {
@@ -338,6 +427,24 @@ export function parseImportFile(fileText) {
     const preview = previewFromState(state);
     const validation = validateStateV4(state);
     return { kind: "v4", preview, state, validation };
+  }
+
+  // Flat format: trainings[] + planDefinitions{}
+  if (parsed && typeof parsed === "object" && isFlatTrainingsFormat(parsed)) {
+    const converted = convertFlatTrainingsToV4(parsed);
+    const validation = validateStateV4(converted);
+    const preview = {
+      kind: "legacy",
+      appVersion: parsed?.appVersion || "flat",
+      dataVersion: "—",
+      counts: {
+        exercises: converted.exercises.length,
+        plans: converted.plans.length,
+        workouts: converted.workouts.length,
+      },
+      note: "Import: Flat-Format (trainings + planDefinitions) wurde in v4 umgewandelt.",
+    };
+    return { kind: "legacy", preview, state: converted, validation };
   }
 
   // legacy best-effort
