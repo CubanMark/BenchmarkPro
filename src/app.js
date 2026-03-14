@@ -290,6 +290,24 @@ function countPrsInWorkout(workout) {
   return count;
 }
 
+/**
+ * Liefert alle Sets der letzten Einheit für eine Übung (aus state.workouts, excludeWorkoutId ausgeschlossen).
+ * Rückgabe: [{ weight, reps }, ...] oder null.
+ */
+function getLastPerformanceSetsForExercise(state, exerciseId, excludeWorkoutId) {
+  const sorted = sortWorkoutsNewestFirst(state.workouts);
+  for (const w of sorted) {
+    if (excludeWorkoutId != null && w.id === excludeWorkoutId) continue;
+    const item = (w.items || []).find((i) => i.exerciseId === exerciseId);
+    if (!item || !(item.sets && item.sets.length)) continue;
+    return item.sets.map((s) => ({
+      weight: Number(s?.weight),
+      reps: Number(s?.reps),
+    }));
+  }
+  return null;
+}
+
 function renderWorkoutItems(workout){
   const root = $("#workoutItems");
   if (!root) {
@@ -305,6 +323,22 @@ function renderWorkoutItems(workout){
     const card = document.createElement("div");
     card.className = "card";
     card.dataset.exerciseId = item.exerciseId;
+
+    const lastSets = getLastPerformanceSetsForExercise(state, item.exerciseId, workout.id);
+    const lastSet = lastSets && lastSets.length ? lastSets[lastSets.length - 1] : null;
+    const weightPlaceholder = lastSet && Number.isFinite(lastSet.weight) ? String(lastSet.weight) : "kg";
+    const repsPlaceholder = lastSet && Number.isFinite(lastSet.reps) ? String(lastSet.reps) : "reps";
+
+    const lastMalPills = lastSets
+      ? lastSets.slice(0, 5).map((s) => {
+          const w = Number.isFinite(s.weight) ? s.weight : "—";
+          const r = Number.isFinite(s.reps) ? s.reps : "—";
+          return `<span class="last-time-pill">${w} × ${r}</span>`;
+        }).join("")
+      : "";
+    const lastMalBlock = lastMalPills
+      ? `<div class="mt"><div class="muted small">Letztes Mal:</div><div class="last-time-pills">${lastMalPills}</div></div>`
+      : "";
 
     let runningMax = maxBeforeThisWorkout[item.exerciseId] ?? 0;
     const setsHtml = item.sets.map((s, idx) => {
@@ -331,11 +365,12 @@ function renderWorkoutItems(workout){
           <button class="btn btn-ghost btn-xs" data-action="remove-ex" title="Übung entfernen">Entfernen</button>
         </div>
       </div>
+      ${lastMalBlock}
 
       <div class="mt">
         <div class="row" style="gap:8px; flex-wrap: wrap">
-          <input class="input small w70" data-field="weight" inputmode="decimal" placeholder="kg" />
-          <input class="input small w70" data-field="reps" inputmode="numeric" placeholder="reps" />
+          <input class="input small w70" data-field="weight" inputmode="decimal" placeholder="${weightPlaceholder}" />
+          <input class="input small w70" data-field="reps" inputmode="numeric" placeholder="${repsPlaceholder}" />
           <button class="btn btn-xs" data-action="add-set">+ Set</button>
         </div>
         <div class="muted small mt">Tipp: kg und reps ausfüllen → + Set.</div>

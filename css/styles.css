@@ -116,6 +116,24 @@ textarea{min-height:110px;resize:vertical;font-family:var(--mono);font-size:13px
 details.card > summary{ list-style: none; }
 details.card > summary::-webkit-details-marker{ display:none; }
 
+/* Last-Time horizontal pills */
+.last-time-pills{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.last-time-pill{
+  display: inline-block;
+  font-size: 12px;
+  font-family: var(--mono);
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  color: var(--muted);
+}
+
 /* Dashboard tiles (Recency + Consistency) */
 .dashboard-grid{
   display: grid;
