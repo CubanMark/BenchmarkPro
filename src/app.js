@@ -5,6 +5,7 @@ import { runMigrations } from "./migrations.js";
 import { ensureDefaults, createPlan, deletePlan, updatePlanFromTextarea } from "./plans.js";
 import { upsertExercise } from "./exercises.js";
 import { createWorkout, getWorkout, addSetToWorkout, deleteSetFromWorkout, removeExerciseFromWorkout, ensureExerciseItem, sortWorkoutsNewestFirst, humanWorkoutTitle, deleteWorkout, setWorkoutNotes } from "./workouts.js";
+import { registerServiceWorker } from "./pwa.js";
 import { $, $all, setActiveTab, toast } from "./ui.js";
 
 /**
@@ -17,6 +18,24 @@ function on(selector, event, handler) {
     return;
   }
   el.addEventListener(event, handler);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+let notesSaveTimer = null;
+
+function persistWorkoutNotesSoon() {
+  window.clearTimeout(notesSaveTimer);
+  notesSaveTimer = window.setTimeout(() => {
+    persist();
+  }, 350);
 }
 
 let state = loadState();
@@ -80,7 +99,7 @@ function renderExercises(){
     const div = document.createElement("div");
     div.className = "pill";
     const alias = (ex.aliases && ex.aliases.length) ? ` · aliases: ${ex.aliases.join(", ")}` : "";
-    div.innerHTML = `<div><div class="name">${ex.name}</div><div class="muted small mono">${ex.id}${alias}</div></div>`;
+    div.innerHTML = `<div><div class="name">${escapeHtml(ex.name)}</div><div class="muted small mono">${escapeHtml(ex.id + alias)}</div></div>`;
     el.appendChild(div);
   }
 }
@@ -112,19 +131,19 @@ function renderPlans(){
           ${protectedInfo}
         </div>
         <div class="row" style="gap:8px; flex-wrap: wrap">
-          <button class="btn btn-ghost" data-action="save" data-id="${plan.id}">Speichern</button>
+          <button class="btn btn-ghost" data-action="save" data-id="${escapeHtml(plan.id)}">Speichern</button>
           <button class="btn btn-danger" data-action="delete" data-id="${plan.id}" ${plan.isDefault ? "disabled" : ""}>Löschen</button>
         </div>
       </div>
 
       <div class="mt">
         <div class="label">Name</div>
-        <input class="input mt small" data-field="name" data-id="${plan.id}" value="${String(plan.name).replaceAll('"',"&quot;")}" />
+        <input class="input mt small" data-field="name" data-id="${escapeHtml(plan.id)}" value="${escapeHtml(plan.name)}" />
       </div>
 
       <div class="mt">
         <div class="label">Übungen (eine pro Zeile)</div>
-        <textarea class="mt" data-field="exercises" data-id="${plan.id}">${planToTextarea(plan)}</textarea>
+        <textarea class="mt" data-field="exercises" data-id="${escapeHtml(plan.id)}">${escapeHtml(planToTextarea(plan))}</textarea>
         <div class="muted small mt">Tipp: Frei tippen. Unbekannte Übungen werden automatisch als neue Exercise angelegt.</div>
       </div>
     `;
@@ -358,8 +377,8 @@ function renderWorkoutItems(workout){
     card.innerHTML = `
       <div class="row space">
         <div>
-          <div class="label">${exName}</div>
-          <div class="muted small mono">${item.exerciseId}</div>
+          <div class="label">${escapeHtml(exName)}</div>
+          <div class="muted small mono">${escapeHtml(item.exerciseId)}</div>
         </div>
         <div class="row" style="gap:8px; flex-wrap: wrap">
           <button class="btn btn-ghost btn-xs" data-action="remove-ex" title="Übung entfernen">Entfernen</button>
@@ -369,8 +388,8 @@ function renderWorkoutItems(workout){
 
       <div class="mt">
         <div class="row" style="gap:8px; flex-wrap: wrap">
-          <input class="input small w70" data-field="weight" inputmode="decimal" placeholder="${weightPlaceholder}" />
-          <input class="input small w70" data-field="reps" inputmode="numeric" placeholder="${repsPlaceholder}" />
+          <input class="input small w70" data-field="weight" inputmode="decimal" placeholder="${escapeHtml(weightPlaceholder)}" />
+          <input class="input small w70" data-field="reps" inputmode="numeric" placeholder="${escapeHtml(repsPlaceholder)}" />
           <button class="btn btn-xs" data-action="add-set">+ Set</button>
         </div>
         <div class="muted small mt">Tipp: kg und reps ausfüllen → + Set.</div>
@@ -451,8 +470,8 @@ function renderHistory(){
     row.innerHTML = `
       <div class="row space">
         <div>
-          <div class="label">${humanWorkoutTitle(state, w)}</div>
-          <div class="muted small mono">${w.id}</div>
+          <div class="label">${escapeHtml(humanWorkoutTitle(state, w))}</div>
+          <div class="muted small mono">${escapeHtml(w.id)}</div>
         </div>
         <div class="row" style="gap:8px; flex-wrap: wrap">
           <button class="btn btn-ghost btn-xs" data-action="open" data-id="${w.id}">Öffnen</button>
@@ -621,7 +640,7 @@ function setupActions(){
     const w = id ? getWorkout(state, id) : null;
     if (!w) return;
     setWorkoutNotes(w, ev.target.value);
-    persist();
+    persistWorkoutNotesSoon();
     renderDiagnostics();
   });
 
@@ -805,6 +824,7 @@ function boot(){
   rerenderAll();
   setupTabs();
   setupActions();
+  registerServiceWorker();
   setActiveTab("training");
 }
 
