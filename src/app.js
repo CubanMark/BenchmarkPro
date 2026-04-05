@@ -1,4 +1,4 @@
-import { APP_VERSION, DATA_VERSION, STORAGE_KEY } from "./version.js";
+﻿import { APP_VERSION, DATA_VERSION, STORAGE_KEY } from "./version.js";
 import { loadState, saveState, exportState, parseImportFile, applyImportedState, resetState, createBackup } from "./storage.js";
 import { getDefaultExercises, getDefaultPlans } from "./models.js";
 import { runMigrations } from "./migrations.js";
@@ -6,7 +6,7 @@ import { ensureDefaults, createPlan, deletePlan, updatePlanFromTextarea } from "
 import { upsertExercise } from "./exercises.js";
 import { createWorkout, getWorkout, addSetToWorkout, deleteSetFromWorkout, removeExerciseFromWorkout, ensureExerciseItem, sortWorkoutsNewestFirst, humanWorkoutTitle, deleteWorkout, setWorkoutNotes } from "./workouts.js";
 import { registerServiceWorker } from "./pwa.js";
-import { $, $all, setActiveTab, toast } from "./ui.js";
+import { $, $all, clearElement, createNode, setActiveTab, toast } from "./ui.js";
 
 /**
  * Bindet einen Event-Listener, wenn das Element existiert. Sonst console.warn (kein throw).
@@ -84,26 +84,28 @@ function renderDiagnostics(){
   $("#diagAppVersion").textContent = state.appVersion || APP_VERSION;
   $("#diagDataVersion").textContent = String(state.dataVersion ?? DATA_VERSION);
   $("#diagStorageKey").textContent = STORAGE_KEY;
-  $("#diagLastSaved").textContent = state.meta?.updatedAt || "—";
+  $("#diagLastSaved").textContent = state.meta?.updatedAt || "â€”";
   const lm = state.meta?.lastMigration;
   if (lm && typeof lm === "object") {
-    const tag = lm.ran ? `ran ${lm.from}→${lm.to}` : `noop ${lm.from}→${lm.to}`;
+    const tag = lm.ran ? `ran ${lm.from}â†’${lm.to}` : `noop ${lm.from}â†’${lm.to}`;
     $("#diagLastMigration").textContent = tag;
   } else {
-    $("#diagLastMigration").textContent = "—";
+    $("#diagLastMigration").textContent = "â€”";
   }
 }
 
 function renderExercises(){
   const el = $("#exerciseList");
   if (!el) return;
-  el.innerHTML = "";
+  clearElement(el);
   const sorted = [...state.exercises].sort((a,b)=>a.name.localeCompare(b.name,"de"));
   for (const ex of sorted) {
-    const div = document.createElement("div");
-    div.className = "pill";
-    const alias = (ex.aliases && ex.aliases.length) ? ` · aliases: ${ex.aliases.join(", ")}` : "";
-    div.innerHTML = `<div><div class="name">${escapeHtml(ex.name)}</div><div class="muted small mono">${escapeHtml(ex.id + alias)}</div></div>`;
+    const div = createNode("div", { className: "pill" });
+    const content = createNode("div");
+    const alias = (ex.aliases && ex.aliases.length) ? ` Â· aliases: ${ex.aliases.join(", ")}` : "";
+    content.appendChild(createNode("div", { className: "name", text: ex.name }));
+    content.appendChild(createNode("div", { className: "muted small mono", text: ex.id + alias }));
+    div.appendChild(content);
     el.appendChild(div);
   }
 }
@@ -120,48 +122,62 @@ function renderPlans(){
     console.warn("[BenchMarkPro] Fehlendes Element: #plansList");
     return;
   }
-  root.innerHTML = "";
+  clearElement(root);
 
   for (const plan of state.plans) {
-    const card = document.createElement("div");
-    card.className = "card";
+    const card = createNode("div", { className: "card" });
+    const topRow = createNode("div", { className: "row space" });
+    const titleRow = createNode("div", { className: "row" });
+    titleRow.style.gap = "10px";
+    titleRow.appendChild(createNode("div", { className: "label", text: "Plan" }));
+    if (plan.isDefault) {
+      titleRow.appendChild(createNode("span", { className: "badge mono", text: "default" }));
+    }
 
-    const protectedInfo = plan.isDefault ? `<span class="badge mono">default</span>` : "";
+    const actions = createNode("div", { className: "row" });
+    actions.style.gap = "8px";
+    actions.style.flexWrap = "wrap";
+    const saveBtn = createNode("button", { className: "btn btn-ghost", text: "Speichern" });
+    saveBtn.dataset.action = "save";
+    saveBtn.dataset.id = plan.id;
+    const deleteBtn = createNode("button", { className: "btn btn-danger", text: "Löschen" });
+    deleteBtn.dataset.action = "delete";
+    deleteBtn.dataset.id = plan.id;
+    deleteBtn.disabled = Boolean(plan.isDefault);
+    actions.append(saveBtn, deleteBtn);
+    topRow.append(titleRow, actions);
 
-    card.innerHTML = `
-      <div class="row space">
-        <div class="row" style="gap:10px">
-          <div class="label">Plan</div>
-          ${protectedInfo}
-        </div>
-        <div class="row" style="gap:8px; flex-wrap: wrap">
-          <button class="btn btn-ghost" data-action="save" data-id="${escapeHtml(plan.id)}">Speichern</button>
-          <button class="btn btn-danger" data-action="delete" data-id="${plan.id}" ${plan.isDefault ? "disabled" : ""}>Löschen</button>
-        </div>
-      </div>
+    const nameWrap = createNode("div", { className: "mt" });
+    nameWrap.appendChild(createNode("div", { className: "label", text: "Name" }));
+    const nameInput = createNode("input", { className: "input mt small" });
+    nameInput.dataset.field = "name";
+    nameInput.dataset.id = plan.id;
+    nameInput.value = plan.name;
+    nameWrap.appendChild(nameInput);
 
-      <div class="mt">
-        <div class="label">Name</div>
-        <input class="input mt small" data-field="name" data-id="${escapeHtml(plan.id)}" value="${escapeHtml(plan.name)}" />
-      </div>
+    const exercisesWrap = createNode("div", { className: "mt" });
+    exercisesWrap.appendChild(createNode("div", { className: "label", text: "Übungen (eine pro Zeile)" }));
+    const exercisesInput = createNode("textarea", { className: "mt" });
+    exercisesInput.dataset.field = "exercises";
+    exercisesInput.dataset.id = plan.id;
+    exercisesInput.value = planToTextarea(plan);
+    exercisesWrap.appendChild(exercisesInput);
+    exercisesWrap.appendChild(createNode("div", {
+      className: "muted small mt",
+      text: "Tipp: Frei tippen. Unbekannte Übungen werden automatisch als neue Exercise angelegt."
+    }));
 
-      <div class="mt">
-        <div class="label">Übungen (eine pro Zeile)</div>
-        <textarea class="mt" data-field="exercises" data-id="${escapeHtml(plan.id)}">${escapeHtml(planToTextarea(plan))}</textarea>
-        <div class="muted small mt">Tipp: Frei tippen. Unbekannte Übungen werden automatisch als neue Exercise angelegt.</div>
-      </div>
-    `;
-
+    card.append(topRow, nameWrap, exercisesWrap);
     root.appendChild(card);
   }
 }
 
 function fillExerciseSelect(sel, { includePlaceholder = false } = {}){
-  sel.innerHTML = "";
+  clearElement(sel);
   if (includePlaceholder) {
     const opt = document.createElement("option");
     opt.value = "";
-    opt.textContent = "Übung wählen…";
+    opt.textContent = "Ãœbung wÃ¤hlenâ€¦";
     sel.appendChild(opt);
   }
   const sorted = [...state.exercises].sort((a,b)=>a.name.localeCompare(b.name,"de"));
@@ -174,7 +190,7 @@ function fillExerciseSelect(sel, { includePlaceholder = false } = {}){
 }
 
 function fillPlanSelect(sel){
-  sel.innerHTML = "";
+  clearElement(sel);
   for (const p of state.plans) {
     const opt = document.createElement("option");
     opt.value = p.id;
@@ -223,7 +239,7 @@ function getLastWorkoutHint() {
   return `Letztes Training: vor ${r.days} ${dayWord}`;
 }
 
-/** Liefert Recency für Dashboard: { days, display, tier } mit tier green/yellow/red (Ampel). */
+/** Liefert Recency fÃ¼r Dashboard: { days, display, tier } mit tier green/yellow/red (Ampel). */
 function getLastWorkoutRecency() {
   const sorted = sortWorkoutsNewestFirst(state.workouts);
   if (!sorted.length) return null;
@@ -242,7 +258,7 @@ function getLastWorkoutRecency() {
   return { days, display, tier };
 }
 
-/** ISO-Woche (Mo–So): Liefert den Montag der Woche von dateStr als "YYYY-MM-DD" (lokal, nicht toISOString). */
+/** ISO-Woche (Moâ€“So): Liefert den Montag der Woche von dateStr als "YYYY-MM-DD" (lokal, nicht toISOString). */
 function getISOWeekKey(dateStr) {
   if (!dateStr || typeof dateStr !== "string") return null;
   const d = new Date(dateStr + "T12:00:00");
@@ -277,7 +293,7 @@ function getWeeklyConsistency() {
 
 /**
  * Berechnet pro exerciseId das maximale Gewicht (nur finite, >0) aus allen Workouts.
- * excludeWorkoutId: optional – dieses Workout wird aus der Berechnung ausgeschlossen (für laufendes Max im aktuellen Workout).
+ * excludeWorkoutId: optional â€“ dieses Workout wird aus der Berechnung ausgeschlossen (fÃ¼r laufendes Max im aktuellen Workout).
  */
 function getMaxWeightByExerciseId(excludeWorkoutId = null) {
   const maxByEx = Object.create(null);
@@ -296,7 +312,7 @@ function getMaxWeightByExerciseId(excludeWorkoutId = null) {
   return maxByEx;
 }
 
-/** Zählt PR-Sets in einem Workout (gleiche Logik wie beim Anzeigen der 🔥 PR-Badges). */
+/** ZÃ¤hlt PR-Sets in einem Workout (gleiche Logik wie beim Anzeigen der ðŸ”¥ PR-Badges). */
 function countPrsInWorkout(workout) {
   const maxBeforeThisWorkout = getMaxWeightByExerciseId(workout.id);
   let count = 0;
@@ -314,8 +330,8 @@ function countPrsInWorkout(workout) {
 }
 
 /**
- * Liefert alle Sets der letzten Einheit für eine Übung (aus state.workouts, excludeWorkoutId ausgeschlossen).
- * Rückgabe: [{ weight, reps }, ...] oder null.
+ * Liefert alle Sets der letzten Einheit fÃ¼r eine Ãœbung (aus state.workouts, excludeWorkoutId ausgeschlossen).
+ * RÃ¼ckgabe: [{ weight, reps }, ...] oder null.
  */
 function getLastPerformanceSetsForExercise(state, exerciseId, excludeWorkoutId) {
   const sorted = sortWorkoutsNewestFirst(state.workouts);
@@ -337,14 +353,13 @@ function renderWorkoutItems(workout){
     console.warn("[BenchMarkPro] Fehlendes Element: #workoutItems");
     return;
   }
-  root.innerHTML = "";
+  clearElement(root);
 
   const maxBeforeThisWorkout = getMaxWeightByExerciseId(workout.id);
 
   for (const item of workout.items) {
     const exName = exerciseNameById(item.exerciseId);
-    const card = document.createElement("div");
-    card.className = "card";
+    const card = createNode("div", { className: "card" });
     card.dataset.exerciseId = item.exerciseId;
 
     const lastSets = getLastPerformanceSetsForExercise(state, item.exerciseId, workout.id);
@@ -352,62 +367,77 @@ function renderWorkoutItems(workout){
     const weightPlaceholder = lastSet && Number.isFinite(lastSet.weight) ? String(lastSet.weight) : "kg";
     const repsPlaceholder = lastSet && Number.isFinite(lastSet.reps) ? String(lastSet.reps) : "reps";
 
-    const lastMalPills = lastSets
-      ? lastSets.slice(0, 5).map((s) => {
-          const w = Number.isFinite(s.weight) ? s.weight : "—";
-          const r = Number.isFinite(s.reps) ? s.reps : "—";
-          return `<span class="last-time-pill">${w} × ${r}</span>`;
-        }).join("")
-      : "";
-    const lastMalBlock = lastMalPills
-      ? `<div class="mt"><div class="muted small">Letztes Mal:</div><div class="last-time-pills">${lastMalPills}</div></div>`
-      : "";
-
     let runningMax = maxBeforeThisWorkout[item.exerciseId] ?? 0;
-    const setsHtml = item.sets.map((s, idx) => {
-      const w = Number.isFinite(s.weight) ? s.weight : "";
-      const r = Number.isFinite(s.reps) ? s.reps : "";
-      const weightNum = Number(s?.weight);
-      const isPr = Number.isFinite(weightNum) && weightNum > 0 && weightNum > runningMax;
-      if (isPr) runningMax = weightNum;
-      const prLabel = isPr ? " 🔥 PR" : "";
-      return `<div class="row space set-row">
-        <div class="mono">${idx+1}.</div>
-        <div class="mono">${w} kg × ${r}${prLabel}</div>
-        <button class="btn btn-danger btn-xs" data-action="del-set" data-idx="${idx}" title="Set löschen">x</button>
-      </div>`;
-    }).join("");
 
-    card.innerHTML = `
-      <div class="row space">
-        <div>
-          <div class="label">${escapeHtml(exName)}</div>
-          <div class="muted small mono">${escapeHtml(item.exerciseId)}</div>
-        </div>
-        <div class="row" style="gap:8px; flex-wrap: wrap">
-          <button class="btn btn-ghost btn-xs" data-action="remove-ex" title="Übung entfernen">Entfernen</button>
-        </div>
-      </div>
-      ${lastMalBlock}
+    const topRow = createNode("div", { className: "row space" });
+    const titleWrap = createNode("div");
+    titleWrap.appendChild(createNode("div", { className: "label", text: exName }));
+    titleWrap.appendChild(createNode("div", { className: "muted small mono", text: item.exerciseId }));
+    const actionWrap = createNode("div", { className: "row" });
+    actionWrap.style.gap = "8px";
+    actionWrap.style.flexWrap = "wrap";
+    const removeBtn = createNode("button", { className: "btn btn-ghost btn-xs", text: "Entfernen", attrs: { title: "Übung entfernen" } });
+    removeBtn.dataset.action = "remove-ex";
+    actionWrap.appendChild(removeBtn);
+    topRow.append(titleWrap, actionWrap);
+    card.appendChild(topRow);
 
-      <div class="mt">
-        <div class="row" style="gap:8px; flex-wrap: wrap">
-          <input class="input small w70" data-field="weight" inputmode="decimal" placeholder="${escapeHtml(weightPlaceholder)}" />
-          <input class="input small w70" data-field="reps" inputmode="numeric" placeholder="${escapeHtml(repsPlaceholder)}" />
-          <button class="btn btn-xs" data-action="add-set">+ Set</button>
-        </div>
-        <div class="muted small mt">Tipp: kg und reps ausfüllen → + Set.</div>
-      </div>
+    if (lastSets && lastSets.length) {
+      const lastBlock = createNode("div", { className: "mt" });
+      lastBlock.appendChild(createNode("div", { className: "muted small", text: "Letztes Mal:" }));
+      const pills = createNode("div", { className: "last-time-pills" });
+      for (const s of lastSets.slice(0, 5)) {
+        const w = Number.isFinite(s.weight) ? s.weight : "—";
+        const r = Number.isFinite(s.reps) ? s.reps : "—";
+        pills.appendChild(createNode("span", { className: "last-time-pill", text: `${w} × ${r}` }));
+      }
+      lastBlock.appendChild(pills);
+      card.appendChild(lastBlock);
+    }
 
-      <div class="mt sets">
-        ${setsHtml || `<div class="muted small">Noch keine Sets.</div>`}
-      </div>
-    `;
+    const inputBlock = createNode("div", { className: "mt" });
+    const inputRow = createNode("div", { className: "row" });
+    inputRow.style.gap = "8px";
+    inputRow.style.flexWrap = "wrap";
+    const weightInput = createNode("input", { className: "input small w70", attrs: { inputmode: "decimal", placeholder: weightPlaceholder } });
+    weightInput.dataset.field = "weight";
+    const repsInput = createNode("input", { className: "input small w70", attrs: { inputmode: "numeric", placeholder: repsPlaceholder } });
+    repsInput.dataset.field = "reps";
+    const addSetBtn = createNode("button", { className: "btn btn-xs", text: "+ Set" });
+    addSetBtn.dataset.action = "add-set";
+    inputRow.append(weightInput, repsInput, addSetBtn);
+    inputBlock.appendChild(inputRow);
+    inputBlock.appendChild(createNode("div", { className: "muted small mt", text: "Tipp: kg und reps ausfüllen → + Set." }));
+    card.appendChild(inputBlock);
+
+    const setsWrap = createNode("div", { className: "mt sets" });
+    if (!item.sets.length) {
+      setsWrap.appendChild(createNode("div", { className: "muted small", text: "Noch keine Sets." }));
+    } else {
+      for (const [idx, s] of item.sets.entries()) {
+        const w = Number.isFinite(s.weight) ? s.weight : "";
+        const r = Number.isFinite(s.reps) ? s.reps : "";
+        const weightNum = Number(s?.weight);
+        const isPr = Number.isFinite(weightNum) && weightNum > 0 && weightNum > runningMax;
+        if (isPr) runningMax = weightNum;
+        const prLabel = isPr ? " 🔥 PR" : "";
+
+        const setRow = createNode("div", { className: "row space set-row" });
+        setRow.appendChild(createNode("div", { className: "mono", text: `${idx+1}.` }));
+        setRow.appendChild(createNode("div", { className: "mono", text: `${w} kg × ${r}${prLabel}` }));
+        const deleteBtn = createNode("button", { className: "btn btn-danger btn-xs", text: "x", attrs: { title: "Set löschen" } });
+        deleteBtn.dataset.action = "del-set";
+        deleteBtn.dataset.idx = String(idx);
+        setRow.appendChild(deleteBtn);
+        setsWrap.appendChild(setRow);
+      }
+    }
+    card.appendChild(setsWrap);
     root.appendChild(card);
   }
 
   if (!workout.items.length) {
-    root.innerHTML = `<div class="muted">Keine Übungen im Workout. Oben hinzufügen.</div>`;
+    root.appendChild(createNode("div", { className: "muted", text: "Keine Übungen im Workout. Oben hinzufügen." }));
   }
 }
 
@@ -449,7 +479,7 @@ function renderActiveWorkout(){
       prCountEl.className = "muted small";
     } else {
       prCountEl.className = "active-workout-pr";
-      prCountEl.textContent = n === 1 ? "🔥 1 PR in diesem Training" : `🔥 ${n} PRs in diesem Training`;
+      prCountEl.textContent = n === 1 ? "ðŸ”¥ 1 PR in diesem Training" : `ðŸ”¥ ${n} PRs in diesem Training`;
     }
   }
 
@@ -460,29 +490,36 @@ function renderActiveWorkout(){
 function renderHistory(){
   const root = $("#historyList");
   if (!root) return;
-  root.innerHTML = "";
+  clearElement(root);
   const workouts = sortWorkoutsNewestFirst(state.workouts);
 
   if (!workouts.length) {
-    root.innerHTML = `<div class="card"><div class="muted">Noch keine Workouts gespeichert.</div></div>`;
+    const emptyCard = createNode("div", { className: "card" });
+    emptyCard.appendChild(createNode("div", { className: "muted", text: "Noch keine Workouts gespeichert." }));
+    root.appendChild(emptyCard);
     return;
   }
 
   for (const w of workouts) {
-    const row = document.createElement("div");
-    row.className = "card";
-    row.innerHTML = `
-      <div class="row space">
-        <div>
-          <div class="label">${escapeHtml(humanWorkoutTitle(state, w))}</div>
-          <div class="muted small mono">${escapeHtml(w.id)}</div>
-        </div>
-        <div class="row" style="gap:8px; flex-wrap: wrap">
-          <button class="btn btn-ghost btn-xs" data-action="open" data-id="${w.id}">Öffnen</button>
-          <button class="btn btn-danger btn-xs" data-action="delete" data-id="${w.id}">Löschen</button>
-        </div>
-      </div>
-    `;
+    const row = createNode("div", { className: "card" });
+    const layout = createNode("div", { className: "row space" });
+    const info = createNode("div");
+    info.appendChild(createNode("div", { className: "label", text: humanWorkoutTitle(state, w) }));
+    info.appendChild(createNode("div", { className: "muted small mono", text: w.id }));
+
+    const actions = createNode("div", { className: "row" });
+    actions.style.gap = "8px";
+    actions.style.flexWrap = "wrap";
+    const openBtn = createNode("button", { className: "btn btn-ghost btn-xs", text: "Öffnen" });
+    openBtn.dataset.action = "open";
+    openBtn.dataset.id = w.id;
+    const deleteBtn = createNode("button", { className: "btn btn-danger btn-xs", text: "Löschen" });
+    deleteBtn.dataset.action = "delete";
+    deleteBtn.dataset.id = w.id;
+    actions.append(openBtn, deleteBtn);
+
+    layout.append(info, actions);
+    row.appendChild(layout);
     root.appendChild(row);
   }
 }
@@ -514,7 +551,7 @@ function renderDashboardTiles(){
     recencyTile.classList.remove("recency-green", "recency-yellow", "recency-red");
     recencyTile.classList.add("recency-" + rec.tier);
   } else {
-    recencyValue.textContent = "—";
+    recencyValue.textContent = "â€”";
     recencySub.textContent = "Noch kein Training";
     recencyTile.classList.remove("recency-green", "recency-yellow", "recency-red");
   }
@@ -541,18 +578,18 @@ function startWorkout(){
   state.meta.activeWorkoutId = w.id;
   persist();
   rerenderAll();
-  toast("Workout gestartet ✅");
+  toast("Workout gestartet âœ…");
 }
 
 function setupActions(){
   on("#btnSaveState", "click", () => {
     persist();
     rerenderAll();
-    toast("State gespeichert ✅");
+    toast("State gespeichert âœ…");
   });
 
   on("#btnResetDev", "click", () => {
-    if (!confirm("Reset (dev): State komplett löschen?")) return;
+    if (!confirm("Reset (dev): State komplett lÃ¶schen?")) return;
     resetState();
     state = loadState();
     ensureDefaults(state, defaults);
@@ -567,7 +604,7 @@ function setupActions(){
     createPlan(state);
     persist();
     rerenderAll();
-    toast("Neuer Plan angelegt ✅");
+    toast("Neuer Plan angelegt âœ…");
   });
 
   on("#btnAddExercise", "click", (ev) => {
@@ -575,14 +612,14 @@ function setupActions(){
     ev.preventDefault();
     ev.stopPropagation();
 
-    const name = prompt("Neue Übung (Name):");
+    const name = prompt("Neue Ãœbung (Name):");
     if (!name) return;
     const trimmed = name.trim();
     if (!trimmed) return;
     upsertExercise(state, trimmed);
     persist();
     rerenderAll();
-    toast("Übung angelegt ✅");
+    toast("Ãœbung angelegt âœ…");
   });
 
   on("#plansList", "click", (ev) => {
@@ -592,9 +629,9 @@ function setupActions(){
     const planId = btn.dataset.id;
 
     if (action === "delete") {
-      if (!confirm("Plan löschen?")) return;
+      if (!confirm("Plan lÃ¶schen?")) return;
       const ok = deletePlan(state, planId);
-      if (!ok) return toast("Default-Pläne können nicht gelöscht werden.");
+      if (!ok) return toast("Default-PlÃ¤ne kÃ¶nnen nicht gelÃ¶scht werden.");
       persist();
       rerenderAll();
       return;
@@ -606,7 +643,7 @@ function setupActions(){
       updatePlanFromTextarea(state, planId, nameEl?.value, txtEl?.value);
       persist();
       rerenderAll();
-      toast("Plan gespeichert ✅");
+      toast("Plan gespeichert âœ…");
       return;
     }
   });
@@ -615,7 +652,7 @@ function setupActions(){
   on("#btnStartWorkout", "click", startWorkout);
   on("#btnNewWorkout", "click", () => {
     if (state.meta.activeWorkoutId) {
-      toast("Es läuft schon ein aktives Workout.");
+      toast("Es lÃ¤uft schon ein aktives Workout.");
       return;
     }
     $("#newWorkoutCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -625,18 +662,18 @@ function setupActions(){
     state.meta.activeWorkoutId = null;
     persist();
     rerenderAll();
-    toast("Workout geschlossen ✅");
+    toast("Workout geschlossen âœ…");
   });
 
   on("#btnDeleteWorkout", "click", () => {
     const id = state.meta.activeWorkoutId;
     if (!id) return;
-    if (!confirm("Workout wirklich löschen?")) return;
+    if (!confirm("Workout wirklich lÃ¶schen?")) return;
     deleteWorkout(state, id);
     state.meta.activeWorkoutId = null;
     persist();
     rerenderAll();
-    toast("Workout gelöscht ✅");
+    toast("Workout gelÃ¶scht âœ…");
   });
 
   on("#activeWorkoutNotes", "input", (ev) => {
@@ -672,7 +709,7 @@ function setupActions(){
     if (!w) return;
 
     if (action === "remove-ex") {
-      if (!confirm("Übung aus dem Workout entfernen?")) return;
+      if (!confirm("Ãœbung aus dem Workout entfernen?")) return;
       removeExerciseFromWorkout(w, exId);
       persist();
       renderActiveWorkout();
@@ -686,7 +723,7 @@ function setupActions(){
       const reps = Number(String(repsEl.value).replace(",", "."));
 
       if (!Number.isFinite(weight) || !Number.isFinite(reps) || reps <= 0) {
-        toast("Bitte gültige kg und reps eingeben.");
+        toast("Bitte gÃ¼ltige kg und reps eingeben.");
         return;
       }
       addSetToWorkout(w, exId, { reps, weight });
@@ -722,12 +759,12 @@ function setupActions(){
     }
 
     if (action === "delete") {
-      if (!confirm("Workout löschen?")) return;
+      if (!confirm("Workout lÃ¶schen?")) return;
       deleteWorkout(state, id);
       if (state.meta.activeWorkoutId === id) state.meta.activeWorkoutId = null;
       persist();
       rerenderAll();
-      toast("Workout gelöscht ✅");
+      toast("Workout gelÃ¶scht âœ…");
       return;
     }
   });
@@ -740,7 +777,7 @@ function setupActions(){
     document.body.appendChild(a);
     a.click();
     a.remove();
-    toast("Export erfolgreich ✅");
+    toast("Export erfolgreich âœ…");
   });
 
   let pendingImport = null;
@@ -749,10 +786,10 @@ function hideImportPreview(){
   pendingImport = null;
   const box = $("#importPreview");
   box.style.display = "none";
-  $("#importKind").textContent = "—";
-  $("#importWorkouts").textContent = "—";
-  $("#importPlans").textContent = "—";
-  $("#importExercises").textContent = "—";
+  $("#importKind").textContent = "â€”";
+  $("#importWorkouts").textContent = "â€”";
+  $("#importPlans").textContent = "â€”";
+  $("#importExercises").textContent = "â€”";
   $("#importNote").textContent = "";
 }
 
@@ -780,7 +817,7 @@ on("#fileImport", "change", async (ev) => {
     const { preview, state: imported, validation } = parseImportFile(text);
     pendingImport = { state: imported, validation };
     showImportPreview(preview, validation);
-    toast(validation && !validation.ok ? "Import-Vorschau (ungültige Daten)" : "Import-Vorschau bereit ✅");
+    toast(validation && !validation.ok ? "Import-Vorschau (ungÃ¼ltige Daten)" : "Import-Vorschau bereit âœ…");
   } catch (e) {
     hideImportPreview();
     toast(String(e?.message || e));
@@ -797,7 +834,7 @@ on("#btnCancelImport", "click", () => {
 on("#btnApplyImport", "click", () => {
   if (!pendingImport) return;
   if (!pendingImport.validation || !pendingImport.validation.ok) {
-    toast("Import abgebrochen: Ungültige Daten. Bitte Validierungsfehler beheben.");
+    toast("Import abgebrochen: UngÃ¼ltige Daten. Bitte Validierungsfehler beheben.");
     return;
   }
   try {
@@ -815,7 +852,7 @@ on("#btnApplyImport", "click", () => {
     persist();
     rerenderAll();
     hideImportPreview();
-    toast("Import angewendet ✅");
+    toast("Import angewendet âœ…");
   } catch (e) {
     toast(String(e?.message || e));
   }
@@ -833,3 +870,6 @@ function boot(){
 }
 
 boot();
+
+
+
