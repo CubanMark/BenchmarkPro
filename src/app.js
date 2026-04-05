@@ -7,6 +7,7 @@ import { upsertExercise } from "./exercises.js";
 import { createWorkout, getWorkout, addSetToWorkout, deleteSetFromWorkout, removeExerciseFromWorkout, ensureExerciseItem, sortWorkoutsNewestFirst, humanWorkoutTitle, deleteWorkout, setWorkoutNotes } from "./workouts.js";
 import { registerServiceWorker } from "./pwa.js";
 import { renderExercises as renderExercisesView, renderPlans as renderPlansView, fillExerciseSelect as fillExerciseSelectView, fillPlanSelect as fillPlanSelectView, renderWorkoutItems as renderWorkoutItemsView, renderHistory as renderHistoryView } from "./renderers.js";
+import { analyzeWorkoutPrs } from "./stats.js";
 import { $, $all, setActiveTab, toast } from "./ui.js";
 
 /**
@@ -184,42 +185,18 @@ function getWeeklyConsistency() {
   return { count, label };
 }
 
-/**
- * Berechnet pro exerciseId das maximale Gewicht (nur finite, >0) aus allen Workouts.
- * excludeWorkoutId: optional â€“ dieses Workout wird aus der Berechnung ausgeschlossen (fÃ¼r laufendes Max im aktuellen Workout).
- */
-function getMaxWeightByExerciseId(excludeWorkoutId = null) {
-  const maxByEx = Object.create(null);
-  for (const w of state.workouts) {
-    if (excludeWorkoutId != null && w.id === excludeWorkoutId) continue;
-    for (const item of w.items || []) {
-      const exId = item.exerciseId;
-      for (const s of item.sets || []) {
-        const weight = Number(s?.weight);
-        if (Number.isFinite(weight) && weight > 0) {
-          if (!(exId in maxByEx) || weight > maxByEx[exId]) maxByEx[exId] = weight;
-        }
-      }
-    }
-  }
-  return maxByEx;
-}
+function formatWorkoutPrSummary(prSummary) {
+  const counts = prSummary?.counts || {};
+  const parts = [];
 
-/** ZÃ¤hlt PR-Sets in einem Workout (gleiche Logik wie beim Anzeigen der ðŸ”¥ PR-Badges). */
-function countPrsInWorkout(workout) {
-  const maxBeforeThisWorkout = getMaxWeightByExerciseId(workout.id);
-  let count = 0;
-  for (const item of workout.items || []) {
-    let runningMax = maxBeforeThisWorkout[item.exerciseId] ?? 0;
-    for (const s of item.sets || []) {
-      const weightNum = Number(s?.weight);
-      if (Number.isFinite(weightNum) && weightNum > 0 && weightNum > runningMax) {
-        count++;
-        runningMax = weightNum;
-      }
-    }
-  }
-  return count;
+  if (counts.topWeightCount === 1) parts.push("\uD83D\uDD25 1 Topgewicht-PR");
+  else if (counts.topWeightCount > 1) parts.push(`\uD83D\uDD25 ${counts.topWeightCount} Topgewicht-PRs`);
+
+  if (counts.topRepAtMaxWeightCount === 1) parts.push("\uD83D\uDCAA 1 Rep-PR");
+  else if (counts.topRepAtMaxWeightCount > 1) parts.push(`\uD83D\uDCAA ${counts.topRepAtMaxWeightCount} Rep-PRs`);
+
+  if (!parts.length) return "";
+  return `${parts.join(", ")} in diesem Training`;
 }
 
 /**
@@ -241,10 +218,11 @@ function getLastPerformanceSetsForExercise(workouts, exerciseId, excludeWorkoutI
 }
 
 function renderWorkoutItems(workout){
+  const prSummary = analyzeWorkoutPrs(state.workouts, workout);
   renderWorkoutItemsView($("#workoutItems"), workout, {
     exerciseNameById,
     getLastPerformanceSetsForExercise,
-    getMaxWeightByExerciseId,
+    prSummary,
     workouts: state.workouts,
   });
 }
@@ -278,16 +256,17 @@ function renderActiveWorkout(){
 
   $("#activeWorkoutTitle").textContent = humanWorkoutTitle(state, workout);
   $("#activeWorkoutNotes").value = workout.notes || "";
+  const prSummary = analyzeWorkoutPrs(state.workouts, workout);
 
   const prCountEl = $("#activeWorkoutPrCount");
   if (prCountEl) {
-    const n = countPrsInWorkout(workout);
-    if (n === 0) {
+    const summaryText = formatWorkoutPrSummary(prSummary);
+    if (!summaryText) {
       prCountEl.textContent = "";
       prCountEl.className = "muted small";
     } else {
       prCountEl.className = "active-workout-pr";
-      prCountEl.textContent = n === 1 ? "ðŸ”¥ 1 PR in diesem Training" : `ðŸ”¥ ${n} PRs in diesem Training`;
+      prCountEl.textContent = summaryText;
     }
   }
 

@@ -67,8 +67,15 @@ export function getWeeklyConsistency(workouts) {
   return { count, label };
 }
 
-export function getMaxWeightByExerciseId(workouts, excludeWorkoutId = null) {
-  const maxByExercise = Object.create(null);
+function createEmptyPrReference() {
+  return {
+    maxWeight: 0,
+    bestRepsAtMaxWeight: 0,
+  };
+}
+
+export function getExercisePrReferenceById(workouts, excludeWorkoutId = null) {
+  const referenceByExercise = Object.create(null);
 
   for (const workout of workouts || []) {
     if (excludeWorkoutId != null && workout.id === excludeWorkoutId) continue;
@@ -76,33 +83,106 @@ export function getMaxWeightByExerciseId(workouts, excludeWorkoutId = null) {
     for (const item of workout.items || []) {
       for (const set of item.sets || []) {
         const weight = Number(set?.weight);
+        const reps = Number(set?.reps);
         if (!Number.isFinite(weight) || weight <= 0) continue;
-        if (!(item.exerciseId in maxByExercise) || weight > maxByExercise[item.exerciseId]) {
-          maxByExercise[item.exerciseId] = weight;
+
+        const reference = referenceByExercise[item.exerciseId] || createEmptyPrReference();
+        if (weight > reference.maxWeight) {
+          reference.maxWeight = weight;
+          reference.bestRepsAtMaxWeight = Number.isFinite(reps) && reps > 0 ? reps : 0;
+        } else if (weight === reference.maxWeight && Number.isFinite(reps) && reps > reference.bestRepsAtMaxWeight) {
+          reference.bestRepsAtMaxWeight = reps;
         }
+
+        referenceByExercise[item.exerciseId] = reference;
       }
     }
+  }
+
+  return referenceByExercise;
+}
+
+export function getMaxWeightByExerciseId(workouts, excludeWorkoutId = null) {
+  const referenceByExercise = getExercisePrReferenceById(workouts, excludeWorkoutId);
+  const maxByExercise = Object.create(null);
+
+  for (const [exerciseId, reference] of Object.entries(referenceByExercise)) {
+    maxByExercise[exerciseId] = reference.maxWeight;
   }
 
   return maxByExercise;
 }
 
-export function countPrsInWorkout(workouts, workout) {
-  const maxBeforeWorkout = getMaxWeightByExerciseId(workouts, workout?.id);
-  let count = 0;
+function classifySetPr(set, reference) {
+  const weight = Number(set?.weight);
+  const reps = Number(set?.reps);
+  if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(reps) || reps <= 0) return null;
 
-  for (const item of workout?.items || []) {
-    let runningMax = maxBeforeWorkout[item.exerciseId] ?? 0;
-    for (const set of item.sets || []) {
-      const weight = Number(set?.weight);
-      if (Number.isFinite(weight) && weight > 0 && weight > runningMax) {
-        count++;
-        runningMax = weight;
-      }
-    }
+  if (weight > reference.maxWeight) {
+    return { type: "top-weight", emoji: "\uD83D\uDD25", shortLabel: "Topgewicht-PR" };
   }
 
-  return count;
+  if (weight === reference.maxWeight && reps > reference.bestRepsAtMaxWeight) {
+    return { type: "top-reps-at-top-weight", emoji: "\uD83D\uDCAA", shortLabel: "Rep-PR" };
+  }
+
+  return null;
+}
+
+function applySetToReference(set, reference) {
+  const weight = Number(set?.weight);
+  const reps = Number(set?.reps);
+  if (!Number.isFinite(weight) || weight <= 0) return reference;
+
+  if (weight > reference.maxWeight) {
+    reference.maxWeight = weight;
+    reference.bestRepsAtMaxWeight = Number.isFinite(reps) && reps > 0 ? reps : 0;
+    return reference;
+  }
+
+  if (weight === reference.maxWeight && Number.isFinite(reps) && reps > reference.bestRepsAtMaxWeight) {
+    reference.bestRepsAtMaxWeight = reps;
+  }
+
+  return reference;
+}
+
+export function analyzeWorkoutPrs(workouts, workout) {
+  const referenceByExercise = getExercisePrReferenceById(workouts, workout?.id);
+  const setPrsByExerciseId = Object.create(null);
+  const counts = {
+    topWeightCount: 0,
+    topRepAtMaxWeightCount: 0,
+  };
+
+  for (const item of workout?.items || []) {
+    const runningReference = {
+      ...(referenceByExercise[item.exerciseId] || createEmptyPrReference()),
+    };
+    const setPrs = [];
+
+    for (const set of item.sets || []) {
+      const pr = classifySetPr(set, runningReference);
+      setPrs.push(pr);
+
+      if (pr?.type === "top-weight") counts.topWeightCount++;
+      if (pr?.type === "top-reps-at-top-weight") counts.topRepAtMaxWeightCount++;
+
+      applySetToReference(set, runningReference);
+    }
+
+    setPrsByExerciseId[item.exerciseId] = setPrs;
+  }
+
+  return {
+    setPrsByExerciseId,
+    counts,
+    totalCount: counts.topWeightCount + counts.topRepAtMaxWeightCount,
+  };
+}
+
+export function countPrsInWorkout(workouts, workout) {
+  return analyzeWorkoutPrs(workouts, workout).totalCount;
 }
 
 export function getLastPerformanceSetsForExercise(workouts, exerciseId, excludeWorkoutId = null) {
