@@ -551,7 +551,7 @@ function renderDashboardTiles(){
     recencyTile.classList.remove("recency-green", "recency-yellow", "recency-red");
     recencyTile.classList.add("recency-" + rec.tier);
   } else {
-    recencyValue.textContent = "â€”";
+    recencyValue.textContent = "-";
     recencySub.textContent = "Noch kein Training";
     recencyTile.classList.remove("recency-green", "recency-yellow", "recency-red");
   }
