@@ -120,6 +120,7 @@ export function renderWorkoutItems(root, workout, {
     const card = createNode("div", { className: "card" });
     card.dataset.exerciseId = item.exerciseId;
     const setPrs = prSummary?.setPrsByExerciseId?.[item.exerciseId] || [];
+    const exercisePrs = prSummary?.exercisePrsByExerciseId?.[item.exerciseId] || {};
 
     const lastSets = getLastPerformanceSetsForExercise(workouts, item.exerciseId, workout.id);
     const nextSetTemplate = lastSets && lastSets.length
@@ -132,7 +133,14 @@ export function renderWorkoutItems(root, workout, {
 
     const topRow = createNode("div", { className: "row space" });
     const titleWrap = createNode("div");
-    titleWrap.appendChild(createNode("div", { className: "label", text: exerciseName }));
+    const titleLine = createNode("div", { className: "row" });
+    titleLine.style.gap = "8px";
+    titleLine.style.alignItems = "center";
+    titleLine.appendChild(createNode("div", { className: "label", text: exerciseName }));
+    if (exercisePrs.volume) {
+      titleLine.appendChild(createNode("span", { className: "badge mono", text: `${exercisePrs.volume.emoji} Volumen-PR` }));
+    }
+    titleWrap.appendChild(titleLine);
     titleWrap.appendChild(createNode("div", { className: "muted small mono", text: item.exerciseId }));
     const actionWrap = createNode("div", { className: "row" });
     actionWrap.style.gap = "8px";
@@ -153,6 +161,12 @@ export function renderWorkoutItems(root, workout, {
         pills.appendChild(createNode("span", { className: "last-time-pill", text: `${weight} \u00D7 ${reps}` }));
       }
       lastBlock.appendChild(pills);
+      if (exercisePrs.volume) {
+        lastBlock.appendChild(createNode("div", {
+          className: "muted small mt",
+          text: `Volumen: ${exercisePrs.volume.currentVolume} statt ${exercisePrs.volume.previousVolume}`
+        }));
+      }
       card.appendChild(lastBlock);
     }
 

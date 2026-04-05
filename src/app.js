@@ -192,8 +192,8 @@ function formatWorkoutPrSummary(prSummary) {
   if (counts.topWeightCount === 1) parts.push("\uD83D\uDD25 1 Topgewicht-PR");
   else if (counts.topWeightCount > 1) parts.push(`\uD83D\uDD25 ${counts.topWeightCount} Topgewicht-PRs`);
 
-  if (counts.topRepAtMaxWeightCount === 1) parts.push("\uD83D\uDCAA 1 Rep-PR");
-  else if (counts.topRepAtMaxWeightCount > 1) parts.push(`\uD83D\uDCAA ${counts.topRepAtMaxWeightCount} Rep-PRs`);
+  if (counts.topVolumeCount === 1) parts.push("\uD83D\uDCC8 1 Volumen-PR");
+  else if (counts.topVolumeCount > 1) parts.push(`\uD83D\uDCC8 ${counts.topVolumeCount} Volumen-PRs`);
 
   if (!parts.length) return "";
   return `${parts.join(", ")} in diesem Training`;

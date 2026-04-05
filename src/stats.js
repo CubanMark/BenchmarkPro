@@ -70,7 +70,6 @@ export function getWeeklyConsistency(workouts) {
 function createEmptyPrReference() {
   return {
     maxWeight: 0,
-    bestRepsAtMaxWeight: 0,
   };
 }
 
@@ -83,15 +82,11 @@ export function getExercisePrReferenceById(workouts, excludeWorkoutId = null) {
     for (const item of workout.items || []) {
       for (const set of item.sets || []) {
         const weight = Number(set?.weight);
-        const reps = Number(set?.reps);
         if (!Number.isFinite(weight) || weight <= 0) continue;
 
         const reference = referenceByExercise[item.exerciseId] || createEmptyPrReference();
         if (weight > reference.maxWeight) {
           reference.maxWeight = weight;
-          reference.bestRepsAtMaxWeight = Number.isFinite(reps) && reps > 0 ? reps : 0;
-        } else if (weight === reference.maxWeight && Number.isFinite(reps) && reps > reference.bestRepsAtMaxWeight) {
-          reference.bestRepsAtMaxWeight = reps;
         }
 
         referenceByExercise[item.exerciseId] = reference;
@@ -115,15 +110,10 @@ export function getMaxWeightByExerciseId(workouts, excludeWorkoutId = null) {
 
 function classifySetPr(set, reference) {
   const weight = Number(set?.weight);
-  const reps = Number(set?.reps);
-  if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(reps) || reps <= 0) return null;
+  if (!Number.isFinite(weight) || weight <= 0) return null;
 
   if (weight > reference.maxWeight) {
     return { type: "top-weight", emoji: "\uD83D\uDD25", shortLabel: "Topgewicht-PR" };
-  }
-
-  if (weight === reference.maxWeight && reps > reference.bestRepsAtMaxWeight) {
-    return { type: "top-reps-at-top-weight", emoji: "\uD83D\uDCAA", shortLabel: "Rep-PR" };
   }
 
   return null;
@@ -131,28 +121,51 @@ function classifySetPr(set, reference) {
 
 function applySetToReference(set, reference) {
   const weight = Number(set?.weight);
-  const reps = Number(set?.reps);
   if (!Number.isFinite(weight) || weight <= 0) return reference;
 
   if (weight > reference.maxWeight) {
     reference.maxWeight = weight;
-    reference.bestRepsAtMaxWeight = Number.isFinite(reps) && reps > 0 ? reps : 0;
-    return reference;
-  }
-
-  if (weight === reference.maxWeight && Number.isFinite(reps) && reps > reference.bestRepsAtMaxWeight) {
-    reference.bestRepsAtMaxWeight = reps;
   }
 
   return reference;
 }
 
+function getItemVolume(item) {
+  let volume = 0;
+  for (const set of item?.sets || []) {
+    const weight = Number(set?.weight);
+    const reps = Number(set?.reps);
+    if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(reps) || reps <= 0) continue;
+    volume += weight * reps;
+  }
+  return volume;
+}
+
+function getBestWorkoutVolumeByExerciseId(workouts, excludeWorkoutId = null) {
+  const bestVolumeByExercise = Object.create(null);
+
+  for (const workout of workouts || []) {
+    if (excludeWorkoutId != null && workout.id === excludeWorkoutId) continue;
+
+    for (const item of workout.items || []) {
+      const volume = getItemVolume(item);
+      if (!(item.exerciseId in bestVolumeByExercise) || volume > bestVolumeByExercise[item.exerciseId]) {
+        bestVolumeByExercise[item.exerciseId] = volume;
+      }
+    }
+  }
+
+  return bestVolumeByExercise;
+}
+
 export function analyzeWorkoutPrs(workouts, workout) {
   const referenceByExercise = getExercisePrReferenceById(workouts, workout?.id);
+  const bestVolumeByExercise = getBestWorkoutVolumeByExerciseId(workouts, workout?.id);
   const setPrsByExerciseId = Object.create(null);
+  const exercisePrsByExerciseId = Object.create(null);
   const counts = {
     topWeightCount: 0,
-    topRepAtMaxWeightCount: 0,
+    topVolumeCount: 0,
   };
 
   for (const item of workout?.items || []) {
@@ -166,18 +179,33 @@ export function analyzeWorkoutPrs(workouts, workout) {
       setPrs.push(pr);
 
       if (pr?.type === "top-weight") counts.topWeightCount++;
-      if (pr?.type === "top-reps-at-top-weight") counts.topRepAtMaxWeightCount++;
 
       applySetToReference(set, runningReference);
     }
 
     setPrsByExerciseId[item.exerciseId] = setPrs;
+
+    const itemVolume = getItemVolume(item);
+    const bestPreviousVolume = bestVolumeByExercise[item.exerciseId] ?? 0;
+    const hasTopVolumePr = itemVolume > 0 && itemVolume > bestPreviousVolume;
+    exercisePrsByExerciseId[item.exerciseId] = {
+      volume: hasTopVolumePr ? {
+        type: "top-volume",
+        emoji: "\uD83D\uDCC8",
+        shortLabel: "Volumen-PR",
+        currentVolume: itemVolume,
+        previousVolume: bestPreviousVolume,
+      } : null,
+    };
+
+    if (hasTopVolumePr) counts.topVolumeCount++;
   }
 
   return {
     setPrsByExerciseId,
+    exercisePrsByExerciseId,
     counts,
-    totalCount: counts.topWeightCount + counts.topRepAtMaxWeightCount,
+    totalCount: counts.topWeightCount + counts.topVolumeCount,
   };
 }
 
