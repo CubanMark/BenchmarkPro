@@ -66,6 +66,10 @@ function persist(){
 
 function renderHeader(){
   $("#versionBadge").textContent = APP_VERSION;
+  const banner = $("#buildVersionBanner");
+  if (banner) banner.textContent = APP_VERSION;
+  const footer = $("#buildVersionFooter");
+  if (footer) footer.textContent = APP_VERSION;
 }
 
 function renderStateSummary(){

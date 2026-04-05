@@ -24,6 +24,11 @@
   </header>
 
   <main class="container">
+    <div class="build-banner" role="status" aria-live="polite">
+      <span class="build-banner-label">Build</span>
+      <strong id="buildVersionBanner" class="mono">v4</strong>
+      <span class="build-banner-note">Teststand</span>
+    </div>
     
     <!-- TRAINING TAB -->
     <section class="panel is-active" id="tab-training">
@@ -186,10 +191,11 @@
     </section>
 
     <footer class="footer muted">
-      BenchMark Pro â€¢ v4 Phase 4
+      BenchMark Pro • <span id="buildVersionFooter" class="mono">v4</span>
     </footer>
   </main>
 
   <script type="module" src="src/app.js"></script>
 </body>
 </html>
+
