@@ -8,7 +8,7 @@ export function renderExercises(root, exercises) {
   for (const exercise of sorted) {
     const pill = createNode("div", { className: "pill" });
     const content = createNode("div");
-    const alias = exercise.aliases && exercise.aliases.length ? ` · aliases: ${exercise.aliases.join(", ")}` : "";
+    const alias = exercise.aliases && exercise.aliases.length ? ` - aliases: ${exercise.aliases.join(", ")}` : "";
     content.appendChild(createNode("div", { className: "name", text: exercise.name }));
     content.appendChild(createNode("div", { className: "muted small mono", text: exercise.id + alias }));
     pill.appendChild(content);
@@ -42,7 +42,7 @@ export function renderPlans(root, plans, exercises) {
     const saveBtn = createNode("button", { className: "btn btn-ghost", text: "Speichern" });
     saveBtn.dataset.action = "save";
     saveBtn.dataset.id = plan.id;
-    const deleteBtn = createNode("button", { className: "btn btn-danger", text: "Löschen" });
+    const deleteBtn = createNode("button", { className: "btn btn-danger", text: "Loeschen" });
     deleteBtn.dataset.action = "delete";
     deleteBtn.dataset.id = plan.id;
     deleteBtn.disabled = Boolean(plan.isDefault);
@@ -58,7 +58,7 @@ export function renderPlans(root, plans, exercises) {
     nameWrap.appendChild(nameInput);
 
     const exercisesWrap = createNode("div", { className: "mt" });
-    exercisesWrap.appendChild(createNode("div", { className: "label", text: "Übungen (eine pro Zeile)" }));
+    exercisesWrap.appendChild(createNode("div", { className: "label", text: "Uebungen (eine pro Zeile)" }));
     const exercisesInput = createNode("textarea", { className: "mt" });
     exercisesInput.dataset.field = "exercises";
     exercisesInput.dataset.id = plan.id;
@@ -66,7 +66,7 @@ export function renderPlans(root, plans, exercises) {
     exercisesWrap.appendChild(exercisesInput);
     exercisesWrap.appendChild(createNode("div", {
       className: "muted small mt",
-      text: "Tipp: Frei tippen. Unbekannte Übungen werden automatisch als neue Exercise angelegt."
+      text: "Tipp: Frei tippen. Unbekannte Uebungen werden automatisch als neue Exercise angelegt."
     }));
 
     card.append(topRow, nameWrap, exercisesWrap);
@@ -81,7 +81,7 @@ export function fillExerciseSelect(select, exercises, { includePlaceholder = fal
   if (includePlaceholder) {
     const option = document.createElement("option");
     option.value = "";
-    option.textContent = "Übung wählen...";
+    option.textContent = "Uebung waehlen...";
     select.appendChild(option);
   }
 
@@ -145,7 +145,7 @@ export function renderWorkoutItems(root, workout, {
     const actionWrap = createNode("div", { className: "row" });
     actionWrap.style.gap = "8px";
     actionWrap.style.flexWrap = "wrap";
-    const removeBtn = createNode("button", { className: "btn btn-ghost btn-xs", text: "Entfernen", attrs: { title: "Übung entfernen" } });
+    const removeBtn = createNode("button", { className: "btn btn-ghost btn-xs", text: "Entfernen", attrs: { title: "Uebung entfernen" } });
     removeBtn.dataset.action = "remove-ex";
     actionWrap.appendChild(removeBtn);
     topRow.append(titleWrap, actionWrap);
@@ -184,7 +184,7 @@ export function renderWorkoutItems(root, workout, {
     addSetBtn.dataset.action = "add-set";
     inputRow.append(weightInput, repsInput, addSetBtn);
     inputBlock.appendChild(inputRow);
-    inputBlock.appendChild(createNode("div", { className: "muted small mt", text: "Tipp: kg und reps ausfüllen -> + Set." }));
+    inputBlock.appendChild(createNode("div", { className: "muted small mt", text: "Tipp: kg und reps ausfuellen -> + Set." }));
     card.appendChild(inputBlock);
 
     const setsWrap = createNode("div", { className: "mt sets" });
@@ -200,7 +200,7 @@ export function renderWorkoutItems(root, workout, {
         const setRow = createNode("div", { className: "row space set-row" });
         setRow.appendChild(createNode("div", { className: "mono", text: `${idx + 1}.` }));
         setRow.appendChild(createNode("div", { className: "mono", text: `${weight} kg \u00D7 ${reps}${prLabel}` }));
-        const deleteBtn = createNode("button", { className: "btn btn-danger btn-xs", text: "x", attrs: { title: "Set löschen" } });
+        const deleteBtn = createNode("button", { className: "btn btn-danger btn-xs", text: "x", attrs: { title: "Set loeschen" } });
         deleteBtn.dataset.action = "del-set";
         deleteBtn.dataset.idx = String(idx);
         setRow.appendChild(deleteBtn);
@@ -213,7 +213,7 @@ export function renderWorkoutItems(root, workout, {
   }
 
   if (!workout.items.length) {
-    root.appendChild(createNode("div", { className: "muted", text: "Keine Übungen im Workout. Oben hinzufügen." }));
+    root.appendChild(createNode("div", { className: "muted", text: "Keine Uebungen im Workout. Oben hinzufuegen." }));
   }
 }
 
@@ -238,10 +238,10 @@ export function renderHistory(root, workouts, humanWorkoutTitle) {
     const actions = createNode("div", { className: "row" });
     actions.style.gap = "8px";
     actions.style.flexWrap = "wrap";
-    const openBtn = createNode("button", { className: "btn btn-ghost btn-xs", text: "Öffnen" });
+    const openBtn = createNode("button", { className: "btn btn-ghost btn-xs", text: "Oeffnen" });
     openBtn.dataset.action = "open";
     openBtn.dataset.id = workout.id;
-    const deleteBtn = createNode("button", { className: "btn btn-danger btn-xs", text: "Löschen" });
+    const deleteBtn = createNode("button", { className: "btn btn-danger btn-xs", text: "Loeschen" });
     deleteBtn.dataset.action = "delete";
     deleteBtn.dataset.id = workout.id;
     actions.append(openBtn, deleteBtn);
@@ -250,4 +250,208 @@ export function renderHistory(root, workouts, humanWorkoutTitle) {
     row.appendChild(layout);
     root.appendChild(row);
   }
+}
+
+function createSvgElement(tagName, attrs = {}) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tagName);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null) continue;
+    el.setAttribute(key, String(value));
+  }
+  return el;
+}
+
+function createLineChart(series, stroke) {
+  const svg = createSvgElement("svg", {
+    viewBox: "0 0 320 140",
+    class: "stats-chart-svg",
+    role: "img",
+    "aria-label": "Verlauf",
+  });
+
+  svg.appendChild(createSvgElement("line", { x1: 16, y1: 120, x2: 304, y2: 120, stroke: "rgba(255,255,255,0.12)" }));
+  svg.appendChild(createSvgElement("line", { x1: 16, y1: 16, x2: 16, y2: 120, stroke: "rgba(255,255,255,0.12)" }));
+
+  if (!series.length) return svg;
+
+  const values = series.map((entry) => Number(entry.value) || 0);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const range = Math.max(1, maxValue - minValue);
+  const points = series.map((entry, idx) => {
+    const x = series.length === 1 ? 160 : 16 + (288 * idx) / (series.length - 1);
+    const y = 120 - (((Number(entry.value) || 0) - minValue) / range) * 92;
+    return { x, y };
+  });
+
+  const pathData = points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  svg.appendChild(createSvgElement("path", {
+    d: pathData,
+    fill: "none",
+    stroke,
+    "stroke-width": 3,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+  }));
+
+  for (const point of points) {
+    svg.appendChild(createSvgElement("circle", {
+      cx: point.x,
+      cy: point.y,
+      r: 4,
+      fill: stroke,
+    }));
+  }
+
+  return svg;
+}
+
+function renderVolumeBars(series) {
+  const wrap = createNode("div", { className: "stats-bar-chart" });
+  if (!series.length) return wrap;
+
+  const maxValue = Math.max(...series.map((entry) => Number(entry.value) || 0), 1);
+  for (const entry of series) {
+    const column = createNode("div", { className: "stats-bar-col" });
+    const bar = createNode("div", { className: "stats-bar" });
+    bar.style.height = `${Math.max(10, ((Number(entry.value) || 0) / maxValue) * 100)}%`;
+    const value = createNode("div", { className: "stats-bar-value mono", text: String(Math.round(Number(entry.value) || 0)) });
+    const label = createNode("div", { className: "stats-bar-label muted small mono", text: String(entry.date || "").slice(5) });
+    column.append(value, bar, label);
+    wrap.appendChild(column);
+  }
+
+  return wrap;
+}
+
+export function fillStatsExerciseSelect(select, activeExerciseStats, selectedExerciseId, exerciseNameById) {
+  if (!select) return;
+  clearElement(select);
+
+  if (!activeExerciseStats.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "Keine aktiven Uebungen";
+    select.appendChild(option);
+    select.disabled = true;
+    return;
+  }
+
+  select.disabled = false;
+  for (const stat of activeExerciseStats) {
+    const option = document.createElement("option");
+    option.value = stat.exerciseId;
+    option.textContent = exerciseNameById(stat.exerciseId);
+    option.selected = stat.exerciseId === selectedExerciseId;
+    select.appendChild(option);
+  }
+}
+
+export function renderStatsOverview(root, activeExerciseStats, selectedExerciseId, exerciseNameById) {
+  if (!root) return;
+  clearElement(root);
+
+  if (!activeExerciseStats.length) {
+    root.appendChild(createNode("div", { className: "card muted", text: "Noch keine aktiven Uebungen mit mindestens 3 Sessions." }));
+    return;
+  }
+
+  for (const stat of activeExerciseStats) {
+    const card = createNode("button", {
+      className: `card stats-overview-card${stat.exerciseId === selectedExerciseId ? " is-selected" : ""}`,
+    });
+    card.type = "button";
+    card.dataset.action = "select-stats-exercise";
+    card.dataset.exerciseId = stat.exerciseId;
+
+    const topRow = createNode("div", { className: "row space" });
+    topRow.appendChild(createNode("div", { className: "label", text: exerciseNameById(stat.exerciseId) }));
+    topRow.appendChild(createNode("span", { className: "badge mono", text: `${stat.sessionCount} Sessions` }));
+
+    const metrics = createNode("div", { className: "stats-overview-metrics mt" });
+    metrics.appendChild(createNode("div", { className: "stats-overview-value mono", text: `${stat.topWeight} kg` }));
+    metrics.appendChild(createNode("div", { className: "muted small", text: `Topgewicht / Volumen ${Math.round(stat.bestSessionVolume)}` }));
+
+    const footer = createNode("div", { className: "row space mt" });
+    footer.appendChild(createNode("div", { className: "muted small mono", text: stat.lastWorkoutDate || "-" }));
+    footer.appendChild(createNode("span", { className: "stats-status-badge", text: stat.statusLabel }));
+
+    card.append(topRow, metrics, footer);
+    root.appendChild(card);
+  }
+}
+
+export function renderStatsDetail(root, detail, exerciseName) {
+  if (!root) return;
+  clearElement(root);
+
+  if (!detail) {
+    root.appendChild(createNode("div", { className: "card muted", text: "Waehle eine aktive Uebung, um Statistikdaten zu sehen." }));
+    return;
+  }
+
+  const kpiCard = createNode("div", { className: "card" });
+  kpiCard.appendChild(createNode("div", { className: "label", text: exerciseName }));
+  const kpiGrid = createNode("div", { className: "stats-kpi-grid mt" });
+  const kpis = [
+    { label: "Topgewicht", value: `${detail.topWeight} kg` },
+    { label: "Bestes Volumen", value: String(Math.round(detail.bestSessionVolume)) },
+    { label: "Letzte Session", value: detail.lastWorkoutDate || "-" },
+    { label: "Sessions", value: String(detail.sessionCount) },
+  ];
+  for (const item of kpis) {
+    const tile = createNode("div", { className: "stats-kpi-tile" });
+    tile.appendChild(createNode("div", { className: "label", text: item.label }));
+    tile.appendChild(createNode("div", { className: "stats-kpi-value mono", text: item.value }));
+    kpiGrid.appendChild(tile);
+  }
+  kpiCard.appendChild(kpiGrid);
+
+  const chartGrid = createNode("div", { className: "stats-chart-grid mt" });
+
+  const topWeightCard = createNode("div", { className: "card" });
+  topWeightCard.appendChild(createNode("div", { className: "label", text: "Topgewicht-Verlauf" }));
+  topWeightCard.appendChild(createLineChart(detail.topWeightSeries, "rgba(90,167,255,1)"));
+  chartGrid.appendChild(topWeightCard);
+
+  const volumeCard = createNode("div", { className: "card" });
+  volumeCard.appendChild(createNode("div", { className: "label", text: "Session-Volumen" }));
+  volumeCard.appendChild(renderVolumeBars(detail.volumeSeries.slice(-8)));
+  chartGrid.appendChild(volumeCard);
+
+  const sessionsCard = createNode("div", { className: "card mt" });
+  sessionsCard.appendChild(createNode("div", { className: "label", text: "Letzte Sessions" }));
+  const sessionList = createNode("div", { className: "stats-session-list mt" });
+  for (const session of detail.recentSessions) {
+    const row = createNode("div", { className: "row space stats-session-row" });
+    row.appendChild(createNode("div", { className: "mono small", text: session.date }));
+    row.appendChild(createNode("div", { className: "mono small", text: `${session.topWeight} kg x ${session.topReps}` }));
+    row.appendChild(createNode("div", { className: "mono small", text: `Vol ${Math.round(session.sessionVolume)}` }));
+    sessionList.appendChild(row);
+  }
+  sessionsCard.appendChild(sessionList);
+
+  const insightsCard = createNode("div", { className: "card mt" });
+  insightsCard.appendChild(createNode("div", { className: "label", text: "Trainingsmuster" }));
+  const insightGrid = createNode("div", { className: "stats-insight-grid mt" });
+  const patterns = [
+    { label: "Sessions / Monat", value: detail.avgSessionsPerMonth.toFixed(1) },
+    { label: "Volumen Schnitt (5)", value: Math.round(detail.avgRecentVolume) },
+    { label: "Letztes Training", value: detail.daysSinceLastSession == null ? "-" : `${detail.daysSinceLastSession} Tage` },
+  ];
+  for (const item of patterns) {
+    const tile = createNode("div", { className: "stats-kpi-tile" });
+    tile.appendChild(createNode("div", { className: "label", text: item.label }));
+    tile.appendChild(createNode("div", { className: "stats-kpi-value mono", text: String(item.value) }));
+    insightGrid.appendChild(tile);
+  }
+  insightsCard.appendChild(insightGrid);
+
+  const insightList = createNode("div", { className: "stats-insight-list mt" });
+  for (const text of detail.insights || []) {
+    insightList.appendChild(createNode("div", { className: "stats-insight-item", text }));
+  }
+  insightsCard.appendChild(insightList);
+
+  root.append(kpiCard, chartGrid, sessionsCard, insightsCard);
 }

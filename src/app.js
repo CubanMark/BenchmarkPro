@@ -6,8 +6,8 @@ import { ensureDefaults, createPlan, deletePlan, updatePlanFromTextarea } from "
 import { upsertExercise } from "./exercises.js";
 import { createWorkout, getWorkout, addSetToWorkout, deleteSetFromWorkout, removeExerciseFromWorkout, ensureExerciseItem, sortWorkoutsNewestFirst, humanWorkoutTitle, deleteWorkout, setWorkoutNotes } from "./workouts.js";
 import { registerServiceWorker } from "./pwa.js";
-import { renderExercises as renderExercisesView, renderPlans as renderPlansView, fillExerciseSelect as fillExerciseSelectView, fillPlanSelect as fillPlanSelectView, renderWorkoutItems as renderWorkoutItemsView, renderHistory as renderHistoryView } from "./renderers.js";
-import { analyzeWorkoutPrs } from "./stats.js";
+import { renderExercises as renderExercisesView, renderPlans as renderPlansView, fillExerciseSelect as fillExerciseSelectView, fillPlanSelect as fillPlanSelectView, renderWorkoutItems as renderWorkoutItemsView, renderHistory as renderHistoryView, fillStatsExerciseSelect as fillStatsExerciseSelectView, renderStatsOverview as renderStatsOverviewView, renderStatsDetail as renderStatsDetailView } from "./renderers.js";
+import { analyzeWorkoutPrs, getActiveExerciseStats, getExerciseStatsDetail } from "./stats.js";
 import { $, $all, setActiveTab, toast } from "./ui.js";
 
 /**
@@ -23,6 +23,7 @@ function on(selector, event, handler) {
 }
 
 let notesSaveTimer = null;
+let selectedStatsExerciseId = null;
 
 function persistWorkoutNotesSoon() {
   window.clearTimeout(notesSaveTimer);
@@ -131,6 +132,13 @@ function renderNewWorkoutControls(){
 
 function exerciseNameById(exId){
   return state.exercises.find(e=>e.id===exId)?.name || exId;
+}
+
+function getActiveStatsSelection(activeExerciseStats) {
+  if (!activeExerciseStats.length) return null;
+  const validSelection = activeExerciseStats.find((entry) => entry.exerciseId === selectedStatsExerciseId);
+  if (validSelection) return validSelection.exerciseId;
+  return activeExerciseStats[0].exerciseId;
 }
 
 /** Liefert Recency fÃ¼r Dashboard: { days, display, tier } mit tier green/yellow/red (Ampel). */
@@ -282,6 +290,17 @@ function renderHistory(){
   );
 }
 
+function renderStats() {
+  const activeExerciseStats = getActiveExerciseStats(state.workouts, 3);
+  selectedStatsExerciseId = getActiveStatsSelection(activeExerciseStats);
+
+  fillStatsExerciseSelectView($("#statsExerciseSelect"), activeExerciseStats, selectedStatsExerciseId, exerciseNameById);
+  renderStatsOverviewView($("#statsOverview"), activeExerciseStats, selectedStatsExerciseId, exerciseNameById);
+
+  const detail = selectedStatsExerciseId ? getExerciseStatsDetail(state.workouts, selectedStatsExerciseId) : null;
+  renderStatsDetailView($("#statsDetail"), detail, exerciseNameById(selectedStatsExerciseId));
+}
+
 function rerenderAll(){
   renderHeader();
   renderStateSummary();
@@ -292,6 +311,7 @@ function rerenderAll(){
   renderNewWorkoutControls();
   renderActiveWorkout();
   renderHistory();
+  renderStats();
 }
 
 function renderDashboardTiles(){
@@ -525,6 +545,18 @@ function setupActions(){
       toast("Workout gelÃ¶scht âœ…");
       return;
     }
+  });
+
+  on("#statsExerciseSelect", "change", (ev) => {
+    selectedStatsExerciseId = ev.target.value || null;
+    renderStats();
+  });
+
+  on("#statsOverview", "click", (ev) => {
+    const card = ev.target.closest("[data-action='select-stats-exercise']");
+    if (!card) return;
+    selectedStatsExerciseId = card.dataset.exerciseId || null;
+    renderStats();
   });
 
   on("#btnExport", "click", () => {
