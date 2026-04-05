@@ -123,9 +123,13 @@ export function renderWorkoutItems(root, workout, {
     card.dataset.exerciseId = item.exerciseId;
 
     const lastSets = getLastPerformanceSetsForExercise(workouts, item.exerciseId, workout.id);
-    const lastSet = lastSets && lastSets.length ? lastSets[lastSets.length - 1] : null;
-    const weightPlaceholder = lastSet && Number.isFinite(lastSet.weight) ? String(lastSet.weight) : "kg";
-    const repsPlaceholder = lastSet && Number.isFinite(lastSet.reps) ? String(lastSet.reps) : "reps";
+    const nextSetTemplate = lastSets && lastSets.length
+      ? lastSets[item.sets.length] || lastSets[lastSets.length - 1]
+      : null;
+    const weightPreset = nextSetTemplate && Number.isFinite(nextSetTemplate.weight) ? String(nextSetTemplate.weight) : "";
+    const repsPreset = nextSetTemplate && Number.isFinite(nextSetTemplate.reps) ? String(nextSetTemplate.reps) : "";
+    const weightPlaceholder = weightPreset || "kg";
+    const repsPlaceholder = repsPreset || "reps";
 
     let runningMax = maxBeforeWorkout[item.exerciseId] ?? 0;
 
@@ -161,8 +165,10 @@ export function renderWorkoutItems(root, workout, {
     inputRow.style.flexWrap = "wrap";
     const weightInput = createNode("input", { className: "input small w70", attrs: { inputmode: "decimal", placeholder: weightPlaceholder } });
     weightInput.dataset.field = "weight";
+    weightInput.value = weightPreset;
     const repsInput = createNode("input", { className: "input small w70", attrs: { inputmode: "numeric", placeholder: repsPlaceholder } });
     repsInput.dataset.field = "reps";
+    repsInput.value = repsPreset;
     const addSetBtn = createNode("button", { className: "btn btn-xs", text: "+ Set" });
     addSetBtn.dataset.action = "add-set";
     inputRow.append(weightInput, repsInput, addSetBtn);
