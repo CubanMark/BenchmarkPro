@@ -226,8 +226,8 @@ function countPrsInWorkout(workout) {
  * Liefert alle Sets der letzten Einheit fÃ¼r eine Ãœbung (aus state.workouts, excludeWorkoutId ausgeschlossen).
  * RÃ¼ckgabe: [{ weight, reps }, ...] oder null.
  */
-function getLastPerformanceSetsForExercise(state, exerciseId, excludeWorkoutId) {
-  const sorted = sortWorkoutsNewestFirst(state.workouts);
+function getLastPerformanceSetsForExercise(workouts, exerciseId, excludeWorkoutId) {
+  const sorted = sortWorkoutsNewestFirst(workouts || []);
   for (const w of sorted) {
     if (excludeWorkoutId != null && w.id === excludeWorkoutId) continue;
     const item = (w.items || []).find((i) => i.exerciseId === exerciseId);
