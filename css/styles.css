@@ -49,6 +49,31 @@ h2{margin:10px 0 12px;font-size:22px}
   box-shadow: 0 0 0 3px rgba(90,167,255,.15);
 }
 .container{padding:0 18px 30px;max-width:1100px;margin:0 auto}
+.build-banner{
+  position: sticky;
+  top: 10px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 16px;
+  padding: 10px 14px;
+  border: 1px solid rgba(90,167,255,.35);
+  border-radius: 999px;
+  background: rgba(12,20,38,.9);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+.build-banner-label{
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.build-banner-note{
+  color: var(--accent);
+  font-size: 12px;
+}
 .panel{display:none}
 .panel.is-active{display:block}
 .card{
