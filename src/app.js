@@ -6,7 +6,8 @@ import { ensureDefaults, createPlan, deletePlan, updatePlanFromTextarea } from "
 import { upsertExercise } from "./exercises.js";
 import { createWorkout, getWorkout, addSetToWorkout, deleteSetFromWorkout, removeExerciseFromWorkout, ensureExerciseItem, sortWorkoutsNewestFirst, humanWorkoutTitle, deleteWorkout, setWorkoutNotes } from "./workouts.js";
 import { registerServiceWorker } from "./pwa.js";
-import { $, $all, clearElement, createNode, setActiveTab, toast } from "./ui.js";
+import { renderExercises as renderExercisesView, renderPlans as renderPlansView, fillExerciseSelect as fillExerciseSelectView, fillPlanSelect as fillPlanSelectView, renderWorkoutItems as renderWorkoutItemsView, renderHistory as renderHistoryView } from "./renderers.js";
+import { $, $all, setActiveTab, toast } from "./ui.js";
 
 /**
  * Bindet einen Event-Listener, wenn das Element existiert. Sonst console.warn (kein throw).
@@ -18,15 +19,6 @@ function on(selector, event, handler) {
     return;
   }
   el.addEventListener(event, handler);
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }
 
 let notesSaveTimer = null;
@@ -95,108 +87,19 @@ function renderDiagnostics(){
 }
 
 function renderExercises(){
-  const el = $("#exerciseList");
-  if (!el) return;
-  clearElement(el);
-  const sorted = [...state.exercises].sort((a,b)=>a.name.localeCompare(b.name,"de"));
-  for (const ex of sorted) {
-    const div = createNode("div", { className: "pill" });
-    const content = createNode("div");
-    const alias = (ex.aliases && ex.aliases.length) ? ` Â· aliases: ${ex.aliases.join(", ")}` : "";
-    content.appendChild(createNode("div", { className: "name", text: ex.name }));
-    content.appendChild(createNode("div", { className: "muted small mono", text: ex.id + alias }));
-    div.appendChild(content);
-    el.appendChild(div);
-  }
-}
-
-function planToTextarea(plan){
-  return plan.exerciseIds
-    .map(id => state.exercises.find(e=>e.id===id)?.name || id)
-    .join("\n");
+  renderExercisesView($("#exerciseList"), state.exercises);
 }
 
 function renderPlans(){
-  const root = $("#plansList");
-  if (!root) {
-    console.warn("[BenchMarkPro] Fehlendes Element: #plansList");
-    return;
-  }
-  clearElement(root);
-
-  for (const plan of state.plans) {
-    const card = createNode("div", { className: "card" });
-    const topRow = createNode("div", { className: "row space" });
-    const titleRow = createNode("div", { className: "row" });
-    titleRow.style.gap = "10px";
-    titleRow.appendChild(createNode("div", { className: "label", text: "Plan" }));
-    if (plan.isDefault) {
-      titleRow.appendChild(createNode("span", { className: "badge mono", text: "default" }));
-    }
-
-    const actions = createNode("div", { className: "row" });
-    actions.style.gap = "8px";
-    actions.style.flexWrap = "wrap";
-    const saveBtn = createNode("button", { className: "btn btn-ghost", text: "Speichern" });
-    saveBtn.dataset.action = "save";
-    saveBtn.dataset.id = plan.id;
-    const deleteBtn = createNode("button", { className: "btn btn-danger", text: "Löschen" });
-    deleteBtn.dataset.action = "delete";
-    deleteBtn.dataset.id = plan.id;
-    deleteBtn.disabled = Boolean(plan.isDefault);
-    actions.append(saveBtn, deleteBtn);
-    topRow.append(titleRow, actions);
-
-    const nameWrap = createNode("div", { className: "mt" });
-    nameWrap.appendChild(createNode("div", { className: "label", text: "Name" }));
-    const nameInput = createNode("input", { className: "input mt small" });
-    nameInput.dataset.field = "name";
-    nameInput.dataset.id = plan.id;
-    nameInput.value = plan.name;
-    nameWrap.appendChild(nameInput);
-
-    const exercisesWrap = createNode("div", { className: "mt" });
-    exercisesWrap.appendChild(createNode("div", { className: "label", text: "Übungen (eine pro Zeile)" }));
-    const exercisesInput = createNode("textarea", { className: "mt" });
-    exercisesInput.dataset.field = "exercises";
-    exercisesInput.dataset.id = plan.id;
-    exercisesInput.value = planToTextarea(plan);
-    exercisesWrap.appendChild(exercisesInput);
-    exercisesWrap.appendChild(createNode("div", {
-      className: "muted small mt",
-      text: "Tipp: Frei tippen. Unbekannte Übungen werden automatisch als neue Exercise angelegt."
-    }));
-
-    card.append(topRow, nameWrap, exercisesWrap);
-    root.appendChild(card);
-  }
+  renderPlansView($("#plansList"), state.plans, state.exercises);
 }
 
 function fillExerciseSelect(sel, { includePlaceholder = false } = {}){
-  clearElement(sel);
-  if (includePlaceholder) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "Ãœbung wÃ¤hlenâ€¦";
-    sel.appendChild(opt);
-  }
-  const sorted = [...state.exercises].sort((a,b)=>a.name.localeCompare(b.name,"de"));
-  for (const ex of sorted) {
-    const opt = document.createElement("option");
-    opt.value = ex.id;
-    opt.textContent = ex.name;
-    sel.appendChild(opt);
-  }
+  fillExerciseSelectView(sel, state.exercises, { includePlaceholder });
 }
 
 function fillPlanSelect(sel){
-  clearElement(sel);
-  for (const p of state.plans) {
-    const opt = document.createElement("option");
-    opt.value = p.id;
-    opt.textContent = p.name;
-    sel.appendChild(opt);
-  }
+  fillPlanSelectView(sel, state.plans);
 }
 
 function renderNewWorkoutControls(){
@@ -227,16 +130,6 @@ function renderNewWorkoutControls(){
 
 function exerciseNameById(exId){
   return state.exercises.find(e=>e.id===exId)?.name || exId;
-}
-
-/** Liefert Hinweistext zum letzten Training: Abstand des letzten Workout-Datums zu heute (nur aus Daten berechnet). */
-function getLastWorkoutHint() {
-  const r = getLastWorkoutRecency();
-  if (r === null) return "";
-  if (r.days === 0) return "Heute schon trainiert.";
-  if (r.days === 1) return "Letztes Training: gestern";
-  const dayWord = r.days === 1 ? "Tag" : "Tage";
-  return `Letztes Training: vor ${r.days} ${dayWord}`;
 }
 
 /** Liefert Recency fÃ¼r Dashboard: { days, display, tier } mit tier green/yellow/red (Ampel). */
@@ -348,97 +241,12 @@ function getLastPerformanceSetsForExercise(state, exerciseId, excludeWorkoutId) 
 }
 
 function renderWorkoutItems(workout){
-  const root = $("#workoutItems");
-  if (!root) {
-    console.warn("[BenchMarkPro] Fehlendes Element: #workoutItems");
-    return;
-  }
-  clearElement(root);
-
-  const maxBeforeThisWorkout = getMaxWeightByExerciseId(workout.id);
-
-  for (const item of workout.items) {
-    const exName = exerciseNameById(item.exerciseId);
-    const card = createNode("div", { className: "card" });
-    card.dataset.exerciseId = item.exerciseId;
-
-    const lastSets = getLastPerformanceSetsForExercise(state, item.exerciseId, workout.id);
-    const lastSet = lastSets && lastSets.length ? lastSets[lastSets.length - 1] : null;
-    const weightPlaceholder = lastSet && Number.isFinite(lastSet.weight) ? String(lastSet.weight) : "kg";
-    const repsPlaceholder = lastSet && Number.isFinite(lastSet.reps) ? String(lastSet.reps) : "reps";
-
-    let runningMax = maxBeforeThisWorkout[item.exerciseId] ?? 0;
-
-    const topRow = createNode("div", { className: "row space" });
-    const titleWrap = createNode("div");
-    titleWrap.appendChild(createNode("div", { className: "label", text: exName }));
-    titleWrap.appendChild(createNode("div", { className: "muted small mono", text: item.exerciseId }));
-    const actionWrap = createNode("div", { className: "row" });
-    actionWrap.style.gap = "8px";
-    actionWrap.style.flexWrap = "wrap";
-    const removeBtn = createNode("button", { className: "btn btn-ghost btn-xs", text: "Entfernen", attrs: { title: "Übung entfernen" } });
-    removeBtn.dataset.action = "remove-ex";
-    actionWrap.appendChild(removeBtn);
-    topRow.append(titleWrap, actionWrap);
-    card.appendChild(topRow);
-
-    if (lastSets && lastSets.length) {
-      const lastBlock = createNode("div", { className: "mt" });
-      lastBlock.appendChild(createNode("div", { className: "muted small", text: "Letztes Mal:" }));
-      const pills = createNode("div", { className: "last-time-pills" });
-      for (const s of lastSets.slice(0, 5)) {
-        const w = Number.isFinite(s.weight) ? s.weight : "—";
-        const r = Number.isFinite(s.reps) ? s.reps : "—";
-        pills.appendChild(createNode("span", { className: "last-time-pill", text: `${w} × ${r}` }));
-      }
-      lastBlock.appendChild(pills);
-      card.appendChild(lastBlock);
-    }
-
-    const inputBlock = createNode("div", { className: "mt" });
-    const inputRow = createNode("div", { className: "row" });
-    inputRow.style.gap = "8px";
-    inputRow.style.flexWrap = "wrap";
-    const weightInput = createNode("input", { className: "input small w70", attrs: { inputmode: "decimal", placeholder: weightPlaceholder } });
-    weightInput.dataset.field = "weight";
-    const repsInput = createNode("input", { className: "input small w70", attrs: { inputmode: "numeric", placeholder: repsPlaceholder } });
-    repsInput.dataset.field = "reps";
-    const addSetBtn = createNode("button", { className: "btn btn-xs", text: "+ Set" });
-    addSetBtn.dataset.action = "add-set";
-    inputRow.append(weightInput, repsInput, addSetBtn);
-    inputBlock.appendChild(inputRow);
-    inputBlock.appendChild(createNode("div", { className: "muted small mt", text: "Tipp: kg und reps ausfüllen → + Set." }));
-    card.appendChild(inputBlock);
-
-    const setsWrap = createNode("div", { className: "mt sets" });
-    if (!item.sets.length) {
-      setsWrap.appendChild(createNode("div", { className: "muted small", text: "Noch keine Sets." }));
-    } else {
-      for (const [idx, s] of item.sets.entries()) {
-        const w = Number.isFinite(s.weight) ? s.weight : "";
-        const r = Number.isFinite(s.reps) ? s.reps : "";
-        const weightNum = Number(s?.weight);
-        const isPr = Number.isFinite(weightNum) && weightNum > 0 && weightNum > runningMax;
-        if (isPr) runningMax = weightNum;
-        const prLabel = isPr ? " 🔥 PR" : "";
-
-        const setRow = createNode("div", { className: "row space set-row" });
-        setRow.appendChild(createNode("div", { className: "mono", text: `${idx+1}.` }));
-        setRow.appendChild(createNode("div", { className: "mono", text: `${w} kg × ${r}${prLabel}` }));
-        const deleteBtn = createNode("button", { className: "btn btn-danger btn-xs", text: "x", attrs: { title: "Set löschen" } });
-        deleteBtn.dataset.action = "del-set";
-        deleteBtn.dataset.idx = String(idx);
-        setRow.appendChild(deleteBtn);
-        setsWrap.appendChild(setRow);
-      }
-    }
-    card.appendChild(setsWrap);
-    root.appendChild(card);
-  }
-
-  if (!workout.items.length) {
-    root.appendChild(createNode("div", { className: "muted", text: "Keine Übungen im Workout. Oben hinzufügen." }));
-  }
+  renderWorkoutItemsView($("#workoutItems"), workout, {
+    exerciseNameById,
+    getLastPerformanceSetsForExercise,
+    getMaxWeightByExerciseId,
+    workouts: state.workouts,
+  });
 }
 
 function renderActiveWorkout(){
@@ -488,40 +296,11 @@ function renderActiveWorkout(){
 }
 
 function renderHistory(){
-  const root = $("#historyList");
-  if (!root) return;
-  clearElement(root);
-  const workouts = sortWorkoutsNewestFirst(state.workouts);
-
-  if (!workouts.length) {
-    const emptyCard = createNode("div", { className: "card" });
-    emptyCard.appendChild(createNode("div", { className: "muted", text: "Noch keine Workouts gespeichert." }));
-    root.appendChild(emptyCard);
-    return;
-  }
-
-  for (const w of workouts) {
-    const row = createNode("div", { className: "card" });
-    const layout = createNode("div", { className: "row space" });
-    const info = createNode("div");
-    info.appendChild(createNode("div", { className: "label", text: humanWorkoutTitle(state, w) }));
-    info.appendChild(createNode("div", { className: "muted small mono", text: w.id }));
-
-    const actions = createNode("div", { className: "row" });
-    actions.style.gap = "8px";
-    actions.style.flexWrap = "wrap";
-    const openBtn = createNode("button", { className: "btn btn-ghost btn-xs", text: "Öffnen" });
-    openBtn.dataset.action = "open";
-    openBtn.dataset.id = w.id;
-    const deleteBtn = createNode("button", { className: "btn btn-danger btn-xs", text: "Löschen" });
-    deleteBtn.dataset.action = "delete";
-    deleteBtn.dataset.id = w.id;
-    actions.append(openBtn, deleteBtn);
-
-    layout.append(info, actions);
-    row.appendChild(layout);
-    root.appendChild(row);
-  }
+  renderHistoryView(
+    $("#historyList"),
+    sortWorkoutsNewestFirst(state.workouts),
+    (workout) => humanWorkoutTitle(state, workout)
+  );
 }
 
 function rerenderAll(){
