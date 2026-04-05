@@ -310,12 +310,21 @@ function renderVolumeBars(series) {
   const wrap = createNode("div", { className: "stats-bar-chart" });
   if (!series.length) return wrap;
 
-  const maxValue = Math.max(...series.map((entry) => Number(entry.value) || 0), 1);
+  const values = series.map((entry) => Number(entry.value) || 0);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values, 1);
+  const range = Math.max(1, maxValue - minValue);
+
   for (const entry of series) {
+    const numericValue = Number(entry.value) || 0;
     const column = createNode("div", { className: "stats-bar-col" });
     const bar = createNode("div", { className: "stats-bar" });
-    bar.style.height = `${Math.max(10, ((Number(entry.value) || 0) / maxValue) * 100)}%`;
-    const value = createNode("div", { className: "stats-bar-value mono", text: String(Math.round(Number(entry.value) || 0)) });
+
+    // Use local min/max scaling so close session volumes still show visible progress.
+    const normalized = range === 0 ? 1 : (numericValue - minValue) / range;
+    bar.style.height = `${30 + normalized * 70}%`;
+
+    const value = createNode("div", { className: "stats-bar-value mono", text: String(Math.round(numericValue)) });
     const label = createNode("div", { className: "stats-bar-label muted small mono", text: String(entry.date || "").slice(5) });
     column.append(value, bar, label);
     wrap.appendChild(column);
