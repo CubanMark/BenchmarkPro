@@ -67,6 +67,63 @@ export function validateStateV4(state) {
   }
   if (errors.length) return { ok: false, errors };
 
+  const exerciseIds = new Set();
+  for (let i = 0; i < state.exercises.length; i++) {
+    const exercise = state.exercises[i];
+    const prefix = `Exercise[${i}]`;
+    if (!exercise || typeof exercise !== "object") {
+      errors.push(`${prefix}: muss Objekt sein`);
+      continue;
+    }
+    if (typeof exercise.id !== "string" || !exercise.id.trim()) {
+      errors.push(`${prefix}: id muss nicht-leerer String sein`);
+    } else if (exerciseIds.has(exercise.id)) {
+      errors.push(`${prefix}: doppelte id ${exercise.id}`);
+    } else {
+      exerciseIds.add(exercise.id);
+    }
+    if (typeof exercise.name !== "string" || !exercise.name.trim()) {
+      errors.push(`${prefix}: name muss nicht-leerer String sein`);
+    }
+    if (exercise.aliases != null && !Array.isArray(exercise.aliases)) {
+      errors.push(`${prefix}: aliases muss Array sein`);
+    }
+  }
+
+  const planIds = new Set();
+  for (let i = 0; i < state.plans.length; i++) {
+    const plan = state.plans[i];
+    const prefix = `Plan[${i}]`;
+    if (!plan || typeof plan !== "object") {
+      errors.push(`${prefix}: muss Objekt sein`);
+      continue;
+    }
+    if (typeof plan.id !== "string" || !plan.id.trim()) {
+      errors.push(`${prefix}: id muss nicht-leerer String sein`);
+    } else if (planIds.has(plan.id)) {
+      errors.push(`${prefix}: doppelte id ${plan.id}`);
+    } else {
+      planIds.add(plan.id);
+    }
+    if (typeof plan.name !== "string" || !plan.name.trim()) {
+      errors.push(`${prefix}: name muss nicht-leerer String sein`);
+    }
+    if (!Array.isArray(plan.exerciseIds)) {
+      errors.push(`${prefix}: exerciseIds muss ein Array sein`);
+    } else {
+      for (let j = 0; j < plan.exerciseIds.length; j++) {
+        const exerciseId = plan.exerciseIds[j];
+        if (typeof exerciseId !== "string" || !exerciseId.trim()) {
+          errors.push(`${prefix}.exerciseIds[${j}]: muss nicht-leerer String sein`);
+          continue;
+        }
+        if (!exerciseIds.has(exerciseId)) {
+          errors.push(`${prefix}.exerciseIds[${j}]: referenziert unbekannte Exercise ${exerciseId}`);
+        }
+      }
+    }
+  }
+
   const workouts = state.workouts;
   for (let i = 0; i < workouts.length; i++) {
     const w = workouts[i];
@@ -77,14 +134,32 @@ export function validateStateV4(state) {
     if (typeof w.date !== "string") {
       errors.push(`${prefix}: date muss String sein`);
     }
+    if (w.planId != null && typeof w.planId !== "string") {
+      errors.push(`${prefix}: planId muss String oder null sein`);
+    }
+    if (typeof w.notes !== "string" && w.notes != null) {
+      errors.push(`${prefix}: notes muss String oder null sein`);
+    }
+    if (typeof w.planId === "string" && w.planId && !planIds.has(w.planId)) {
+      errors.push(`${prefix}: referenziert unbekannten Plan ${w.planId}`);
+    }
     if (!Array.isArray(w.items)) {
       errors.push(`${prefix}: items muss ein Array sein`);
     } else {
+      const seenExerciseIds = new Set();
       for (let j = 0; j < w.items.length; j++) {
         const item = w.items[j];
         const itemPrefix = `${prefix}.items[${j}]`;
         if (typeof item.exerciseId !== "string") {
           errors.push(`${itemPrefix}: exerciseId muss String sein`);
+        } else {
+          if (!exerciseIds.has(item.exerciseId)) {
+            errors.push(`${itemPrefix}: referenziert unbekannte Exercise ${item.exerciseId}`);
+          }
+          if (seenExerciseIds.has(item.exerciseId)) {
+            errors.push(`${itemPrefix}: doppelte Exercise ${item.exerciseId} im selben Workout`);
+          }
+          seenExerciseIds.add(item.exerciseId);
         }
         if (!Array.isArray(item.sets)) {
           errors.push(`${itemPrefix}: sets muss ein Array sein`);
@@ -97,8 +172,14 @@ export function validateStateV4(state) {
             if (reps != null && !Number.isFinite(Number(reps))) {
               errors.push(`${setPrefix}: reps muss endliche Zahl oder null sein`);
             }
+            if (reps != null && Number(reps) <= 0) {
+              errors.push(`${setPrefix}: reps muss groesser als 0 sein`);
+            }
             if (weight != null && !Number.isFinite(Number(weight))) {
               errors.push(`${setPrefix}: weight muss endliche Zahl oder null sein`);
+            }
+            if (weight != null && Number(weight) < 0) {
+              errors.push(`${setPrefix}: weight darf nicht negativ sein`);
             }
           }
         }
