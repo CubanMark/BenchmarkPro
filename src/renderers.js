@@ -306,30 +306,95 @@ function createLineChart(series, stroke) {
   return svg;
 }
 
-function renderVolumeBars(series) {
-  const wrap = createNode("div", { className: "stats-bar-chart" });
-  if (!series.length) return wrap;
+function createDualAxisChart(weightSeries, volumeSeries) {
+  const svg = createSvgElement("svg", {
+    viewBox: "0 0 320 160",
+    class: "stats-chart-svg",
+    role: "img",
+    "aria-label": "Topgewicht und Volumen Verlauf",
+  });
 
-  const values = series.map((entry) => Number(entry.value) || 0);
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values, 1);
-  const range = Math.max(1, maxValue - minValue);
+  svg.appendChild(createSvgElement("line", { x1: 20, y1: 132, x2: 300, y2: 132, stroke: "rgba(255,255,255,0.12)" }));
+  svg.appendChild(createSvgElement("line", { x1: 20, y1: 18, x2: 20, y2: 132, stroke: "rgba(90,167,255,0.18)" }));
+  svg.appendChild(createSvgElement("line", { x1: 300, y1: 18, x2: 300, y2: 132, stroke: "rgba(74,222,128,0.18)" }));
 
-  for (const entry of series) {
-    const numericValue = Number(entry.value) || 0;
-    const column = createNode("div", { className: "stats-bar-col" });
-    const bar = createNode("div", { className: "stats-bar" });
+  const count = Math.max(weightSeries.length, volumeSeries.length);
+  if (!count) return svg;
 
-    // Use local min/max scaling so close session volumes still show visible progress.
-    const normalized = range === 0 ? 1 : (numericValue - minValue) / range;
-    bar.style.height = `${30 + normalized * 70}%`;
+  const weightValues = weightSeries.map((entry) => Number(entry.value) || 0);
+  const volumeValues = volumeSeries.map((entry) => Number(entry.value) || 0);
+  const weightMin = Math.min(...weightValues);
+  const weightRange = Math.max(1, Math.max(...weightValues) - weightMin);
+  const volumeMin = Math.min(...volumeValues);
+  const volumeRange = Math.max(1, Math.max(...volumeValues) - volumeMin);
 
-    const value = createNode("div", { className: "stats-bar-value mono", text: String(Math.round(numericValue)) });
-    const label = createNode("div", { className: "stats-bar-label muted small mono", text: String(entry.date || "").slice(5) });
-    column.append(value, bar, label);
-    wrap.appendChild(column);
+  const buildPoints = (series, min, range) => series.map((entry, idx) => {
+    const x = count === 1 ? 160 : 20 + (280 * idx) / (count - 1);
+    const y = 132 - (((Number(entry.value) || 0) - min) / range) * 96;
+    return { x, y, value: Number(entry.value) || 0 };
+  });
+
+  const weightPoints = buildPoints(weightSeries, weightMin, weightRange);
+  const volumePoints = buildPoints(volumeSeries, volumeMin, volumeRange);
+
+  const buildPath = (points) => points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+
+  svg.appendChild(createSvgElement("path", {
+    d: buildPath(weightPoints),
+    fill: "none",
+    stroke: "rgba(90,167,255,1)",
+    "stroke-width": 3,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+  }));
+  svg.appendChild(createSvgElement("path", {
+    d: buildPath(volumePoints),
+    fill: "none",
+    stroke: "rgba(74,222,128,1)",
+    "stroke-width": 3,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round",
+  }));
+
+  for (const point of weightPoints) {
+    svg.appendChild(createSvgElement("circle", { cx: point.x, cy: point.y, r: 4, fill: "rgba(90,167,255,1)" }));
+  }
+  for (const point of volumePoints) {
+    svg.appendChild(createSvgElement("circle", { cx: point.x, cy: point.y, r: 4, fill: "rgba(74,222,128,1)" }));
   }
 
+  svg.appendChild(createSvgElement("text", { x: 20, y: 12, fill: "rgba(90,167,255,0.95)", "font-size": 10 }));
+  svg.lastChild.textContent = `${Math.round(weightMin)}-${Math.round(weightMin + weightRange)} kg`;
+  svg.appendChild(createSvgElement("text", { x: 212, y: 12, fill: "rgba(74,222,128,0.95)", "font-size": 10 }));
+  svg.lastChild.textContent = `${Math.round(volumeMin)}-${Math.round(volumeMin + volumeRange)} Vol`;
+
+  return svg;
+}
+
+function renderSessionComparison(detail) {
+  const wrap = createNode("div", { className: "stats-compare-wrap mt" });
+  const best = Math.max(1, Number(detail.bestSessionVolume) || 0);
+  const latest = Number(detail.lastSessionVolume) || 0;
+  const latestPct = Math.max(12, (latest / best) * 100);
+  const delta = latest - best;
+
+  const latestRow = createNode("div", { className: "stats-compare-row" });
+  latestRow.appendChild(createNode("div", { className: "label", text: "Letzte Session" }));
+  latestRow.appendChild(createNode("div", { className: "mono", text: String(Math.round(latest)) }));
+  const latestBar = createNode("div", { className: "stats-compare-bar is-latest" });
+  latestBar.style.width = `${Math.min(100, latestPct)}%`;
+
+  const bestRow = createNode("div", { className: "stats-compare-row mt" });
+  bestRow.appendChild(createNode("div", { className: "label", text: "Bester Wert" }));
+  bestRow.appendChild(createNode("div", { className: "mono", text: String(Math.round(best)) }));
+  const bestBar = createNode("div", { className: "stats-compare-bar is-best" });
+  bestBar.style.width = "100%";
+
+  wrap.append(latestRow, latestBar, bestRow, bestBar);
+  wrap.appendChild(createNode("div", {
+    className: "muted small mt",
+    text: delta === 0 ? "Letzte Session entspricht dem Bestwert." : delta > 0 ? `Neue Session liegt ${Math.round(delta)} ueber dem alten Bestwert.` : `Zur Bestleistung fehlen ${Math.round(Math.abs(delta))}.`
+  }));
   return wrap;
 }
 
@@ -419,13 +484,17 @@ export function renderStatsDetail(root, detail, exerciseName) {
   const chartGrid = createNode("div", { className: "stats-chart-grid mt" });
 
   const topWeightCard = createNode("div", { className: "card" });
-  topWeightCard.appendChild(createNode("div", { className: "label", text: "Topgewicht-Verlauf" }));
-  topWeightCard.appendChild(createLineChart(detail.topWeightSeries, "rgba(90,167,255,1)"));
+  topWeightCard.appendChild(createNode("div", { className: "label", text: "Leistungs-Verlauf" }));
+  const legend = createNode("div", { className: "row mt" });
+  legend.appendChild(createNode("span", { className: "stats-legend-item stats-legend-weight", text: "Topgewicht" }));
+  legend.appendChild(createNode("span", { className: "stats-legend-item stats-legend-volume", text: "Volumen" }));
+  topWeightCard.appendChild(legend);
+  topWeightCard.appendChild(createDualAxisChart(detail.topWeightSeries, detail.volumeSeries));
   chartGrid.appendChild(topWeightCard);
 
   const volumeCard = createNode("div", { className: "card" });
-  volumeCard.appendChild(createNode("div", { className: "label", text: "Session-Volumen" }));
-  volumeCard.appendChild(renderVolumeBars(detail.volumeSeries.slice(-8)));
+  volumeCard.appendChild(createNode("div", { className: "label", text: "Session-Vergleich" }));
+  volumeCard.appendChild(renderSessionComparison(detail));
   chartGrid.appendChild(volumeCard);
 
   const sessionsCard = createNode("div", { className: "card mt" });
