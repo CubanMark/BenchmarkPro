@@ -1,4 +1,4 @@
-import { APP_VERSION, DATA_VERSION, STORAGE_KEY } from "./version.js";
+﻿import { APP_VERSION, DATA_VERSION, STORAGE_KEY } from "./version.js";
 import { loadState, saveState, exportState, parseImportFile, applyImportedState, resetState, createBackup } from "./storage.js";
 import { getDefaultExercises, getDefaultPlans } from "./models.js";
 import { runMigrations } from "./migrations.js";
@@ -6,6 +6,8 @@ import { ensureDefaults, createPlan, deletePlan, updatePlanFromTextarea } from "
 import { upsertExercise } from "./exercises.js";
 import { createWorkout, getWorkout, addSetToWorkout, deleteSetFromWorkout, removeExerciseFromWorkout, ensureExerciseItem, sortWorkoutsNewestFirst, humanWorkoutTitle, deleteWorkout, setWorkoutNotes } from "./workouts.js";
 import { registerServiceWorker } from "./pwa.js";
+import { renderExercises as renderExercisesView, renderPlans as renderPlansView, fillExerciseSelect as fillExerciseSelectView, fillPlanSelect as fillPlanSelectView, renderWorkoutItems as renderWorkoutItemsView, renderHistory as renderHistoryView, fillStatsExerciseSelect as fillStatsExerciseSelectView, renderStatsOverview as renderStatsOverviewView, renderStatsDetail as renderStatsDetailView } from "./renderers.js";
+import { analyzeWorkoutPrs, getActiveExerciseStats, getExerciseStatsDetail } from "./stats.js";
 import { $, $all, setActiveTab, toast } from "./ui.js";
 
 /**
@@ -20,16 +22,8 @@ function on(selector, event, handler) {
   el.addEventListener(event, handler);
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
 let notesSaveTimer = null;
+let selectedStatsExerciseId = null;
 
 function persistWorkoutNotesSoon() {
   window.clearTimeout(notesSaveTimer);
@@ -66,6 +60,10 @@ function persist(){
 
 function renderHeader(){
   $("#versionBadge").textContent = APP_VERSION;
+  const banner = $("#buildVersionBanner");
+  if (banner) banner.textContent = APP_VERSION;
+  const footer = $("#buildVersionFooter");
+  if (footer) footer.textContent = APP_VERSION;
 }
 
 function renderStateSummary(){
@@ -80,103 +78,30 @@ function renderDiagnostics(){
   $("#diagAppVersion").textContent = state.appVersion || APP_VERSION;
   $("#diagDataVersion").textContent = String(state.dataVersion ?? DATA_VERSION);
   $("#diagStorageKey").textContent = STORAGE_KEY;
-  $("#diagLastSaved").textContent = state.meta?.updatedAt || "—";
+  $("#diagLastSaved").textContent = state.meta?.updatedAt || "â€”";
   const lm = state.meta?.lastMigration;
   if (lm && typeof lm === "object") {
-    const tag = lm.ran ? `ran ${lm.from}→${lm.to}` : `noop ${lm.from}→${lm.to}`;
+    const tag = lm.ran ? `ran ${lm.from}â†’${lm.to}` : `noop ${lm.from}â†’${lm.to}`;
     $("#diagLastMigration").textContent = tag;
   } else {
-    $("#diagLastMigration").textContent = "—";
+    $("#diagLastMigration").textContent = "â€”";
   }
 }
 
 function renderExercises(){
-  const el = $("#exerciseList");
-  if (!el) return;
-  el.innerHTML = "";
-  const sorted = [...state.exercises].sort((a,b)=>a.name.localeCompare(b.name,"de"));
-  for (const ex of sorted) {
-    const div = document.createElement("div");
-    div.className = "pill";
-    const alias = (ex.aliases && ex.aliases.length) ? ` · aliases: ${ex.aliases.join(", ")}` : "";
-    div.innerHTML = `<div><div class="name">${escapeHtml(ex.name)}</div><div class="muted small mono">${escapeHtml(ex.id + alias)}</div></div>`;
-    el.appendChild(div);
-  }
-}
-
-function planToTextarea(plan){
-  return plan.exerciseIds
-    .map(id => state.exercises.find(e=>e.id===id)?.name || id)
-    .join("\n");
+  renderExercisesView($("#exerciseList"), state.exercises);
 }
 
 function renderPlans(){
-  const root = $("#plansList");
-  if (!root) {
-    console.warn("[BenchMarkPro] Fehlendes Element: #plansList");
-    return;
-  }
-  root.innerHTML = "";
-
-  for (const plan of state.plans) {
-    const card = document.createElement("div");
-    card.className = "card";
-
-    const protectedInfo = plan.isDefault ? `<span class="badge mono">default</span>` : "";
-
-    card.innerHTML = `
-      <div class="row space">
-        <div class="row" style="gap:10px">
-          <div class="label">Plan</div>
-          ${protectedInfo}
-        </div>
-        <div class="row" style="gap:8px; flex-wrap: wrap">
-          <button class="btn btn-ghost" data-action="save" data-id="${escapeHtml(plan.id)}">Speichern</button>
-          <button class="btn btn-danger" data-action="delete" data-id="${plan.id}" ${plan.isDefault ? "disabled" : ""}>Löschen</button>
-        </div>
-      </div>
-
-      <div class="mt">
-        <div class="label">Name</div>
-        <input class="input mt small" data-field="name" data-id="${escapeHtml(plan.id)}" value="${escapeHtml(plan.name)}" />
-      </div>
-
-      <div class="mt">
-        <div class="label">Übungen (eine pro Zeile)</div>
-        <textarea class="mt" data-field="exercises" data-id="${escapeHtml(plan.id)}">${escapeHtml(planToTextarea(plan))}</textarea>
-        <div class="muted small mt">Tipp: Frei tippen. Unbekannte Übungen werden automatisch als neue Exercise angelegt.</div>
-      </div>
-    `;
-
-    root.appendChild(card);
-  }
+  renderPlansView($("#plansList"), state.plans, state.exercises);
 }
 
 function fillExerciseSelect(sel, { includePlaceholder = false } = {}){
-  sel.innerHTML = "";
-  if (includePlaceholder) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "Übung wählen…";
-    sel.appendChild(opt);
-  }
-  const sorted = [...state.exercises].sort((a,b)=>a.name.localeCompare(b.name,"de"));
-  for (const ex of sorted) {
-    const opt = document.createElement("option");
-    opt.value = ex.id;
-    opt.textContent = ex.name;
-    sel.appendChild(opt);
-  }
+  fillExerciseSelectView(sel, state.exercises, { includePlaceholder });
 }
 
 function fillPlanSelect(sel){
-  sel.innerHTML = "";
-  for (const p of state.plans) {
-    const opt = document.createElement("option");
-    opt.value = p.id;
-    opt.textContent = p.name;
-    sel.appendChild(opt);
-  }
+  fillPlanSelectView(sel, state.plans);
 }
 
 function renderNewWorkoutControls(){
@@ -209,17 +134,14 @@ function exerciseNameById(exId){
   return state.exercises.find(e=>e.id===exId)?.name || exId;
 }
 
-/** Liefert Hinweistext zum letzten Training: Abstand des letzten Workout-Datums zu heute (nur aus Daten berechnet). */
-function getLastWorkoutHint() {
-  const r = getLastWorkoutRecency();
-  if (r === null) return "";
-  if (r.days === 0) return "Heute schon trainiert.";
-  if (r.days === 1) return "Letztes Training: gestern";
-  const dayWord = r.days === 1 ? "Tag" : "Tage";
-  return `Letztes Training: vor ${r.days} ${dayWord}`;
+function getActiveStatsSelection(activeExerciseStats) {
+  if (!activeExerciseStats.length) return null;
+  const validSelection = activeExerciseStats.find((entry) => entry.exerciseId === selectedStatsExerciseId);
+  if (validSelection) return validSelection.exerciseId;
+  return activeExerciseStats[0].exerciseId;
 }
 
-/** Liefert Recency für Dashboard: { days, display, tier } mit tier green/yellow/red (Ampel). */
+/** Liefert Recency fÃ¼r Dashboard: { days, display, tier } mit tier green/yellow/red (Ampel). */
 function getLastWorkoutRecency() {
   const sorted = sortWorkoutsNewestFirst(state.workouts);
   if (!sorted.length) return null;
@@ -238,7 +160,7 @@ function getLastWorkoutRecency() {
   return { days, display, tier };
 }
 
-/** ISO-Woche (Mo–So): Liefert den Montag der Woche von dateStr als "YYYY-MM-DD" (lokal, nicht toISOString). */
+/** ISO-Woche (Moâ€“So): Liefert den Montag der Woche von dateStr als "YYYY-MM-DD" (lokal, nicht toISOString). */
 function getISOWeekKey(dateStr) {
   if (!dateStr || typeof dateStr !== "string") return null;
   const d = new Date(dateStr + "T12:00:00");
@@ -271,50 +193,26 @@ function getWeeklyConsistency() {
   return { count, label };
 }
 
-/**
- * Berechnet pro exerciseId das maximale Gewicht (nur finite, >0) aus allen Workouts.
- * excludeWorkoutId: optional – dieses Workout wird aus der Berechnung ausgeschlossen (für laufendes Max im aktuellen Workout).
- */
-function getMaxWeightByExerciseId(excludeWorkoutId = null) {
-  const maxByEx = Object.create(null);
-  for (const w of state.workouts) {
-    if (excludeWorkoutId != null && w.id === excludeWorkoutId) continue;
-    for (const item of w.items || []) {
-      const exId = item.exerciseId;
-      for (const s of item.sets || []) {
-        const weight = Number(s?.weight);
-        if (Number.isFinite(weight) && weight > 0) {
-          if (!(exId in maxByEx) || weight > maxByEx[exId]) maxByEx[exId] = weight;
-        }
-      }
-    }
-  }
-  return maxByEx;
-}
+function formatWorkoutPrSummary(prSummary) {
+  const counts = prSummary?.counts || {};
+  const parts = [];
 
-/** Zählt PR-Sets in einem Workout (gleiche Logik wie beim Anzeigen der 🔥 PR-Badges). */
-function countPrsInWorkout(workout) {
-  const maxBeforeThisWorkout = getMaxWeightByExerciseId(workout.id);
-  let count = 0;
-  for (const item of workout.items || []) {
-    let runningMax = maxBeforeThisWorkout[item.exerciseId] ?? 0;
-    for (const s of item.sets || []) {
-      const weightNum = Number(s?.weight);
-      if (Number.isFinite(weightNum) && weightNum > 0 && weightNum > runningMax) {
-        count++;
-        runningMax = weightNum;
-      }
-    }
-  }
-  return count;
+  if (counts.topWeightCount === 1) parts.push("\uD83D\uDD25 1 Topgewicht-PR");
+  else if (counts.topWeightCount > 1) parts.push(`\uD83D\uDD25 ${counts.topWeightCount} Topgewicht-PRs`);
+
+  if (counts.topVolumeCount === 1) parts.push("\uD83D\uDCC8 1 Volumen-PR");
+  else if (counts.topVolumeCount > 1) parts.push(`\uD83D\uDCC8 ${counts.topVolumeCount} Volumen-PRs`);
+
+  if (!parts.length) return "";
+  return `${parts.join(", ")} in diesem Training`;
 }
 
 /**
- * Liefert alle Sets der letzten Einheit für eine Übung (aus state.workouts, excludeWorkoutId ausgeschlossen).
- * Rückgabe: [{ weight, reps }, ...] oder null.
+ * Liefert alle Sets der letzten Einheit fÃ¼r eine Ãœbung (aus state.workouts, excludeWorkoutId ausgeschlossen).
+ * RÃ¼ckgabe: [{ weight, reps }, ...] oder null.
  */
-function getLastPerformanceSetsForExercise(state, exerciseId, excludeWorkoutId) {
-  const sorted = sortWorkoutsNewestFirst(state.workouts);
+function getLastPerformanceSetsForExercise(workouts, exerciseId, excludeWorkoutId) {
+  const sorted = sortWorkoutsNewestFirst(workouts || []);
   for (const w of sorted) {
     if (excludeWorkoutId != null && w.id === excludeWorkoutId) continue;
     const item = (w.items || []).find((i) => i.exerciseId === exerciseId);
@@ -328,83 +226,13 @@ function getLastPerformanceSetsForExercise(state, exerciseId, excludeWorkoutId) 
 }
 
 function renderWorkoutItems(workout){
-  const root = $("#workoutItems");
-  if (!root) {
-    console.warn("[BenchMarkPro] Fehlendes Element: #workoutItems");
-    return;
-  }
-  root.innerHTML = "";
-
-  const maxBeforeThisWorkout = getMaxWeightByExerciseId(workout.id);
-
-  for (const item of workout.items) {
-    const exName = exerciseNameById(item.exerciseId);
-    const card = document.createElement("div");
-    card.className = "card";
-    card.dataset.exerciseId = item.exerciseId;
-
-    const lastSets = getLastPerformanceSetsForExercise(state, item.exerciseId, workout.id);
-    const lastSet = lastSets && lastSets.length ? lastSets[lastSets.length - 1] : null;
-    const weightPlaceholder = lastSet && Number.isFinite(lastSet.weight) ? String(lastSet.weight) : "kg";
-    const repsPlaceholder = lastSet && Number.isFinite(lastSet.reps) ? String(lastSet.reps) : "reps";
-
-    const lastMalPills = lastSets
-      ? lastSets.slice(0, 5).map((s) => {
-          const w = Number.isFinite(s.weight) ? s.weight : "—";
-          const r = Number.isFinite(s.reps) ? s.reps : "—";
-          return `<span class="last-time-pill">${w} × ${r}</span>`;
-        }).join("")
-      : "";
-    const lastMalBlock = lastMalPills
-      ? `<div class="mt"><div class="muted small">Letztes Mal:</div><div class="last-time-pills">${lastMalPills}</div></div>`
-      : "";
-
-    let runningMax = maxBeforeThisWorkout[item.exerciseId] ?? 0;
-    const setsHtml = item.sets.map((s, idx) => {
-      const w = Number.isFinite(s.weight) ? s.weight : "";
-      const r = Number.isFinite(s.reps) ? s.reps : "";
-      const weightNum = Number(s?.weight);
-      const isPr = Number.isFinite(weightNum) && weightNum > 0 && weightNum > runningMax;
-      if (isPr) runningMax = weightNum;
-      const prLabel = isPr ? " 🔥 PR" : "";
-      return `<div class="row space set-row">
-        <div class="mono">${idx+1}.</div>
-        <div class="mono">${w} kg × ${r}${prLabel}</div>
-        <button class="btn btn-danger btn-xs" data-action="del-set" data-idx="${idx}" title="Set löschen">x</button>
-      </div>`;
-    }).join("");
-
-    card.innerHTML = `
-      <div class="row space">
-        <div>
-          <div class="label">${escapeHtml(exName)}</div>
-          <div class="muted small mono">${escapeHtml(item.exerciseId)}</div>
-        </div>
-        <div class="row" style="gap:8px; flex-wrap: wrap">
-          <button class="btn btn-ghost btn-xs" data-action="remove-ex" title="Übung entfernen">Entfernen</button>
-        </div>
-      </div>
-      ${lastMalBlock}
-
-      <div class="mt">
-        <div class="row" style="gap:8px; flex-wrap: wrap">
-          <input class="input small w70" data-field="weight" inputmode="decimal" placeholder="${escapeHtml(weightPlaceholder)}" />
-          <input class="input small w70" data-field="reps" inputmode="numeric" placeholder="${escapeHtml(repsPlaceholder)}" />
-          <button class="btn btn-xs" data-action="add-set">+ Set</button>
-        </div>
-        <div class="muted small mt">Tipp: kg und reps ausfüllen → + Set.</div>
-      </div>
-
-      <div class="mt sets">
-        ${setsHtml || `<div class="muted small">Noch keine Sets.</div>`}
-      </div>
-    `;
-    root.appendChild(card);
-  }
-
-  if (!workout.items.length) {
-    root.innerHTML = `<div class="muted">Keine Übungen im Workout. Oben hinzufügen.</div>`;
-  }
+  const prSummary = analyzeWorkoutPrs(state.workouts, workout);
+  renderWorkoutItemsView($("#workoutItems"), workout, {
+    exerciseNameById,
+    getLastPerformanceSetsForExercise,
+    prSummary,
+    workouts: state.workouts,
+  });
 }
 
 function renderActiveWorkout(){
@@ -436,16 +264,17 @@ function renderActiveWorkout(){
 
   $("#activeWorkoutTitle").textContent = humanWorkoutTitle(state, workout);
   $("#activeWorkoutNotes").value = workout.notes || "";
+  const prSummary = analyzeWorkoutPrs(state.workouts, workout);
 
   const prCountEl = $("#activeWorkoutPrCount");
   if (prCountEl) {
-    const n = countPrsInWorkout(workout);
-    if (n === 0) {
+    const summaryText = formatWorkoutPrSummary(prSummary);
+    if (!summaryText) {
       prCountEl.textContent = "";
       prCountEl.className = "muted small";
     } else {
       prCountEl.className = "active-workout-pr";
-      prCountEl.textContent = n === 1 ? "🔥 1 PR in diesem Training" : `🔥 ${n} PRs in diesem Training`;
+      prCountEl.textContent = summaryText;
     }
   }
 
@@ -454,33 +283,22 @@ function renderActiveWorkout(){
 }
 
 function renderHistory(){
-  const root = $("#historyList");
-  if (!root) return;
-  root.innerHTML = "";
-  const workouts = sortWorkoutsNewestFirst(state.workouts);
+  renderHistoryView(
+    $("#historyList"),
+    sortWorkoutsNewestFirst(state.workouts),
+    (workout) => humanWorkoutTitle(state, workout)
+  );
+}
 
-  if (!workouts.length) {
-    root.innerHTML = `<div class="card"><div class="muted">Noch keine Workouts gespeichert.</div></div>`;
-    return;
-  }
+function renderStats() {
+  const activeExerciseStats = getActiveExerciseStats(state.workouts, 3);
+  selectedStatsExerciseId = getActiveStatsSelection(activeExerciseStats);
 
-  for (const w of workouts) {
-    const row = document.createElement("div");
-    row.className = "card";
-    row.innerHTML = `
-      <div class="row space">
-        <div>
-          <div class="label">${escapeHtml(humanWorkoutTitle(state, w))}</div>
-          <div class="muted small mono">${escapeHtml(w.id)}</div>
-        </div>
-        <div class="row" style="gap:8px; flex-wrap: wrap">
-          <button class="btn btn-ghost btn-xs" data-action="open" data-id="${w.id}">Öffnen</button>
-          <button class="btn btn-danger btn-xs" data-action="delete" data-id="${w.id}">Löschen</button>
-        </div>
-      </div>
-    `;
-    root.appendChild(row);
-  }
+  fillStatsExerciseSelectView($("#statsExerciseSelect"), activeExerciseStats, selectedStatsExerciseId, exerciseNameById);
+  renderStatsOverviewView($("#statsOverview"), activeExerciseStats, selectedStatsExerciseId, exerciseNameById);
+
+  const detail = selectedStatsExerciseId ? getExerciseStatsDetail(state.workouts, selectedStatsExerciseId) : null;
+  renderStatsDetailView($("#statsDetail"), detail, exerciseNameById(selectedStatsExerciseId));
 }
 
 function rerenderAll(){
@@ -493,6 +311,7 @@ function rerenderAll(){
   renderNewWorkoutControls();
   renderActiveWorkout();
   renderHistory();
+  renderStats();
 }
 
 function renderDashboardTiles(){
@@ -510,7 +329,7 @@ function renderDashboardTiles(){
     recencyTile.classList.remove("recency-green", "recency-yellow", "recency-red");
     recencyTile.classList.add("recency-" + rec.tier);
   } else {
-    recencyValue.textContent = "—";
+    recencyValue.textContent = "-";
     recencySub.textContent = "Noch kein Training";
     recencyTile.classList.remove("recency-green", "recency-yellow", "recency-red");
   }
@@ -537,18 +356,18 @@ function startWorkout(){
   state.meta.activeWorkoutId = w.id;
   persist();
   rerenderAll();
-  toast("Workout gestartet ✅");
+  toast("Workout gestartet âœ…");
 }
 
 function setupActions(){
   on("#btnSaveState", "click", () => {
     persist();
     rerenderAll();
-    toast("State gespeichert ✅");
+    toast("State gespeichert âœ…");
   });
 
   on("#btnResetDev", "click", () => {
-    if (!confirm("Reset (dev): State komplett löschen?")) return;
+    if (!confirm("Reset (dev): State komplett lÃ¶schen?")) return;
     resetState();
     state = loadState();
     ensureDefaults(state, defaults);
@@ -563,7 +382,7 @@ function setupActions(){
     createPlan(state);
     persist();
     rerenderAll();
-    toast("Neuer Plan angelegt ✅");
+    toast("Neuer Plan angelegt âœ…");
   });
 
   on("#btnAddExercise", "click", (ev) => {
@@ -571,14 +390,14 @@ function setupActions(){
     ev.preventDefault();
     ev.stopPropagation();
 
-    const name = prompt("Neue Übung (Name):");
+    const name = prompt("Neue Ãœbung (Name):");
     if (!name) return;
     const trimmed = name.trim();
     if (!trimmed) return;
     upsertExercise(state, trimmed);
     persist();
     rerenderAll();
-    toast("Übung angelegt ✅");
+    toast("Ãœbung angelegt âœ…");
   });
 
   on("#plansList", "click", (ev) => {
@@ -588,9 +407,9 @@ function setupActions(){
     const planId = btn.dataset.id;
 
     if (action === "delete") {
-      if (!confirm("Plan löschen?")) return;
+      if (!confirm("Plan lÃ¶schen?")) return;
       const ok = deletePlan(state, planId);
-      if (!ok) return toast("Default-Pläne können nicht gelöscht werden.");
+      if (!ok) return toast("Default-PlÃ¤ne kÃ¶nnen nicht gelÃ¶scht werden.");
       persist();
       rerenderAll();
       return;
@@ -602,7 +421,7 @@ function setupActions(){
       updatePlanFromTextarea(state, planId, nameEl?.value, txtEl?.value);
       persist();
       rerenderAll();
-      toast("Plan gespeichert ✅");
+      toast("Plan gespeichert âœ…");
       return;
     }
   });
@@ -611,7 +430,7 @@ function setupActions(){
   on("#btnStartWorkout", "click", startWorkout);
   on("#btnNewWorkout", "click", () => {
     if (state.meta.activeWorkoutId) {
-      toast("Es läuft schon ein aktives Workout.");
+      toast("Es lÃ¤uft schon ein aktives Workout.");
       return;
     }
     $("#newWorkoutCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -621,18 +440,18 @@ function setupActions(){
     state.meta.activeWorkoutId = null;
     persist();
     rerenderAll();
-    toast("Workout geschlossen ✅");
+    toast("Workout geschlossen âœ…");
   });
 
   on("#btnDeleteWorkout", "click", () => {
     const id = state.meta.activeWorkoutId;
     if (!id) return;
-    if (!confirm("Workout wirklich löschen?")) return;
+    if (!confirm("Workout wirklich lÃ¶schen?")) return;
     deleteWorkout(state, id);
     state.meta.activeWorkoutId = null;
     persist();
     rerenderAll();
-    toast("Workout gelöscht ✅");
+    toast("Workout gelÃ¶scht âœ…");
   });
 
   on("#activeWorkoutNotes", "input", (ev) => {
@@ -668,7 +487,7 @@ function setupActions(){
     if (!w) return;
 
     if (action === "remove-ex") {
-      if (!confirm("Übung aus dem Workout entfernen?")) return;
+      if (!confirm("Ãœbung aus dem Workout entfernen?")) return;
       removeExerciseFromWorkout(w, exId);
       persist();
       renderActiveWorkout();
@@ -682,7 +501,7 @@ function setupActions(){
       const reps = Number(String(repsEl.value).replace(",", "."));
 
       if (!Number.isFinite(weight) || !Number.isFinite(reps) || reps <= 0) {
-        toast("Bitte gültige kg und reps eingeben.");
+        toast("Bitte gÃ¼ltige kg und reps eingeben.");
         return;
       }
       addSetToWorkout(w, exId, { reps, weight });
@@ -718,14 +537,26 @@ function setupActions(){
     }
 
     if (action === "delete") {
-      if (!confirm("Workout löschen?")) return;
+      if (!confirm("Workout lÃ¶schen?")) return;
       deleteWorkout(state, id);
       if (state.meta.activeWorkoutId === id) state.meta.activeWorkoutId = null;
       persist();
       rerenderAll();
-      toast("Workout gelöscht ✅");
+      toast("Workout gelÃ¶scht âœ…");
       return;
     }
+  });
+
+  on("#statsExerciseSelect", "change", (ev) => {
+    selectedStatsExerciseId = ev.target.value || null;
+    renderStats();
+  });
+
+  on("#statsOverview", "click", (ev) => {
+    const card = ev.target.closest("[data-action='select-stats-exercise']");
+    if (!card) return;
+    selectedStatsExerciseId = card.dataset.exerciseId || null;
+    renderStats();
   });
 
   on("#btnExport", "click", () => {
@@ -736,7 +567,7 @@ function setupActions(){
     document.body.appendChild(a);
     a.click();
     a.remove();
-    toast("Export erfolgreich ✅");
+    toast("Export erfolgreich âœ…");
   });
 
   let pendingImport = null;
@@ -745,10 +576,10 @@ function hideImportPreview(){
   pendingImport = null;
   const box = $("#importPreview");
   box.style.display = "none";
-  $("#importKind").textContent = "—";
-  $("#importWorkouts").textContent = "—";
-  $("#importPlans").textContent = "—";
-  $("#importExercises").textContent = "—";
+  $("#importKind").textContent = "â€”";
+  $("#importWorkouts").textContent = "â€”";
+  $("#importPlans").textContent = "â€”";
+  $("#importExercises").textContent = "â€”";
   $("#importNote").textContent = "";
 }
 
@@ -776,7 +607,7 @@ on("#fileImport", "change", async (ev) => {
     const { preview, state: imported, validation } = parseImportFile(text);
     pendingImport = { state: imported, validation };
     showImportPreview(preview, validation);
-    toast(validation && !validation.ok ? "Import-Vorschau (ungültige Daten)" : "Import-Vorschau bereit ✅");
+    toast(validation && !validation.ok ? "Import-Vorschau (ungÃ¼ltige Daten)" : "Import-Vorschau bereit âœ…");
   } catch (e) {
     hideImportPreview();
     toast(String(e?.message || e));
@@ -793,7 +624,7 @@ on("#btnCancelImport", "click", () => {
 on("#btnApplyImport", "click", () => {
   if (!pendingImport) return;
   if (!pendingImport.validation || !pendingImport.validation.ok) {
-    toast("Import abgebrochen: Ungültige Daten. Bitte Validierungsfehler beheben.");
+    toast("Import abgebrochen: UngÃ¼ltige Daten. Bitte Validierungsfehler beheben.");
     return;
   }
   try {
@@ -811,7 +642,7 @@ on("#btnApplyImport", "click", () => {
     persist();
     rerenderAll();
     hideImportPreview();
-    toast("Import angewendet ✅");
+    toast("Import angewendet âœ…");
   } catch (e) {
     toast(String(e?.message || e));
   }
@@ -829,3 +660,6 @@ function boot(){
 }
 
 boot();
+
+
+

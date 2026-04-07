@@ -17,15 +17,20 @@
 
     <nav class="tabs" aria-label="Navigation">
       <button class="tab is-active" data-tab="training">Training</button>
-      <button class="tab" data-tab="plans">Pläne</button>
+      <button class="tab" data-tab="plans">Plaene</button>
       <button class="tab" data-tab="history">Historie</button>
+      <button class="tab" data-tab="stats">Stats</button>
       <button class="tab" data-tab="diagnostics">Diagnose</button>
     </nav>
   </header>
 
   <main class="container">
-    
-    <!-- TRAINING TAB -->
+    <div class="build-banner" role="status" aria-live="polite">
+      <span class="build-banner-label">Build</span>
+      <strong id="buildVersionBanner" class="mono">v4</strong>
+      <span class="build-banner-note">Teststand</span>
+    </div>
+
     <section class="panel is-active" id="tab-training">
       <div class="row space">
         <h2>Training</h2>
@@ -33,10 +38,10 @@
           <button id="btnNewWorkout" class="btn">+ Neues Training</button>
         </div>
       </div>
-      <div id="dashboardTiles" class="dashboard-grid mt" aria-label="Übersicht Training">
+      <div id="dashboardTiles" class="dashboard-grid mt" aria-label="Uebersicht Training">
         <div id="recencyTile" class="card dashboard-tile">
           <div class="label">Letztes Training</div>
-          <div id="recencyValue" class="dashboard-tile-value">—</div>
+          <div id="recencyValue" class="dashboard-tile-value">-</div>
           <div id="recencySub" class="muted small"></div>
         </div>
         <div id="consistencyTile" class="card dashboard-tile">
@@ -62,33 +67,33 @@
 
           <button id="btnStartWorkout" class="btn">Start</button>
         </div>
-        <div class="muted small mt">Tipp: „Aus Plan“ erstellt eine Workout-Instanz mit den Übungen aus A/B/C. Danach trackst du Sets.</div>
+        <div class="muted small mt">Tipp: "Aus Plan" erstellt eine Workout-Instanz mit den Uebungen aus A/B/C. Danach trackst du Sets.</div>
       </div>
 
       <div id="activeWorkoutCard" class="card" style="display:none">
         <div class="row space">
           <div>
             <div class="label">Aktives Training</div>
-            <div id="activeWorkoutTitle" class="mono muted">—</div>
+            <div id="activeWorkoutTitle" class="mono muted">-</div>
             <div id="activeWorkoutPrCount" class="muted small" aria-hidden="true"></div>
           </div>
           <div class="row" style="gap:8px; flex-wrap: wrap">
-            <button id="btnEndWorkout" class="btn btn-ghost">Schließen</button>
-            <button id="btnDeleteWorkout" class="btn btn-danger">Löschen</button>
+            <button id="btnEndWorkout" class="btn btn-ghost">Schliessen</button>
+            <button id="btnDeleteWorkout" class="btn btn-danger">Loeschen</button>
           </div>
         </div>
 
         <div class="mt">
           <div class="label">Notizen</div>
-          <textarea id="activeWorkoutNotes" class="mt" placeholder="Optional…"></textarea>
+          <textarea id="activeWorkoutNotes" class="mt" placeholder="Optional..."></textarea>
         </div>
 
         <div class="mt">
           <div class="row space">
-            <div class="label">Übungen</div>
+            <div class="label">Uebungen</div>
             <div class="row" style="gap:8px; flex-wrap: wrap">
               <select id="addExerciseSelect" class="input small" style="max-width:260px"></select>
-              <button id="btnAddExerciseToWorkout" class="btn btn-ghost">+ Hinzufügen</button>
+              <button id="btnAddExerciseToWorkout" class="btn btn-ghost">+ Hinzufuegen</button>
             </div>
           </div>
 
@@ -100,20 +105,19 @@
         <div class="row space">
           <div>
             <div class="label">State</div>
-            <div id="stateSummary" class="mono muted">…</div>
+            <div id="stateSummary" class="mono muted">...</div>
           </div>
           <div class="row">
             <button id="btnSaveState" class="btn">Save State</button>
-            <button id="btnResetDev" class="btn btn-ghost" title="Nur für Entwicklung">Reset (dev)</button>
+            <button id="btnResetDev" class="btn btn-ghost" title="Nur fuer Entwicklung">Reset (dev)</button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- PLANS TAB -->
     <section class="panel" id="tab-plans">
       <div class="row space">
-        <h2>Pläne</h2>
+        <h2>Plaene</h2>
         <button id="btnAddPlan" class="btn">+ Neuer Plan</button>
       </div>
 
@@ -122,36 +126,65 @@
       <details id="exercisesDetails" class="card mt">
         <summary class="row space" style="cursor:pointer">
           <div>
-            <div class="label">Übungen</div>
-            <div class="muted small">Dictionary (für v4.2 Aliases/Normalisierung). Default: zugeklappt.</div>
+            <div class="label">Uebungen</div>
+            <div class="muted small">Dictionary fuer Aliases und Normalisierung. Default: zugeklappt.</div>
           </div>
           <div class="row">
-            <button id="btnAddExercise" class="btn btn-ghost" type="button">+ Übung</button>
+            <button id="btnAddExercise" class="btn btn-ghost" type="button">+ Uebung</button>
           </div>
         </summary>
         <div class="mt" id="exerciseList"></div>
       </details>
     </section>
 
-    <!-- HISTORY TAB -->
     <section class="panel" id="tab-history">
       <div class="row space">
         <h2>Historie</h2>
-        <div class="muted small">Phase 3: Workouts werden gespeichert und können wieder geöffnet werden.</div>
+        <div class="muted small">Workouts werden gespeichert und koennen wieder geoeffnet werden.</div>
       </div>
       <div id="historyList" class="mt"></div>
     </section>
 
-    <!-- DIAGNOSTICS TAB (FIXED) -->
+    <section class="panel" id="tab-stats">
+      <div class="row space">
+        <div>
+          <h2>Stats</h2>
+          <div class="muted small">PR-Uebersicht aktiver Uebungen und Detail-Statistiken pro Uebung.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row space">
+          <div>
+            <div class="label">Aktive Uebungen</div>
+            <div class="muted small">Mindestens 3 Sessions geloggt</div>
+          </div>
+        </div>
+        <div id="statsOverview" class="stats-overview-grid mt"></div>
+      </div>
+
+      <div class="card mt">
+        <div class="row space">
+          <div>
+            <div class="label">Ausgewaehlte Uebung</div>
+            <div class="muted small">Dropdown und Karten synchronisiert</div>
+          </div>
+          <select id="statsExerciseSelect" class="input small" style="max-width:320px"></select>
+        </div>
+      </div>
+
+      <div id="statsDetail" class="mt"></div>
+    </section>
+
     <section class="panel" id="tab-diagnostics">
       <h2>Diagnose</h2>
       <div class="card">
         <div class="kv">
-          <div class="kv-row"><div>AppVersion</div><div class="mono" id="diagAppVersion">…</div></div>
-          <div class="kv-row"><div>DataVersion</div><div class="mono" id="diagDataVersion">…</div></div>
-          <div class="kv-row"><div>StorageKey</div><div class="mono" id="diagStorageKey">…</div></div>
-          <div class="kv-row"><div>Last saved</div><div class="mono" id="diagLastSaved">…</div></div>
-          <div class="kv-row"><div>Last migration</div><div class="mono" id="diagLastMigration">…</div></div>
+          <div class="kv-row"><div>AppVersion</div><div class="mono" id="diagAppVersion">...</div></div>
+          <div class="kv-row"><div>DataVersion</div><div class="mono" id="diagDataVersion">...</div></div>
+          <div class="kv-row"><div>StorageKey</div><div class="mono" id="diagStorageKey">...</div></div>
+          <div class="kv-row"><div>Last saved</div><div class="mono" id="diagLastSaved">...</div></div>
+          <div class="kv-row"><div>Last migration</div><div class="mono" id="diagLastMigration">...</div></div>
         </div>
 
         <div class="row space mt">
@@ -160,33 +193,30 @@
           <input id="fileImport" type="file" accept="*/*" hidden />
         </div>
 
-        <div class="muted mt">Phase 2: Import/Export ersetzt komplett. Merge kommt später.</div>
+        <div class="muted mt">Import/Export ersetzt komplett. Merge kommt spaeter.</div>
       </div>
 
-      <!-- FIX START: Fehlender Import-Preview Block wurde hier eingefügt -->
       <div id="importPreview" class="card mt" style="display:none; border:1px solid var(--accent)">
         <div class="label" style="color:var(--accent)">Import Vorschau</div>
         <div class="mt">
           <div class="kv">
-            <div class="kv-row"><div>Typ</div><div class="mono" id="importKind">—</div></div>
-            <div class="kv-row"><div>Workouts</div><div class="mono" id="importWorkouts">—</div></div>
-            <div class="kv-row"><div>Plans</div><div class="mono" id="importPlans">—</div></div>
-            <div class="kv-row"><div>Exercises</div><div class="mono" id="importExercises">—</div></div>
+            <div class="kv-row"><div>Typ</div><div class="mono" id="importKind">-</div></div>
+            <div class="kv-row"><div>Workouts</div><div class="mono" id="importWorkouts">-</div></div>
+            <div class="kv-row"><div>Plans</div><div class="mono" id="importPlans">-</div></div>
+            <div class="kv-row"><div>Exercises</div><div class="mono" id="importExercises">-</div></div>
           </div>
           <div id="importNote" class="muted small mt"></div>
-          <p class="import-confirm-hint mt" role="status">⚠️ Import wird erst nach Klick auf „Import anwenden“ durchgeführt.</p>
+          <p class="import-confirm-hint mt" role="status">Import wird erst nach Klick auf "Import anwenden" durchgefuehrt.</p>
         </div>
         <div class="row space mt">
           <button id="btnCancelImport" class="btn btn-ghost btn-import-cancel">Abbrechen</button>
           <button id="btnApplyImport" class="btn btn-import-apply">Import anwenden</button>
         </div>
       </div>
-      <!-- FIX END -->
-
     </section>
 
     <footer class="footer muted">
-      BenchMark Pro • v4 Phase 4
+      BenchMark Pro - <span id="buildVersionFooter" class="mono">v4</span>
     </footer>
   </main>
 
