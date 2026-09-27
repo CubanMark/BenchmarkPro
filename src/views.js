@@ -102,20 +102,22 @@ export function backupDue(state) {
 export function energy({ state, ui }) {
   const sportToday = (state.activities || []).some((a) => a.date === todayKey());
   const sport = ui.ctx.sport ?? sportToday;
+  const place = ui.ctx.place || state.meta.lastPlace || "keller";
+  const placeBtn = (id, label) => `<button data-action="place" data-place="${id}" aria-pressed="${place === id}">${label}</button>`;
+  const placeText = { keller: "Alles, was im Keller steht.", home: "Wohnzimmer: ohne Hanteln und Bank, Bänder gehen.", away: "Büro oder unterwegs: ganz ohne Equipment." }[place];
   return `
   ${back("go", "Zurück", 'data-view="home"')}
-  <div><span class="eyebrow">Snack starten</span><h2>Wie fit bist du gerade?</h2></div>
+  <div><span class="eyebrow">Snack starten</span><h2>Wo bist du?</h2></div>
+  <div class="stack gap6">
+    <div class="seg seg3" role="group" aria-label="Ort">${placeBtn("keller", "Keller")}${placeBtn("home", "Zuhause")}${placeBtn("away", "Unterwegs")}</div>
+    <span class="small muted">${placeText}</span>
+    <div class="ctx"><button class="toggle" data-action="ctx" data-key="sport" aria-pressed="${sport}">Heute schon Sport gehabt</button></div>
+  </div>
+  <h2>Wie fit bist du gerade?</h2>
   <div class="energy">
     <button data-action="energy" data-energy="1"><span class="lvl">1</span><span><h3>Platt</h3><span class="small muted">5 bis 6 Minuten, locker</span></span></button>
-    <button data-action="energy" data-energy="2"><span class="lvl">2</span><span><h3>Okay</h3><span class="small muted">Kurzer Kraftsnack, 8 bis 10 Minuten</span></span></button>
-    <button data-action="energy" data-energy="3"><span class="lvl">3</span><span><h3>Fit</h3><span class="small muted">Gerne auch ein ganzes Workout</span></span></button>
-  </div>
-  <div class="stack gap6">
-    <div class="ctx">
-      <button class="toggle" data-action="ctx" data-key="sport" aria-pressed="${sport}">Heute schon Sport gehabt</button>
-      <button class="toggle" data-action="ctx" data-key="away" aria-pressed="${!!ui.ctx.away}">Unterwegs oder im Büro</button>
-    </div>
-    <span class="small muted">${sportToday ? "Dein Sport von heute ist eingetragen. " : ""}Nach Sport gibt es keine schweren Beinübungen. Unterwegs nur Übungen ohne Keller-Equipment.</span>
+    <button data-action="energy" data-energy="2"><span class="lvl">2</span><span><h3>Okay</h3><span class="small muted">Normaler Kraftsnack, 6 bis 10 Minuten</span></span></button>
+    <button data-action="energy" data-energy="3"><span class="lvl">3</span><span><h3>Fit</h3><span class="small muted">Längerer Kraftsnack, gerne mit Hanteln</span></span></button>
   </div>
   <button class="link" data-action="go" data-view="areas">Selbst aussuchen statt Vorschlag</button>`;
 }
