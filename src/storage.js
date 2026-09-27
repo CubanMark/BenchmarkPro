@@ -53,8 +53,11 @@ export function validateStateV4(state) {
   if (!state || typeof state !== "object") {
     return { ok: false, errors: ["state ist kein Objekt"] };
   }
-  if (state.dataVersion !== 4) {
-    errors.push(`dataVersion muss 4 sein (ist: ${state.dataVersion})`);
+  if (state.dataVersion !== 4 && state.dataVersion !== 5) {
+    errors.push(`dataVersion muss 4 oder 5 sein (ist: ${state.dataVersion})`);
+  }
+  if (state.activities != null && !Array.isArray(state.activities)) {
+    errors.push("activities muss ein Array sein");
   }
   if (!Array.isArray(state.plans)) {
     errors.push("plans muss ein Array sein");
@@ -136,6 +139,9 @@ export function validateStateV4(state) {
     }
     if (w.planId != null && typeof w.planId !== "string") {
       errors.push(`${prefix}: planId muss String oder null sein`);
+    }
+    if (w.type != null && !["workout", "snack", "mobility"].includes(w.type)) {
+      errors.push(`${prefix}: type muss workout, snack oder mobility sein`);
     }
     if (typeof w.notes !== "string" && w.notes != null) {
       errors.push(`${prefix}: notes muss String oder null sein`);
@@ -551,8 +557,8 @@ export function parseImportFile(fileText) {
 
 export function applyImportedState(state) {
   // Normalize minimal metadata
+  // dataVersion bleibt unverändert, damit runMigrations ältere Stände (v4) danach hochzieht.
   state.appVersion = APP_VERSION;
-  state.dataVersion = DATA_VERSION;
   state.meta = state.meta || { createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   return state;
 }

@@ -1,4 +1,5 @@
 import { APP_VERSION, DATA_VERSION } from "./version.js";
+import { DEFAULT_SETTINGS } from "./library.js";
 
 export function createEmptyState() {
   const now = new Date().toISOString();
@@ -8,7 +9,9 @@ export function createEmptyState() {
     meta: { createdAt: now, updatedAt: now },
     exercises: [],
     plans: [],
-    workouts: []
+    workouts: [],
+    activities: [],
+    settings: structuredClone(DEFAULT_SETTINGS)
   };
 }
 
