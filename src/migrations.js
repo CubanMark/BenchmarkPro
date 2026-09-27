@@ -47,6 +47,8 @@ export function runMigrations(state) {
  * Gleicht Übungen und Einstellungen mit der kuratierten Bibliothek ab. Idempotent, läuft bei jedem Start.
  * Überschreibt keine Nutzeränderungen: fehlende Felder werden ergänzt, fehlende Bibliotheksübungen angelegt.
  */
+const OLD_HINTS = { hipflex: "Kniender Ausfallschritt, Hüfte nach vorne schieben." };
+
 export function ensureLibrary(state) {
   const lower = (s) => String(s || "").trim().toLowerCase();
   // Was schon trainiert wurde, ist bekannt. Mit Gewicht trainiert heißt: bleibt eine Gewichtsübung.
@@ -80,6 +82,8 @@ export function ensureLibrary(state) {
       ex.eq = "free";
       ex.loc = "K";
     }
+    // Überarbeitete Anleitungen übernehmen, solange noch der alte Standardtext drinsteht
+    if (OLD_HINTS[ex.id] && ex.hint === OLD_HINTS[ex.id]) ex.hint = lib.hint;
     for (const key of ["area", "eq", "loc", "kind", "defKg", "hint"]) {
       if (ex[key] === undefined) ex[key] = lib[key];
     }
