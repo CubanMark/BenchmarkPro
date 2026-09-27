@@ -532,7 +532,7 @@ function isFlatTrainingsFormat(parsed) {
 export function parseImportFile(fileText) {
   let parsed;
   try {
-    parsed = JSON.parse(fileText);
+    parsed = JSON.parse(String(fileText).replace(/^\uFEFF/, ""));
   } catch {
     throw new Error("Import abgelehnt: Datei ist kein gültiges JSON.");
   }
