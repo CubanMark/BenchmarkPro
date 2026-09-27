@@ -72,7 +72,7 @@ export function buildDayMap(state) {
   const cap = state.settings.dailyCap;
   const map = new Map();
   const get = (key) => {
-    if (!map.has(key)) map.set(key, { k: 0, m: 0, total: 0, rawK: 0, rawM: 0, workouts: [], sports: [] });
+    if (!map.has(key)) map.set(key, { k: 0, m: 0, total: 0, rawK: 0, rawM: 0, workouts: [], sports: [], pai: null });
     return map.get(key);
   };
   for (const w of state.workouts) {
@@ -86,6 +86,9 @@ export function buildDayMap(state) {
   for (const a of state.activities || []) {
     if (a.date) get(a.date).sports.push(a);
   }
+  for (const [key, v] of Object.entries(state.pai || {})) {
+    if (Number.isFinite(Number(v))) get(key).pai = Number(v);
+  }
   for (const d of map.values()) {
     d.k = Math.min(d.rawK, cap);
     d.m = Math.min(d.rawM, cap - d.k);
@@ -95,18 +98,19 @@ export function buildDayMap(state) {
 }
 
 export function weekSummary(state, dayMap, monday = mondayOf(todayKey())) {
-  let k = 0, m = 0;
+  let k = 0, m = 0, pai = 0;
   const days = [];
   for (let i = 0; i < 7; i++) {
     const key = addDays(monday, i);
     const d = dayMap.get(key);
     k += d?.k || 0;
     m += d?.m || 0;
+    pai += d?.pai || 0;
     days.push({ key, day: d || null });
   }
   const s = state.settings;
   const total = k + m;
-  return { k, m, total, days, goalMet: total >= s.weeklyGoal && k >= s.strengthMin };
+  return { k, m, total, pai, days, goalMet: total >= s.weeklyGoal && k >= s.strengthMin };
 }
 
 /** Wie viele Wochen in Folge wurde das Ziel erreicht (aktuelle Woche zählt, sobald erreicht). */
@@ -341,7 +345,7 @@ function snackUsable(state, snack) {
 
 /**
  * Liefert sortierte Vorschläge: { kind, id, exerciseId?, title, area, type, minutes, points, reasons, score }.
- * ctx: { energy: 1|2|3, sportToday: bool, away: bool, hour }
+ * ctx: { energy: 1|2|3, sportToday: bool, sportYesterday: bool, away: bool, hour }
  */
 export function suggest(state, dayMap, ctx) {
   const today = todayKey();
@@ -386,6 +390,7 @@ export function suggest(state, dayMap, ctx) {
       else { score += Math.min(since, 14) / 14 * 0.6; reasons.push(["Zuletzt", since === 0 ? "heute schon trainiert" : `vor ${since} ${since === 1 ? "Tag" : "Tagen"} trainiert`]); }
       if (week.k < s.strengthMin) score += 0.2;
       if (ctx.energy === 1 && snack.minutes > 6) score -= 0.3;
+      if (snack.legs && ctx.sportYesterday) score -= 0.6;
       if (ctx.energy === 3 && snack.minutes >= 8) score += 0.1;
       if (snack.loc === "K" && ctx.energy === 1) score -= 0.2;
       reasons.push(["Tagesform", energyText]);

@@ -11,6 +11,7 @@ export function createEmptyState() {
     plans: [],
     workouts: [],
     activities: [],
+    pai: {},
     settings: structuredClone(DEFAULT_SETTINGS)
   };
 }
