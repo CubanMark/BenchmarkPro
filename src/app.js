@@ -284,7 +284,7 @@ function mergeState(target, src) {
 }
 
 const actions = {
-  tab: (d) => { ui.area = null; go({ home: "home", history: "history", progress: "progress", more: "more" }[d.tab] || "home"); },
+  tab: (d) => { ui.area = null; ui.energy = null; go({ home: "home", history: "history", progress: "progress", more: "more" }[d.tab] || "home"); },
   go: (d) => { if (d.view === "areas") ui.area = null; go(d.view); },
   resume: () => go("run"),
 
@@ -295,10 +295,16 @@ const actions = {
     const y = dayMap.get(addDays(todayKey(), -1));
     const sportYesterday = !!(y?.sports.length || (y?.pai ?? 0) >= 30);
     ui.suggestions = suggest(state, dayMap, {
-      energy: ui.energy, sportToday: ui.ctx.sport ?? sportToday, sportYesterday, away: !!ui.ctx.away, hour: new Date().getHours(),
+      energy: ui.energy, sportToday: ui.ctx.sport ?? sportToday, sportYesterday, place: ui.ctx.place || state.meta.lastPlace || "keller", hour: new Date().getHours(),
     });
     ui.pick = null;
     go("suggest");
+  },
+  place: (d) => {
+    ui.ctx.place = d.place;
+    state.meta.lastPlace = d.place;
+    persist();
+    render({ keepScroll: true });
   },
   ctx: (d, b) => {
     const cur = b.getAttribute("aria-pressed") === "true";

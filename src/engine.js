@@ -177,9 +177,9 @@ function setsText(sets, kind) {
 
 /**
  * Vorbelegung für eine Übung: Zeilen mit Gewicht und Wiederholungen plus Hinweistext.
- * Alle Sätze geschafft -> nächste Stufe; sonst halten.
+ * Alle Sätze geschafft -> nächste Stufe; sonst halten. easy (Tagesform platt) hält immer.
  */
-export function prefill(state, ex, { sets = 3, reps = 10 } = {}, excludeId = null) {
+export function prefill(state, ex, { sets = 3, reps = 10, easy = false } = {}, excludeId = null) {
   const kind = ex?.kind || "weight";
   const eq = ex?.eq || "free";
   const settings = state.settings;
@@ -206,7 +206,9 @@ export function prefill(state, ex, { sets = 3, reps = 10 } = {}, excludeId = nul
   let hint;
   let hold = true;
 
-  if (allHit) {
+  if (easy) {
+    hint = usesWeight && lastW > 0 ? `${lastTxt} Heute locker: Gewicht halten, ${sets} × ${reps}.` : `${lastTxt} Heute locker: ${sets} × ${reps}${kind === "time" ? " s" : ""}.`;
+  } else if (allHit) {
     hold = false;
     if (usesWeight && eq !== "kb" && eq !== "none" && eq !== "band") {
       const nxt = eq === "free" ? lastW + 1.25 : nextWeight(eq, lastW, 1, settings);
@@ -255,8 +257,11 @@ export function buildRun(state, source, { energy = null } = {}) {
       const ex = exerciseById(state, it.exerciseId);
       if (!ex) return null;
       if (ex.kind === "task") return { exerciseId: ex.id, detail: it.detail || "", done: false, sets: [] };
-      const pf = prefill(state, ex, { sets: it.sets, reps: it.reps });
-      return { exerciseId: ex.id, target: { sets: it.sets, reps: it.reps }, rows: pf.rows, hint: pf.hint, hold: pf.hold, sets: [] };
+      // Platt: einen Satz weniger und ohne Steigerung
+      const easy = energy === 1;
+      const sets = easy && it.sets > 2 ? it.sets - 1 : it.sets;
+      const pf = prefill(state, ex, { sets, reps: it.reps, easy });
+      return { exerciseId: ex.id, target: { sets, reps: it.reps }, rows: pf.rows, hint: pf.hint, hold: pf.hold, sets: [] };
     }).filter(Boolean);
     if (source.kind === "new") w.tryExerciseId = source.exerciseId;
     return w;
@@ -331,8 +336,22 @@ export function findRecords(state, w) {
 }
 
 /* ---------- Vorschläge ---------- */
-function allowedLoc(loc, away) {
-  return away ? loc === "U" : true;
+/** Ort: "keller" = alles, "home" = Wohnzimmer (ohne Hanteln, Bank und Klimmzugstange, Bänder gehen), "away" = ohne jedes Equipment. */
+function placeOf(ctx) {
+  return ctx.place || (ctx.away ? "away" : "keller");
+}
+function allowedEx(ex, place) {
+  if (!ex) return false;
+  if (place === "keller") return true;
+  if (ex.loc !== "U") return false;
+  if (ex.kind === "task") return true; // Mobility geht überall, Band notfalls mit Handtuch
+  if (ex.eq === "band") return place === "home";
+  return !["kb", "kh1", "kh2"].includes(ex.eq);
+}
+function allowedSnack(state, snack, place) {
+  if (place === "keller") return true;
+  if (snack.loc !== "U") return false;
+  return snack.items.every((it) => allowedEx(exerciseById(state, it.exerciseId), place));
 }
 
 function snackUsable(state, snack) {
@@ -345,7 +364,8 @@ function snackUsable(state, snack) {
 
 /**
  * Liefert sortierte Vorschläge: { kind, id, exerciseId?, title, area, type, minutes, points, reasons, score }.
- * ctx: { energy: 1|2|3, sportToday: bool, sportYesterday: bool, away: bool, hour }
+ * ctx: { energy: 1|2|3, sportToday: bool, sportYesterday: bool, place: "keller"|"home"|"away", hour }
+ * Die Tagesform entscheidet zuerst über Art und Länge, danach zählt, was diese Woche fehlt.
  */
 export function suggest(state, dayMap, ctx) {
   const today = todayKey();
@@ -362,11 +382,12 @@ export function suggest(state, dayMap, ctx) {
     if (w.type === "mobility") trainedToday.add("mobility");
   }
   const s = state.settings;
-  const energyText = ["", "platt, also etwas Kurzes und Leichtes", "okay, also ein kurzer Kraftsnack", "fit, gerne auch mehr"][ctx.energy];
+  const energyText = ["", "platt, also etwas Kurzes und Leichtes", "okay, also ein normaler Kraftsnack", "fit, also ein längerer Kraftsnack"][ctx.energy];
+  const place = placeOf(ctx);
   const out = [];
 
   for (const snack of SNACKS) {
-    if (!snack.energy.includes(ctx.energy) || !allowedLoc(snack.loc, ctx.away) || !snackUsable(state, snack)) continue;
+    if (!snack.energy.includes(ctx.energy) || !allowedSnack(state, snack, place) || !snackUsable(state, snack)) continue;
     if (snack.legs && ctx.sportToday) continue;
     const area = AREAS.find((a) => a.id === snack.area);
     const done = counts7[snack.area] || 0;
@@ -377,11 +398,14 @@ export function suggest(state, dayMap, ctx) {
     if (snack.type === "mobility") {
       score = 0.3;
       if (done < area.target) { score += 0.3; reasons.push(["Mobility", `${done} von ${area.target} Einheiten diese Woche`]); }
-      if (ctx.energy === 1) { score += 0.5; reasons.push(["Tagesform", energyText]); }
+      if (ctx.energy === 1) { score += 1.6; reasons.push(["Tagesform", energyText]); }
+      if (ctx.energy === 2) score -= 0.3;
+      if (ctx.energy === 3) score -= 0.6;
       if (snack.id === "mob_sport" && ctx.sportToday) { score += 0.5; reasons.push(["Nach dem Sport", "Lockert Beine und Hüfte nach Padel, Tennis oder Fußball"]); }
       if (snack.id === "mob_morgen" && ctx.hour < 11) { score += 0.5; reasons.push(["Morgens", "Hilft gegen den steifen Rücken"]); }
-      if (snack.id === "mob_buero" && ctx.away) { score += 0.3; reasons.push(["Unterwegs", "Geht ohne Matte und Equipment"]); }
+      if (snack.id === "mob_buero" && place === "away") { score += 0.3; reasons.push(["Unterwegs", "Geht ohne Matte und Equipment"]); }
       if (snack.id === "mob_morgen" && ctx.hour >= 11 && !ctx.sportToday) score -= 0.1;
+      if (snack.id === "mob_sport" && !ctx.sportToday && !ctx.sportYesterday) score -= 0.3;
     } else {
       const deficit = area.target ? Math.max(0, 1 - done / area.target) : 0.15;
       score = deficit;
@@ -389,10 +413,11 @@ export function suggest(state, dayMap, ctx) {
       if (since == null) { score += 0.3; reasons.push(["Zuletzt", "noch nie trainiert"]); }
       else { score += Math.min(since, 14) / 14 * 0.6; reasons.push(["Zuletzt", since === 0 ? "heute schon trainiert" : `vor ${since} ${since === 1 ? "Tag" : "Tagen"} trainiert`]); }
       if (week.k < s.strengthMin) score += 0.2;
-      if (ctx.energy === 1 && snack.minutes > 6) score -= 0.3;
+      // Tagesform: platt = kurz und leicht, okay = normaler Snack, fit = längerer Snack mit Hanteln
+      if (ctx.energy === 1) score += snack.minutes <= 6 ? 0.2 : -0.6;
+      if (ctx.energy === 2) score += snack.minutes <= 5 ? -0.5 : 0.3;
+      if (ctx.energy === 3) score += (snack.minutes >= 8 ? 0.6 : snack.minutes <= 5 ? -0.6 : 0) + (snack.loc === "K" ? 0.2 : 0) + (snack.energy.length === 1 ? 0.4 : 0);
       if (snack.legs && ctx.sportYesterday) score -= 0.6;
-      if (ctx.energy === 3 && snack.minutes >= 8) score += 0.1;
-      if (snack.loc === "K" && ctx.energy === 1) score -= 0.2;
       reasons.push(["Tagesform", energyText]);
     }
     const loved = snack.items.filter((it) => exerciseById(state, it.exerciseId)?.rating === "love").length;
@@ -404,31 +429,6 @@ export function suggest(state, dayMap, ctx) {
       points: snack.type === "mobility" ? s.points.mobility : s.points.snack, reasons: reasons.slice(0, 3), score,
       exercises: snack.items.map((i) => exerciseName(state, i.exerciseId)),
     });
-  }
-
-  // Ganzes Workout bei guter Tagesform
-  if (ctx.energy === 3 && !ctx.away && state.plans.length) {
-    const lastByPlan = state.plans.map((p) => {
-      const ws = state.workouts.filter((w) => w.planId === p.id && counts(state, w)).map((w) => w.date).sort();
-      return { plan: p, last: ws[ws.length - 1] || null };
-    }).filter((x) => x.plan.exerciseIds.length)
-      .sort((a, b) => (a.last || "").localeCompare(b.last || ""));
-    const pick = lastByPlan[0];
-    if (pick) {
-      const remaining = s.weeklyGoal - week.total;
-      const since = pick.last ? daysBetween(pick.last, today) : null;
-      const reasons = [];
-      let score = 0.8;
-      if (remaining > 0) { score += remaining >= s.points.workout ? 0.4 : 0.2; reasons.push(["Wochenziel", remaining <= s.points.workout ? `Mit ${s.points.workout} Punkten schaffst du heute dein Wochenziel` : `Bringt dich ${s.points.workout} Punkte näher ans Wochenziel`]); }
-      reasons.push([pick.plan.name, since == null ? "hast du noch nie gemacht" : `ist dein ältestes Workout, zuletzt vor ${since} Tagen`]);
-      reasons.push(["Tagesform", energyText]);
-      if (trainedToday.size) score -= 0.4;
-      out.push({
-        kind: "plan", id: pick.plan.id, title: pick.plan.name, area: "ganzkoerper", type: "workout", minutes: 35, loc: "K",
-        points: s.points.workout, reasons, score,
-        exercises: pick.plan.exerciseIds.map((id) => exerciseName(state, id)),
-      });
-    }
   }
 
   out.sort((a, b) => b.score - a.score);
@@ -462,7 +462,7 @@ export function suggest(state, dayMap, ctx) {
 }
 
 function tryNewCandidate(state, counts7, ctx) {
-  const unknown = state.exercises.filter((e) => e.rating == null && e.area && allowedLoc(e.loc, ctx.away) && e.eq !== "band");
+  const unknown = state.exercises.filter((e) => e.rating == null && e.area && allowedEx(e, placeOf(ctx)) && e.eq !== "band");
   if (!unknown.length) return null;
   const deficit = (areaId) => {
     const a = AREAS.find((x) => x.id === areaId);
