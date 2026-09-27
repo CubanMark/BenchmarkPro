@@ -362,6 +362,17 @@ const actions = {
     persist();
     render({ keepScroll: true });
   },
+  "rm-set": (d) => {
+    const item = activeWorkout().items[Number(d.x)];
+    if (!item.rows || item.rows.length <= 1) return;
+    // Zuerst einen offenen Satz entfernen, abgehakte bleiben so lange wie möglich
+    let i = item.rows.map((r) => r.done).lastIndexOf(false);
+    if (i < 0) i = item.rows.length - 1;
+    item.rows.splice(i, 1);
+    syncSets(item);
+    persist();
+    render({ keepScroll: true });
+  },
   "remove-ex": (d) => {
     const w = activeWorkout();
     const item = w.items[Number(d.x)];

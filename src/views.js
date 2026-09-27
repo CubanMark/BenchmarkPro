@@ -5,7 +5,7 @@
 import { AREAS, LOCATIONS, SPORTS, SNACKS, areaName, weightSteps } from "./library.js";
 import {
   todayKey, mondayOf, addDays, isoWeek, weekSummary, areaCounts, daysSinceArea, exerciseById, exerciseName,
-  exerciseSessions, suggest, snackById, fmtKg, counts, rawPoints, parseKey,
+  exerciseSessions, suggest, snackById, fmtKg, counts, rawPoints, parseKey, WORKOUT_MIN_SETS,
 } from "./engine.js";
 import { ring, paiRing, paiWeekBars, heatmap, hmLegend, bodySvg, lineChart, esc, fmtDate, WD } from "./charts.js";
 import { APP_VERSION, DATA_VERSION, STORAGE_KEY } from "./version.js";
@@ -201,7 +201,7 @@ export function workoutsView({ state }) {
   };
   return `${back("go", "Zurück", 'data-view="home"')}<h2>Workout starten</h2>
   <div class="stack gap8">${state.plans.map((p) => `<button class="alt" data-action="start" data-kind="plan" data-id="${esc(p.id)}"><span><h3>${esc(p.name)}</h3><span class="small muted">${p.exerciseIds.map((id) => esc(exerciseName(state, id))).join(" · ") || "Noch keine Übungen"}</span><br><span class="small muted">Zuletzt ${last(p.id)}</span></span><span class="chip k">+${state.settings.points.workout}</span></button>`).join("")}
-  <button class="alt" data-action="start" data-kind="free" data-id=""><span><h3>Freie Einheit</h3><span class="small muted">Übungen selbst zusammenstellen, auch unterwegs ergänzen</span></span><span class="chip k">+${state.settings.points.workout}</span></button></div>
+  <button class="alt" data-action="start" data-kind="free" data-id=""><span><h3>Freie Einheit</h3><span class="small muted">Übungen selbst zusammenstellen. Unter ${WORKOUT_MIN_SETS} Sätzen zählt sie als Snack.</span></span><span class="chip k">+${state.settings.points.snack} bis +${state.settings.points.workout}</span></button></div>
   <button class="link small" data-action="go" data-view="plans">Pläne bearbeiten</button>`;
 }
 
@@ -245,7 +245,7 @@ export function runView({ state, ui }) {
       else wHtml = stepper(id, "weight", r.weight ? `${num(r.weight)}<small>kg</small>` : `<small class="muted">ohne</small>`, "Gewicht");
       h += `<div class="set${r.done ? " done" : ""}"><span class="n">${si + 1}</span>${wHtml}${stepper(id, "reps", `${r.reps}<small>${unit}</small>`, "Wiederholungen")}<button class="chk" data-action="set" data-id="${id}" aria-label="Satz ${si + 1} erledigt" aria-pressed="${!!r.done}">${checkSvg}</button></div>`;
     });
-    h += `<button class="link small" data-action="add-set" data-x="${xi}">+ Satz hinzufügen</button></div>`;
+    h += `<div class="row between"><button class="link small" data-action="add-set" data-x="${xi}">+ Satz hinzufügen</button>${rows.length > 1 ? `<button class="link small" data-action="rm-set" data-x="${xi}">− Satz</button>` : ""}</div></div>`;
   });
 
   h += `<button class="btn dashed" data-action="go" data-view="picker">+ Übung hinzufügen</button>`;
@@ -426,7 +426,7 @@ export function moreView({ state, ui }) {
     ${row("davon mindestens Kraft", "strengthMin", 0, 20)}
     ${row("Höchstens pro Tag", "dailyCap", 1, 10)}
     ${row("PAI pro Woche", "paiGoal", 30, 300, 10)}
-    <table class="pts"><tr><td>Workout</td><td>${s.points.workout}</td></tr><tr><td>Kraft-Snack</td><td>${s.points.snack}</td></tr><tr><td>Mobility-Snack</td><td>${s.points.mobility}</td></tr><tr><td>Tennis, Padel, Fußball</td><td>0</td></tr></table></div>
+    <table class="pts"><tr><td>Workout (ab ${WORKOUT_MIN_SETS} Sätzen)</td><td>${s.points.workout}</td></tr><tr><td>Kraft-Snack</td><td>${s.points.snack}</td></tr><tr><td>Mobility-Snack</td><td>${s.points.mobility}</td></tr><tr><td>Tennis, Padel, Fußball</td><td>0</td></tr></table></div>
   <div class="card settings"><h3>Erinnerung</h3>
     <div class="srow"><span>Täglich erinnern, wenn noch nichts eingetragen ist</span><button class="sw-t" data-action="reminder-toggle" aria-pressed="${s.reminder.enabled}" aria-label="Erinnerung an oder aus"></button></div>
     <div class="srow"><label for="remTime">Uhrzeit</label><input id="remTime" type="time" class="input w-auto" value="${esc(s.reminder.time)}" data-action-input="reminder-time"></div>

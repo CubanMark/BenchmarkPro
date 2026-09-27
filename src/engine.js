@@ -60,11 +60,15 @@ export function counts(state, w) {
   return (w.items || []).some((i) => (i.sets || []).length > 0);
 }
 
+export const WORKOUT_MIN_SETS = 6;
+
 export function rawPoints(state, w) {
   const p = state.settings.points;
   if (w.type === "mobility") return { k: 0, m: p.mobility };
   if (w.type === "snack") return { k: p.snack, m: 0 };
-  return { k: p.workout, m: 0 };
+  // Kurze Einheiten (z.B. nur zwei Sätze Curls) zählen wie ein Snack, erst ab WORKOUT_MIN_SETS Sätzen als Workout
+  const sets = (w.items || []).reduce((n, i) => n + (i.sets?.length || 0), 0);
+  return { k: sets >= WORKOUT_MIN_SETS ? p.workout : p.snack, m: 0 };
 }
 
 /** Map dayKey -> { k, m, total, raw, workouts, sports } mit Tageslimit. */
