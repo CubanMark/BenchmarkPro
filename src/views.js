@@ -7,7 +7,7 @@ import {
   todayKey, mondayOf, addDays, isoWeek, weekSummary, areaCounts, daysSinceArea, exerciseById, exerciseName,
   exerciseSessions, suggest, snackById, fmtKg, counts, rawPoints, parseKey,
 } from "./engine.js";
-import { ring, heatmap, hmLegend, bodySvg, lineChart, esc, fmtDate, WD } from "./charts.js";
+import { ring, paiRing, paiWeekBars, heatmap, hmLegend, bodySvg, lineChart, esc, fmtDate, WD } from "./charts.js";
 import { APP_VERSION, DATA_VERSION, STORAGE_KEY } from "./version.js";
 
 const checkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -34,13 +34,15 @@ export function home({ state, ui, dayMap }) {
   const active = state.meta.activeWorkoutId ? state.workouts.find((x) => x.id === state.meta.activeWorkoutId) : null;
   const todayDay = dayMap.get(today);
 
+  const paiDay = ui.paiDay || today;
   let strip = '<div class="weekstrip">';
   for (const { key, day } of w.days) {
     const dots = [
       ...(day?.workouts || []).map((x) => `<span class="dot ${x.type === "mobility" ? "m" : "k"}"></span>`),
       ...(day?.sports || []).map(() => '<span class="dot s"></span>'),
     ].join("");
-    strip += `<div class="wd${key === today ? " today" : ""}"><span>${WD[parseKey(key).getDay()]}</span><span class="pts${day?.total ? "" : " zero"}">${day?.total || "·"}</span><span class="dots">${dots}</span></div>`;
+    const future = key > today;
+    strip += `<button class="wd${key === today ? " today" : ""}${key === paiDay ? " sel" : ""}" data-action="pai-day" data-day="${key}" ${future ? "disabled" : ""} aria-label="${esc(fmtDate(key))}: PAI eintragen"><span>${WD[parseKey(key).getDay()]}</span><span class="pts${day?.total ? "" : " zero"}">${day?.total || "·"}</span><span class="dots">${dots}</span><span class="pai">${day?.pai ?? ""}</span></button>`;
   }
   strip += "</div>";
 
@@ -49,6 +51,9 @@ export function home({ state, ui, dayMap }) {
   else if (need === 0 && needK > 0) status = `Punkte reichen, es fehlen noch <b>${needK}</b> Kraftpunkte.`;
   else if (needK >= need) status = `Noch <b>${needK}</b> ${needK === 1 ? "Kraftpunkt" : "Kraftpunkte"}.`;
   else status = `Noch <b>${need}</b> ${need === 1 ? "Punkt" : "Punkte"}${needK ? `, davon ${needK} Kraft` : ""}.`;
+  const paiGoal = s.paiGoal || 100;
+  const paiStatus = w.pai >= paiGoal ? "<b>Ziel geschafft.</b>" : `Noch <b>${paiGoal - w.pai}</b> PAI.`;
+  const backup = backupDue(state);
 
   const reminder = ui.reminderDue && !todayDay?.total
     ? `<div class="banner"><span>Heute noch keine Einheit. 5 Minuten reichen.</span><button class="link" data-action="go" data-view="energy">Snack starten</button></div>` : "";
@@ -56,17 +61,15 @@ export function home({ state, ui, dayMap }) {
   return `
   ${active ? `<div class="banner accent"><span><b>${esc(active.name || "Einheit")}</b> läuft noch.</span><button class="link" data-action="resume">Fortsetzen</button></div>` : ""}
   ${reminder}
+  ${backup ? `<div class="banner"><span>${esc(backup)}</span><button class="link" data-action="backup">Jetzt sichern</button></div>` : ""}
   <div class="card">
-    <div class="row between"><span class="eyebrow">Diese Woche · KW ${isoWeek(today)}</span><span class="small muted">Ziel ${s.weeklyGoal} Punkte</span></div>
-    <div class="ringwrap">${ring(w.k, w.m, s.weeklyGoal)}
-      <div class="stack gap8">
-        <div class="legend-line"><span class="dot k"></span>Kraft <b>${w.k}</b><span class="muted small">von mind. ${s.strengthMin}</span></div>
-        <div class="bar"><i style="width:${Math.min(100, (w.k / Math.max(1, s.strengthMin)) * 100)}%"></i></div>
-        <div class="legend-line"><span class="dot m"></span>Mobility <b>${w.m}</b></div>
-        <div class="small">${status}</div>
-      </div>
+    <div class="row between"><span class="eyebrow">Diese Woche · KW ${isoWeek(today)}</span><span class="small muted">${esc(fmtDate(today))}</span></div>
+    <div class="tworings">
+      <div>${ring(w.k, w.m, s.weeklyGoal, 118)}<div class="cap"><span><span class="dot k"></span> Kraft ${w.k}</span><span><span class="dot m"></span> Mobility ${w.m}</span></div><div class="st">${status}</div></div>
+      <div>${paiRing(w.pai, paiGoal)}<div class="cap"><span><span class="dot s"></span> Bewegung</span></div><div class="st">${paiStatus}</div></div>
     </div>
     ${strip}
+    ${paiForm(paiDay, dayMap)}
   </div>
   <button class="btn primary big" data-action="go" data-view="energy">Snack starten</button>
   <div class="btn-row"><button class="btn" data-action="go" data-view="workouts">Workout starten</button><button class="btn" data-action="sport">Sport eintragen</button></div>
@@ -74,6 +77,25 @@ export function home({ state, ui, dayMap }) {
     <div class="row between"><h3>Letzte 12 Wochen</h3><button class="link small" data-action="tab" data-tab="history">Alles ansehen</button></div>
     ${heatmap(dayMap, 12)}${hmLegend}
   </div>`;
+}
+
+/** Eingabe für den Tages-PAI aus der Uhr. */
+function paiForm(key, dayMap) {
+  const v = dayMap.get(key)?.pai;
+  return `<form class="paiin" id="paiForm">
+    <input id="paiDate" type="date" class="input" value="${esc(key)}" max="${todayKey()}" aria-label="Tag">
+    <input id="paiVal" type="number" class="input" inputmode="numeric" min="0" max="300" value="${v ?? ""}" placeholder="PAI" aria-label="Tages-PAI an diesem Tag">
+    <button type="submit" class="btn sport-btn">Speichern</button>
+  </form>`;
+}
+
+/** Hinweistext, wenn das letzte Backup eine Woche oder länger her ist. Sonst null. */
+export function backupDue(state) {
+  if (!state.workouts.length) return null;
+  const last = state.meta?.lastBackupAt;
+  if (!last) return "Noch kein Backup gesichert.";
+  const days = Math.floor((Date.now() - new Date(last).getTime()) / 864e5);
+  return days >= 7 ? `Letztes Backup vor ${days} Tagen.` : null;
 }
 
 /* ================= Tagesform ================= */
@@ -296,13 +318,28 @@ export function historyView({ state, ui, dayMap }) {
     }),
     ...daySports.map((a) => `<div class="entry">${typeChip("sport")}<span>${esc(a.kind)}<br><span class="small muted">${a.minutes} min · ${esc(a.intensity || "")}</span></span><span class="row gap6"><span class="pts-badge">·</span><button class="icon-btn" data-action="del-a" data-id="${esc(a.id)}" aria-label="Löschen">×</button></span></div>`),
   ];
+  const weeks = 12;
+  const paiGoal = state.settings.paiGoal || 100;
+  const hasPai = Object.keys(state.pai || {}).length > 0;
+  let paiCard = `<div class="card stack"><h3>PAI pro Woche</h3><p class="small muted">Trag auf „Heute“ deinen Tages-PAI aus Zepp ein, dann siehst du hier deine Wochen.</p></div>`;
+  if (hasPai) {
+    const bars = paiWeekBars(weeks, paiGoal, (mon) => weekSummary(state, dayMap, mon).pai);
+    const done = bars.sums.slice(0, -1).filter((x) => x > 0);
+    const avg = done.length ? Math.round(done.reduce((a, b) => a + b, 0) / done.length) : 0;
+    paiCard = `<div class="card stack"><div class="row between"><h3>PAI pro Woche</h3><span class="small muted">Ziel ${paiGoal}</span></div>
+      <div class="chart">${bars.svg}</div>
+      <div class="paistats"><div><b>${bars.sums[weeks - 1]}</b><span>diese Woche</span></div><div><b>${avg}</b><span>Schnitt pro Woche</span></div><div><b>${bars.sums.filter((x) => x >= paiGoal).length}</b><span>Wochen im Ziel</span></div></div></div>`;
+  }
   const confirm = ui.confirmDel ? `<div class="banner warn"><span>Wirklich löschen?</span><span class="row gap8"><button class="link" data-action="confirm-del">Löschen</button><button class="link" data-action="cancel-del">Abbrechen</button></span></div>` : "";
   return `<div class="card stack"><div class="row between"><h3>Letzte 6 Monate</h3><span class="small muted">Tippe auf einen Tag</span></div>${heatmap(dayMap, 26, { selected: key, interactive: true })}${hmLegend}</div>
   ${confirm}
   <div class="card"><span class="eyebrow">${esc(fmtDate(key))}</span>
     ${entries.length ? `<div class="mt6">${entries.join("")}</div><p class="small muted mt8">${o?.total || 0} ${o?.total === 1 ? "Punkt" : "Punkte"} an diesem Tag${o && o.rawK + o.rawM > o.total ? ` (auf ${state.settings.dailyCap} begrenzt)` : ""}. Sport zählt nicht zu den Punkten.</p>`
-      : `<p class="muted mt6">Kein Eintrag an diesem Tag.</p>`}
+      : `<p class="muted mt6">Keine Einheit an diesem Tag.</p>`}
+    <div class="eyebrow mt8">Tages-PAI</div>
+    ${paiForm(key, dayMap)}
   </div>
+  ${paiCard}
   ${recentList(state)}`;
 }
 
@@ -379,12 +416,14 @@ export function progressView({ state, ui }) {
 /* ================= Mehr ================= */
 export function moreView({ state, ui }) {
   const s = state.settings;
-  const row = (label, key, min, max) => `<div class="srow"><span>${label}</span><div class="step small-step"><button data-action="setting" data-key="${key}" data-dir="-1" data-min="${min}" data-max="${max}" aria-label="${label} weniger">−</button><span>${s[key]}</span><button data-action="setting" data-key="${key}" data-dir="1" data-min="${min}" data-max="${max}" aria-label="${label} mehr">+</button></div></div>`;
+  const row = (label, key, min, max, step = 1) => `<div class="srow"><span>${label}</span><div class="step small-step"><button data-action="setting" data-key="${key}" data-dir="-1" data-step="${step}" data-min="${min}" data-max="${max}" aria-label="${label} weniger">−</button><span>${s[key]}</span><button data-action="setting" data-key="${key}" data-dir="1" data-step="${step}" data-min="${min}" data-max="${max}" aria-label="${label} mehr">+</button></div></div>`;
+  const lastBk = state.meta?.lastBackupAt;
   const perm = typeof Notification !== "undefined" ? Notification.permission : "unsupported";
   return `<div class="card settings"><h3>Wochenziel</h3>
     ${row("Punkte pro Woche", "weeklyGoal", 3, 20)}
     ${row("davon mindestens Kraft", "strengthMin", 0, 20)}
     ${row("Höchstens pro Tag", "dailyCap", 1, 10)}
+    ${row("PAI pro Woche", "paiGoal", 30, 300, 10)}
     <table class="pts"><tr><td>Workout</td><td>${s.points.workout}</td></tr><tr><td>Kraft-Snack</td><td>${s.points.snack}</td></tr><tr><td>Mobility-Snack</td><td>${s.points.mobility}</td></tr><tr><td>Tennis, Padel, Fußball</td><td>0</td></tr></table></div>
   <div class="card settings"><h3>Erinnerung</h3>
     <div class="srow"><span>Täglich erinnern, wenn noch nichts eingetragen ist</span><button class="sw-t" data-action="reminder-toggle" aria-pressed="${s.reminder.enabled}" aria-label="Erinnerung an oder aus"></button></div>
@@ -399,7 +438,9 @@ export function moreView({ state, ui }) {
     <button class="srow as-btn" data-action="go" data-view="plans"><span>Workout-Pläne</span><span class="muted">${state.plans.length} ›</span></button>
     <button class="srow as-btn" data-action="go" data-view="snacks"><span>Snacks</span><span class="muted">${SNACKS.length} ›</span></button></div>
   <div class="card settings"><h3>Daten</h3>
-    <div class="srow"><span>Export als Datei</span><button class="btn small-btn" data-action="export">Exportieren</button></div>
+    <div class="srow"><span>Backup<br><span class="small muted">${lastBk ? `Zuletzt ${esc(fmtDate(state.meta.lastBackupDay || lastBk.slice(0, 10)))}` : "Noch keins gesichert"}</span></span><button class="btn small-btn" data-action="backup">Sichern</button></div>
+    <p class="small muted">„Sichern“ öffnet das Teilen-Menü. Wähle dort Google Drive, dann liegt die Sicherung außerhalb des Handys.</p>
+    <button class="link small" data-action="export">Stattdessen als Datei herunterladen</button>
     <div class="srow"><span>Import aus Datei</span><label class="btn small-btn" for="fileImport">Importieren</label></div>
     ${ui.importPreview ? importBox(ui.importPreview) : ""}
     ${ui.importResult ? `<div class="import ${ui.importResult.error ? "bad" : ""}"><b>${ui.importResult.error ? "Import fehlgeschlagen" : "Import abgeschlossen"}</b><p class="small">${esc(ui.importResult.text)}</p></div>` : ""}

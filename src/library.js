@@ -208,6 +208,7 @@ export const DEFAULT_SETTINGS = {
   kbWeight: 10,
   reminder: { enabled: false, time: "18:30" },
   restSeconds: 90,
+  paiGoal: 100,
 };
 
 export function areaName(id) {

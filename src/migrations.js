@@ -104,6 +104,7 @@ export function ensureLibrary(state) {
     reminder: { ...DEFAULT_SETTINGS.reminder, ...(s.reminder || {}) },
   };
   if (!Array.isArray(state.activities)) state.activities = [];
+  if (!state.pai || typeof state.pai !== "object" || Array.isArray(state.pai)) state.pai = {};
   for (const w of state.workouts) {
     if (!w.type) w.type = "workout";
   }

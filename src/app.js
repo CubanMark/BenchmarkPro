@@ -7,7 +7,7 @@ import { deleteWorkout } from "./workouts.js";
 import { registerServiceWorker } from "./pwa.js";
 import { nextWeight, weightSteps, guessArea } from "./library.js";
 import {
-  todayKey, buildDayMap, buildRun, planItem, syncSets, suggest, findRecords, exerciseById, counts,
+  todayKey, addDays, buildDayMap, buildRun, planItem, syncSets, suggest, findRecords, exerciseById, counts,
 } from "./engine.js";
 import * as V from "./views.js";
 import { isDue, syncReminderState, enableReminder, disableReminder } from "./reminder.js";
@@ -28,7 +28,7 @@ const ui = {
   tab: "home", view: "home", ctx: {}, energy: null, suggestions: [], pick: null,
   area: null, previewId: null, q: "", timer: null, selDay: todayKey(), bodyRange: "w", chartEx: null,
   doneId: null, gain: 0, records: [], editEx: null, importPreview: null, sportOpen: false, sportForm: null,
-  confirmDel: null, reminderDue: false, importResult: null,
+  confirmDel: null, reminderDue: false, importResult: null, paiDay: null,
 };
 
 let dayMap = buildDayMap(state);
@@ -207,6 +207,27 @@ function wireChart() {
   svg.addEventListener("pointerleave", () => { tip.hidden = true; xh.setAttribute("opacity", "0"); });
 }
 
+/* ---------- PAI und Backup ---------- */
+function savePai() {
+  const key = document.getElementById("paiDate")?.value;
+  const raw = document.getElementById("paiVal")?.value ?? "";
+  if (!key || key > todayKey()) return toast("Bitte wähle einen Tag bis heute.");
+  const v = raw.trim() === "" ? null : Math.round(Number(raw));
+  if (v != null && !(v >= 0 && v <= 300)) return toast("Der Tages-PAI liegt zwischen 0 und 300.");
+  state.pai = state.pai || {};
+  if (v == null) delete state.pai[key];
+  else state.pai[key] = v;
+  persist();
+  toast(v == null ? "PAI-Eintrag entfernt" : `PAI ${v} gespeichert`);
+  render({ keepScroll: true });
+}
+
+function markBackup() {
+  state.meta.lastBackupAt = new Date().toISOString();
+  state.meta.lastBackupDay = todayKey();
+  persist();
+}
+
 /* ---------- Klicks ---------- */
 /** Fügt Daten aus einem Import hinzu, ohne Vorhandenes zu ändern. Liefert die Zahl neuer Einheiten. */
 function mergeState(target, src) {
@@ -256,6 +277,8 @@ function mergeState(target, src) {
   }
   const actIds = new Set((target.activities || []).map((a) => a.id));
   for (const a of src.activities || []) if (!actIds.has(a.id)) target.activities.push(structuredClone(a));
+  target.pai = target.pai || {};
+  for (const [key, v] of Object.entries(src.pai || {})) if (!(key in target.pai)) target.pai[key] = v;
   target.workouts.sort((a, b) => a.date.localeCompare(b.date));
   return added;
 }
@@ -268,8 +291,11 @@ const actions = {
   energy: (d) => {
     ui.energy = Number(d.energy);
     const sportToday = (state.activities || []).some((a) => a.date === todayKey());
+    // Gestern Sport oder viel Bewegung laut Uhr: Beinsnacks rücken nach hinten
+    const y = dayMap.get(addDays(todayKey(), -1));
+    const sportYesterday = !!(y?.sports.length || (y?.pai ?? 0) >= 30);
     ui.suggestions = suggest(state, dayMap, {
-      energy: ui.energy, sportToday: ui.ctx.sport ?? sportToday, away: !!ui.ctx.away, hour: new Date().getHours(),
+      energy: ui.energy, sportToday: ui.ctx.sport ?? sportToday, sportYesterday, away: !!ui.ctx.away, hour: new Date().getHours(),
     });
     ui.pick = null;
     go("suggest");
@@ -414,7 +440,7 @@ const actions = {
 
   setting: (d) => {
     const s = state.settings;
-    s[d.key] = Math.min(Number(d.max), Math.max(Number(d.min), s[d.key] + Number(d.dir)));
+    s[d.key] = Math.min(Number(d.max), Math.max(Number(d.min), s[d.key] + Number(d.dir) * (Number(d.step) || 1)));
     if (s.strengthMin > s.weeklyGoal) s.strengthMin = s.weeklyGoal;
     persist();
     render({ keepScroll: true });
@@ -436,15 +462,36 @@ const actions = {
     render({ keepScroll: true });
   },
 
+  "pai-day": (d) => { ui.paiDay = d.day; render({ keepScroll: true }); },
+  "pai-save": () => savePai(),
+
+  backup: async () => {
+    // Android teilt nur bestimmte Dateitypen, JSON gehört nicht dazu. Als .txt geht es, der Import liest beides.
+    const file = new File([exportState(state)], `benchmarkpro_backup_${todayKey()}.txt`, { type: "text/plain" });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: "BenchMark Pro Backup" });
+        markBackup();
+        toast("Backup gesichert");
+      } catch (e) {
+        if (e?.name !== "AbortError") toast("Teilen hat nicht geklappt. Nutze „Als Datei herunterladen“.", { duration: 4000 });
+      }
+      render({ keepScroll: true });
+      return;
+    }
+    actions.export();
+  },
   export: () => {
     const blob = new Blob([exportState(state)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `benchmarkpro_${APP_VERSION}_${todayKey()}.json`;
+    a.download = `benchmarkpro_backup_${todayKey()}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    toast("Export erstellt");
+    markBackup();
+    toast("Backup heruntergeladen");
+    render({ keepScroll: true });
   },
   "import-cancel": () => { ui.importPreview = null; render({ keepScroll: true }); },
   "import-apply": () => {
@@ -577,7 +624,12 @@ document.addEventListener("input", (ev) => {
 });
 document.addEventListener("change", async (ev) => {
   const t = ev.target;
-  if (t.id === "remTime") {
+  if (t.id === "paiDate") {
+    if (!t.value || t.value > todayKey()) return;
+    if (ui.view === "history") ui.selDay = t.value;
+    else ui.paiDay = t.value;
+    render({ keepScroll: true });
+  } else if (t.id === "remTime") {
     state.settings.reminder.time = t.value || "18:30";
     persist();
     render({ keepScroll: true });
@@ -600,12 +652,19 @@ document.addEventListener("change", async (ev) => {
   }
 });
 
+document.addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  if (ev.target.id === "paiForm") savePai();
+});
+
 /* ---------- Start ---------- */
 function boot() {
   persist();
   if (activeWorkout()) ui.view = "home";
   render();
   registerServiceWorker();
+  // Bittet den Browser, die Daten nicht bei Speichermangel zu löschen
+  navigator.storage?.persist?.().catch(() => {});
   document.getElementById("appVersion").textContent = APP_VERSION;
   // Tageswechsel oder Rückkehr in die App: neu rechnen
   document.addEventListener("visibilitychange", () => {

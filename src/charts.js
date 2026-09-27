@@ -1,7 +1,7 @@
 /**
- * SVG-Grafiken v5: Wochenring, Heatmap, Körper-Grafik, Kraftkurve. Liefern HTML-Strings.
+ * SVG-Grafiken v5: Wochenring, PAI-Ring, Heatmap, PAI-Wochenbalken, Körper-Grafik, Kraftkurve. Liefern HTML-Strings.
  */
-import { addDays, mondayOf, todayKey, parseKey } from "./engine.js";
+import { addDays, mondayOf, todayKey, parseKey, isoWeek } from "./engine.js";
 
 const MON = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 const WD = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
@@ -31,7 +31,28 @@ export function ring(k, m, goal, size = 132) {
     <text x="66" y="88" text-anchor="middle" font-size="13" fill="var(--muted)" letter-spacing="1">PUNKTE</text></svg>`;
 }
 
-/** Heatmap über `weeks` Wochen bis zur aktuellen Woche. selected: markierter Tag. */
+/** Zweiter Ring: PAI der Woche (Summe der Tages-PAI Mo–So). */
+export function paiRing(v, goal, size = 118) {
+  const r = 52, c = 2 * Math.PI * r;
+  const f = Math.min(v / Math.max(goal, 1), 1);
+  const gap = f >= 1 ? 0 : 0.012 * c;
+  const arc = f > 0
+    ? `<circle cx="66" cy="66" r="${r}" fill="none" stroke="var(--sport)" stroke-width="14" stroke-linecap="round" stroke-dasharray="${Math.max(f * c - gap, 0.1)} ${c}" transform="rotate(-90 66 66)"/>`
+    : "";
+  return `<svg class="ring" viewBox="0 0 132 132" width="${size}" height="${size}" role="img" aria-label="PAI ${v} von ${goal}">
+    <circle cx="66" cy="66" r="${r}" fill="none" stroke="var(--sport-soft)" stroke-width="14"/>${arc}
+    <text x="66" y="68" text-anchor="middle" font-size="40" fill="var(--ink)" font-weight="700" font-family="var(--display)">${v}</text>
+    <text x="66" y="89" text-anchor="middle" font-size="12" fill="var(--muted)" letter-spacing="1">PAI / ${goal}</text></svg>`;
+}
+
+/** Stufe 0–3 für die orange Farbe: Tages-PAI, ersatzweise Sport-Eintrag ohne PAI. */
+export function paiLevel(o) {
+  if (!o) return 0;
+  if (o.pai != null) return o.pai >= 30 ? 3 : o.pai >= 15 ? 2 : o.pai >= 5 ? 1 : 0;
+  return o.sports.length ? 2 : 0;
+}
+
+/** Heatmap über `weeks` Wochen bis zur aktuellen Woche. Grün = Kraftpunkte, Orange = PAI, geteilt = beides. */
 export function heatmap(dayMap, weeks, { selected = null, interactive = false } = {}) {
   const today = todayKey();
   const start = addDays(mondayOf(today), -(weeks - 1) * 7);
@@ -46,17 +67,43 @@ export function heatmap(dayMap, weeks, { selected = null, interactive = false } 
       const key = addDays(start, w * 7 + i);
       if (key > today) { cells += '<span class="c fut"></span>'; continue; }
       const o = dayMap.get(key);
-      const l = o ? o.total : 0;
-      const sp = o && o.sports.length ? " sp" : "";
-      const label = `${fmtDate(key)}: ${l ? l + (l === 1 ? " Punkt" : " Punkte") : "kein Training"}${sp ? " · " + o.sports.map((a) => a.kind).join(", ") : ""}`;
+      const l = o ? Math.min(o.total, 4) : 0;
+      const p = paiLevel(o);
+      const parts = [l ? `${o.total} ${o.total === 1 ? "Punkt" : "Punkte"}` : "", o?.pai != null ? `PAI ${o.pai}` : "", o?.sports.length ? o.sports.map((a) => a.kind).join(", ") : ""].filter(Boolean);
+      const label = `${fmtDate(key)}: ${parts.join(" · ") || "nichts eingetragen"}`;
       const tag = interactive ? "button" : "span";
-      cells += `<${tag} class="c${sp}${key === selected ? " sel" : ""}${key === today ? " today" : ""}" data-l="${Math.min(l, 4)}" ${interactive ? `data-action="day" data-day="${key}"` : ""} title="${esc(label)}" aria-label="${esc(label)}"></${tag}>`;
+      cells += `<${tag} class="c${key === selected ? " sel" : ""}${key === today ? " today" : ""}" data-l="${l}" data-p="${p}" ${interactive ? `data-action="day" data-day="${key}"` : ""} title="${esc(label)}" aria-label="${esc(label)}"></${tag}>`;
     }
   }
   return `<div class="months" style="grid-template-columns:repeat(${weeks},1fr)">${months}</div><div class="hm" style="grid-template-columns:repeat(${weeks},1fr)">${cells}</div>`;
 }
 
-export const hmLegend = `<div class="hm-legend"><span>Punkte pro Tag</span><span class="row tight"><span class="sw" style="background:var(--h0)"></span><span class="sw" style="background:var(--h1)"></span><span class="sw" style="background:var(--h2)"></span><span class="sw" style="background:var(--h3)"></span><span class="sw" style="background:var(--h4)"></span></span><span>0 bis 4</span><span class="row tight"><span class="dot s"></span>Sport</span></div>`;
+export const hmLegend = `<div class="hm-legend"><span class="row tight">Kraft&nbsp;<span class="sw" style="background:var(--h1)"></span><span class="sw" style="background:var(--h2)"></span><span class="sw" style="background:var(--h3)"></span><span class="sw" style="background:var(--h4)"></span></span><span class="row tight">PAI&nbsp;<span class="sw" style="background:var(--p1)"></span><span class="sw" style="background:var(--p2)"></span><span class="sw" style="background:var(--p3)"></span></span><span class="row tight"><span class="sw" style="background:linear-gradient(135deg,var(--h3) 0 50%,var(--p3) 50% 100%)"></span>&nbsp;beides</span></div>`;
+
+/** PAI-Summe pro Kalenderwoche als Balken, letzte `weeks` Wochen. */
+export function paiWeekBars(weeks, goal, weekSum) {
+  const W = 340, H = 170, L = 28, R = 8, T = 16, B = 22;
+  const mon0 = addDays(mondayOf(todayKey()), -(weeks - 1) * 7);
+  const sums = [];
+  for (let w = 0; w < weeks; w++) sums.push(weekSum(addDays(mon0, w * 7)));
+  const ymax = Math.max(goal * 1.4, ...sums) * 1.05;
+  const bw = (W - L - R) / weeks;
+  const y = (v) => T + (1 - v / ymax) * (H - T - B);
+  let g = "";
+  for (const t of [0, Math.round(goal / 2), goal]) {
+    const isGoal = t === goal;
+    g += `<line x1="${L}" x2="${W - R}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}" stroke="${isGoal ? "var(--muted)" : "var(--line)"}" stroke-width="1"${isGoal ? ' stroke-dasharray="4 4"' : ""}/>`;
+    g += `<text x="${L - 6}" y="${(y(t) + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--muted)">${t}</text>`;
+  }
+  sums.forEach((s, w) => {
+    const x = L + w * bw + bw * 0.18, bwid = bw * 0.64, cur = w === weeks - 1;
+    const cx = (x + bwid / 2).toFixed(1);
+    if (s > 0) g += `<rect x="${x.toFixed(1)}" y="${y(s).toFixed(1)}" width="${bwid.toFixed(1)}" height="${(y(0) - y(s)).toFixed(1)}" rx="3" fill="${s >= goal ? "var(--sport)" : "var(--p2)"}"${cur ? ' fill-opacity=".6"' : ""}/>`;
+    if (cur || (weeks - 1 - w) % 2 === 0) g += `<text x="${cx}" y="${H - 6}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${isoWeek(addDays(mon0, w * 7))}</text>`;
+    if (cur) g += `<text x="${cx}" y="${(y(s) - 5).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ink)">${s}</text>`;
+  });
+  return { svg: `<svg viewBox="0 0 ${W} ${H}" class="lc" role="img" aria-label="PAI pro Kalenderwoche">${g}</svg>`, sums };
+}
 
 /** Körper-Grafik. frac(areaId) -> Anteil 0..1 vom Ziel. */
 export function bodySvg(back, frac, names) {
