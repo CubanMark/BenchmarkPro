@@ -1,665 +1,534 @@
-﻿import { APP_VERSION, DATA_VERSION, STORAGE_KEY } from "./version.js";
-import { loadState, saveState, exportState, parseImportFile, applyImportedState, resetState, createBackup } from "./storage.js";
+import { APP_VERSION } from "./version.js";
+import { loadState, saveState, exportState, parseImportFile, applyImportedState, createBackup } from "./storage.js";
 import { getDefaultExercises, getDefaultPlans } from "./models.js";
-import { runMigrations } from "./migrations.js";
-import { ensureDefaults, createPlan, deletePlan, updatePlanFromTextarea } from "./plans.js";
-import { upsertExercise } from "./exercises.js";
-import { createWorkout, getWorkout, addSetToWorkout, deleteSetFromWorkout, removeExerciseFromWorkout, ensureExerciseItem, sortWorkoutsNewestFirst, humanWorkoutTitle, deleteWorkout, setWorkoutNotes } from "./workouts.js";
+import { runMigrations, ensureLibrary } from "./migrations.js";
+import { ensureDefaults, createPlan, deletePlan } from "./plans.js";
+import { deleteWorkout } from "./workouts.js";
 import { registerServiceWorker } from "./pwa.js";
-import { renderExercises as renderExercisesView, renderPlans as renderPlansView, fillExerciseSelect as fillExerciseSelectView, fillPlanSelect as fillPlanSelectView, renderWorkoutItems as renderWorkoutItemsView, renderHistory as renderHistoryView, fillStatsExerciseSelect as fillStatsExerciseSelectView, renderStatsOverview as renderStatsOverviewView, renderStatsDetail as renderStatsDetailView } from "./renderers.js";
-import { analyzeWorkoutPrs, getActiveExerciseStats, getExerciseStatsDetail } from "./stats.js";
-import { $, $all, setActiveTab, toast } from "./ui.js";
+import { nextWeight, weightSteps, guessArea } from "./library.js";
+import {
+  todayKey, buildDayMap, buildRun, planItem, syncSets, suggest, findRecords, exerciseById, counts,
+} from "./engine.js";
+import * as V from "./views.js";
+import { isDue, syncReminderState, enableReminder, disableReminder } from "./reminder.js";
+import { toast } from "./ui.js";
 
-/**
- * Bindet einen Event-Listener, wenn das Element existiert. Sonst console.warn (kein throw).
- */
-function on(selector, event, handler) {
-  const el = $(selector);
-  if (!el) {
-    console.warn("[BenchMarkPro] Fehlendes Element:", selector);
-    return;
-  }
-  el.addEventListener(event, handler);
-}
-
-let notesSaveTimer = null;
-let selectedStatsExerciseId = null;
-
-function persistWorkoutNotesSoon() {
-  window.clearTimeout(notesSaveTimer);
-  notesSaveTimer = window.setTimeout(() => {
-    persist();
-  }, 350);
-}
-
+/* ---------- State ---------- */
 let state = loadState();
-
-// Run migrations (v4->v4). Legacy imports are handled separately.
 const mig = runMigrations(state);
 state = mig.state;
-
-
-const defaults = {
-  exercises: getDefaultExercises(),
-  plans: getDefaultPlans()
-};
-
+const defaults = { exercises: getDefaultExercises(), plans: getDefaultPlans() };
 ensureDefaults(state, defaults);
-
-// ensure meta
+ensureLibrary(state);
 state.meta = state.meta || {};
 state.meta.lastMigration = { ran: mig.ran, from: mig.from, to: mig.to, at: new Date().toISOString() };
-
 state.meta.activeWorkoutId = state.meta.activeWorkoutId || null;
 
-function persist(){
+const ui = {
+  tab: "home", view: "home", ctx: {}, energy: null, suggestions: [], pick: null,
+  area: null, previewId: null, q: "", timer: null, selDay: todayKey(), bodyRange: "w", chartEx: null,
+  doneId: null, gain: 0, records: [], editEx: null, importPreview: null, sportOpen: false, sportForm: null,
+  confirmDel: null, reminderDue: false,
+};
+
+let dayMap = buildDayMap(state);
+
+function persist() {
   saveState(state);
-  renderDiagnostics();
-  renderStateSummary();
+  dayMap = buildDayMap(state);
+  const last = [...dayMap.entries()].filter(([, d]) => d.workouts.length).map(([k]) => k).sort().pop() || null;
+  syncReminderState(state.settings, last);
 }
 
-function renderHeader(){
-  $("#versionBadge").textContent = APP_VERSION;
-  const banner = $("#buildVersionBanner");
-  if (banner) banner.textContent = APP_VERSION;
-  const footer = $("#buildVersionFooter");
-  if (footer) footer.textContent = APP_VERSION;
+/* ---------- Rendering ---------- */
+const $screen = document.getElementById("screen");
+const $nav = document.getElementById("nav");
+const $overlay = document.getElementById("overlay");
+
+const VIEWS = {
+  home: V.home, energy: V.energy, suggest: V.suggestView, areas: V.areasView, preview: V.previewView,
+  workouts: V.workoutsView, run: V.runView, picker: V.pickerView, done: V.doneView, history: V.historyView,
+  progress: V.progressView, more: V.moreView, exercises: V.exercisesView, plans: V.plansView, snacks: V.snacksView,
+};
+const TAB_OF = { history: "history", progress: "progress", more: "more", exercises: "more", plans: "more", snacks: "more" };
+
+function render({ keepScroll = false } = {}) {
+  const top = $screen.scrollTop;
+  ui.reminderDue = isDue(state.settings, !!dayMap.get(todayKey())?.total);
+  $screen.innerHTML = VIEWS[ui.view]({ state, ui, dayMap });
+  ui.tab = TAB_OF[ui.view] || "home";
+  for (const b of $nav.querySelectorAll("button")) b.setAttribute("aria-current", b.dataset.tab === ui.tab ? "page" : "false");
+  $overlay.innerHTML = ui.sportOpen ? V.sportSheet(ui) : "";
+  $overlay.hidden = !ui.sportOpen;
+  if (ui.view === "progress") wireChart();
+  $screen.scrollTop = keepScroll ? top : 0;
 }
 
-function renderStateSummary(){
-  $("#stateSummary").textContent = JSON.stringify({
-    plans: state.plans.length,
-    workouts: state.workouts.length,
-    exercises: state.exercises.length
-  });
+function go(view) {
+  ui.view = view;
+  ui.confirmDel = null;
+  render();
 }
 
-function renderDiagnostics(){
-  $("#diagAppVersion").textContent = state.appVersion || APP_VERSION;
-  $("#diagDataVersion").textContent = String(state.dataVersion ?? DATA_VERSION);
-  $("#diagStorageKey").textContent = STORAGE_KEY;
-  $("#diagLastSaved").textContent = state.meta?.updatedAt || "â€”";
-  const lm = state.meta?.lastMigration;
-  if (lm && typeof lm === "object") {
-    const tag = lm.ran ? `ran ${lm.from}â†’${lm.to}` : `noop ${lm.from}â†’${lm.to}`;
-    $("#diagLastMigration").textContent = tag;
-  } else {
-    $("#diagLastMigration").textContent = "â€”";
-  }
+/* ---------- Einheiten ---------- */
+function activeWorkout() {
+  return state.workouts.find((w) => w.id === state.meta.activeWorkoutId) || null;
 }
 
-function renderExercises(){
-  renderExercisesView($("#exerciseList"), state.exercises);
-}
-
-function renderPlans(){
-  renderPlansView($("#plansList"), state.plans, state.exercises);
-}
-
-function fillExerciseSelect(sel, { includePlaceholder = false } = {}){
-  fillExerciseSelectView(sel, state.exercises, { includePlaceholder });
-}
-
-function fillPlanSelect(sel){
-  fillPlanSelectView(sel, state.plans);
-}
-
-function renderNewWorkoutControls(){
-  const modeSel = $("#newWorkoutMode");
-  const planSel = $("#newWorkoutPlan");
-  const dateInp = $("#newWorkoutDate");
-  if (!modeSel || !planSel || !dateInp) {
-    if (!modeSel) console.warn("[BenchMarkPro] Fehlendes Element: #newWorkoutMode");
-    if (!planSel) console.warn("[BenchMarkPro] Fehlendes Element: #newWorkoutPlan");
-    if (!dateInp) console.warn("[BenchMarkPro] Fehlendes Element: #newWorkoutDate");
+function startRun(kind, id) {
+  const cur = activeWorkout();
+  if (cur && !cur.items.some((i) => i.sets?.length || i.done)) {
+    state.workouts = state.workouts.filter((w) => w !== cur);
+  } else if (cur) {
+    toast("Es läuft noch eine Einheit. Schließ sie erst ab.");
+    ui.view = "run";
+    render();
     return;
   }
-
-  if (!dateInp.value) {
-    const d = new Date();
-    dateInp.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-  }
-
-  fillPlanSelect(planSel);
-
-  const refreshVisibility = () => {
-    const mode = modeSel.value;
-    planSel.style.display = (mode === "plan") ? "" : "none";
-  };
-  refreshVisibility();
-  modeSel.onchange = refreshVisibility;
+  const source = kind === "new" ? { kind, exerciseId: id } : { kind, id };
+  const w = buildRun(state, source, { energy: ui.energy });
+  state.workouts.push(w);
+  state.meta.activeWorkoutId = w.id;
+  stopTimer();
+  persist();
+  go("run");
 }
 
-function exerciseNameById(exId){
-  return state.exercises.find(e=>e.id===exId)?.name || exId;
-}
-
-function getActiveStatsSelection(activeExerciseStats) {
-  if (!activeExerciseStats.length) return null;
-  const validSelection = activeExerciseStats.find((entry) => entry.exerciseId === selectedStatsExerciseId);
-  if (validSelection) return validSelection.exerciseId;
-  return activeExerciseStats[0].exerciseId;
-}
-
-/** Liefert Recency fÃ¼r Dashboard: { days, display, tier } mit tier green/yellow/red (Ampel). */
-function getLastWorkoutRecency() {
-  const sorted = sortWorkoutsNewestFirst(state.workouts);
-  if (!sorted.length) return null;
-  const lastDateStr = sorted[0].date;
-  if (!lastDateStr) return null;
-  const last = new Date(lastDateStr + "T12:00:00");
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-  last.setHours(12, 0, 0, 0);
-  let days = Math.floor((today - last) / (24 * 60 * 60 * 1000));
-  if (days < 0) days = 0;
-  const display = days === 0 ? "Heute" : String(days);
-  let tier = "red";
-  if (days < 3) tier = "green";
-  else if (days <= 6) tier = "yellow";
-  return { days, display, tier };
-}
-
-/** ISO-Woche (Moâ€“So): Liefert den Montag der Woche von dateStr als "YYYY-MM-DD" (lokal, nicht toISOString). */
-function getISOWeekKey(dateStr) {
-  if (!dateStr || typeof dateStr !== "string") return null;
-  const d = new Date(dateStr + "T12:00:00");
-  if (isNaN(d.getTime())) return null;
-  const isoWeekday = d.getDay() === 0 ? 7 : d.getDay();
-  const monday = new Date(d);
-  monday.setDate(d.getDate() - (isoWeekday - 1));
-  const y = monday.getFullYear();
-  const m = String(monday.getMonth() + 1).padStart(2, "0");
-  const day = String(monday.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-/** Wochentraining: Unique Tage in aktueller ISO-Woche, Status Perfect/Gut/Akzeptabel/Problematisch. */
-function getWeeklyConsistency() {
-  const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const todayKey = getISOWeekKey(todayStr);
-  if (!todayKey) return { count: 0, label: "Problematisch" };
-  const uniqueDates = new Set();
-  for (const w of state.workouts || []) {
-    const key = getISOWeekKey(w.date);
-    if (key === todayKey && w.date) uniqueDates.add(w.date);
-  }
-  const count = uniqueDates.size;
-  let label = "Problematisch";
-  if (count >= 3) label = "Stark";
-  else if (count === 2) label = "Gut";
-  else if (count === 1) label = "Dranbleiben";
-  return { count, label };
-}
-
-function formatWorkoutPrSummary(prSummary) {
-  const counts = prSummary?.counts || {};
-  const parts = [];
-
-  if (counts.topWeightCount === 1) parts.push("\uD83D\uDD25 1 Topgewicht-PR");
-  else if (counts.topWeightCount > 1) parts.push(`\uD83D\uDD25 ${counts.topWeightCount} Topgewicht-PRs`);
-
-  if (counts.topVolumeCount === 1) parts.push("\uD83D\uDCC8 1 Volumen-PR");
-  else if (counts.topVolumeCount > 1) parts.push(`\uD83D\uDCC8 ${counts.topVolumeCount} Volumen-PRs`);
-
-  if (!parts.length) return "";
-  return `${parts.join(", ")} in diesem Training`;
-}
-
-/**
- * Liefert alle Sets der letzten Einheit fÃ¼r eine Ãœbung (aus state.workouts, excludeWorkoutId ausgeschlossen).
- * RÃ¼ckgabe: [{ weight, reps }, ...] oder null.
- */
-function getLastPerformanceSetsForExercise(workouts, exerciseId, excludeWorkoutId) {
-  const sorted = sortWorkoutsNewestFirst(workouts || []);
-  for (const w of sorted) {
-    if (excludeWorkoutId != null && w.id === excludeWorkoutId) continue;
-    const item = (w.items || []).find((i) => i.exerciseId === exerciseId);
-    if (!item || !(item.sets && item.sets.length)) continue;
-    return item.sets.map((s) => ({
-      weight: Number(s?.weight),
-      reps: Number(s?.reps),
-    }));
-  }
-  return null;
-}
-
-function renderWorkoutItems(workout){
-  const prSummary = analyzeWorkoutPrs(state.workouts, workout);
-  renderWorkoutItemsView($("#workoutItems"), workout, {
-    exerciseNameById,
-    getLastPerformanceSetsForExercise,
-    prSummary,
-    workouts: state.workouts,
-  });
-}
-
-function renderActiveWorkout(){
-  const card = $("#activeWorkoutCard");
-  const newCard = $("#newWorkoutCard");
-  if (!card || !newCard) {
-    if (!card) console.warn("[BenchMarkPro] Fehlendes Element: #activeWorkoutCard");
-    if (!newCard) console.warn("[BenchMarkPro] Fehlendes Element: #newWorkoutCard");
+/** Öffnet eine bestehende Einheit zum Bearbeiten (auch alte v4-Workouts ohne Zeilen). */
+function openWorkout(id) {
+  const w = state.workouts.find((x) => x.id === id);
+  if (!w) return;
+  const cur = activeWorkout();
+  if (cur && cur !== w) {
+    toast("Schließ zuerst die laufende Einheit ab.");
     return;
   }
-  const workoutId = state.meta.activeWorkoutId;
-  if (!workoutId) {
-    card.style.display = "none";
-    newCard.style.display = "";
-    return;
+  for (const item of w.items) {
+    const ex = exerciseById(state, item.exerciseId);
+    if (ex?.kind === "task") continue;
+    if (!item.rows) item.rows = (item.sets || []).map((s) => ({ weight: ex?.kind === "weight" ? Number(s.weight) || 0 : null, reps: Number(s.reps) || 0, done: true }));
   }
-
-  const workout = getWorkout(state, workoutId);
-  if (!workout) {
-    state.meta.activeWorkoutId = null;
-    persist();
-    card.style.display = "none";
-    newCard.style.display = "";
-    return;
-  }
-
-  newCard.style.display = "none";
-  card.style.display = "";
-
-  $("#activeWorkoutTitle").textContent = humanWorkoutTitle(state, workout);
-  $("#activeWorkoutNotes").value = workout.notes || "";
-  const prSummary = analyzeWorkoutPrs(state.workouts, workout);
-
-  const prCountEl = $("#activeWorkoutPrCount");
-  if (prCountEl) {
-    const summaryText = formatWorkoutPrSummary(prSummary);
-    if (!summaryText) {
-      prCountEl.textContent = "";
-      prCountEl.className = "muted small";
-    } else {
-      prCountEl.className = "active-workout-pr";
-      prCountEl.textContent = summaryText;
-    }
-  }
-
-  fillExerciseSelect($("#addExerciseSelect"), { includePlaceholder: true });
-  renderWorkoutItems(workout);
-}
-
-function renderHistory(){
-  renderHistoryView(
-    $("#historyList"),
-    sortWorkoutsNewestFirst(state.workouts),
-    (workout) => humanWorkoutTitle(state, workout)
-  );
-}
-
-function renderStats() {
-  const activeExerciseStats = getActiveExerciseStats(state.workouts, 3);
-  selectedStatsExerciseId = getActiveStatsSelection(activeExerciseStats);
-
-  fillStatsExerciseSelectView($("#statsExerciseSelect"), activeExerciseStats, selectedStatsExerciseId, exerciseNameById);
-  renderStatsOverviewView($("#statsOverview"), activeExerciseStats, selectedStatsExerciseId, exerciseNameById);
-
-  const detail = selectedStatsExerciseId ? getExerciseStatsDetail(state.workouts, selectedStatsExerciseId) : null;
-  renderStatsDetailView($("#statsDetail"), detail, exerciseNameById(selectedStatsExerciseId));
-}
-
-function rerenderAll(){
-  renderHeader();
-  renderStateSummary();
-  renderDiagnostics();
-  renderDashboardTiles();
-  renderPlans();
-  renderExercises();
-  renderNewWorkoutControls();
-  renderActiveWorkout();
-  renderHistory();
-  renderStats();
-}
-
-function renderDashboardTiles(){
-  const recencyTile = $("#recencyTile");
-  const recencyValue = $("#recencyValue");
-  const recencySub = $("#recencySub");
-  const consistencyValue = $("#consistencyValue");
-  const consistencyBadge = $("#consistencyBadge");
-  if (!recencyTile || !recencyValue || !consistencyValue) return;
-
-  const rec = getLastWorkoutRecency();
-  if (rec !== null) {
-    recencyValue.textContent = rec.display;
-    recencySub.textContent = rec.days === 0 ? "trainiert" : rec.days === 1 ? "Tag Pause" : "Tage Pause";
-    recencyTile.classList.remove("recency-green", "recency-yellow", "recency-red");
-    recencyTile.classList.add("recency-" + rec.tier);
-  } else {
-    recencyValue.textContent = "-";
-    recencySub.textContent = "Noch kein Training";
-    recencyTile.classList.remove("recency-green", "recency-yellow", "recency-red");
-  }
-
-  const { count, label } = getWeeklyConsistency();
-  consistencyValue.textContent = String(count);
-  if (consistencyBadge) {
-    consistencyBadge.textContent = label;
-    consistencyBadge.className = "dashboard-tile-badge consistency-badge-" + (count >= 3 ? "stark" : count === 2 ? "gut" : count === 1 ? "dranbleiben" : "problematisch");
-  }
-}
-
-function setupTabs(){
-  $all(".tab").forEach(btn => {
-    btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
-  });
-}
-
-function startWorkout(){
-  const mode = $("#newWorkoutMode").value;
-  const date = $("#newWorkoutDate").value;
-  const planId = (mode === "plan") ? $("#newWorkoutPlan").value : null;
-  const w = createWorkout(state, { planId, date });
+  if (!w.name) w.name = w.planId ? (state.plans.find((p) => p.id === w.planId)?.name || "Workout") : "Freies Training";
+  w.finished = true;
   state.meta.activeWorkoutId = w.id;
   persist();
-  rerenderAll();
-  toast("Workout gestartet âœ…");
+  go("run");
 }
 
-function setupActions(){
-  on("#btnSaveState", "click", () => {
-    persist();
-    rerenderAll();
-    toast("State gespeichert âœ…");
-  });
+function finishRun() {
+  const w = activeWorkout();
+  if (!w) return;
+  const before = dayMap.get(w.date)?.total || 0;
+  const rawBefore = dayMap.get(w.date) ? dayMap.get(w.date).rawK + dayMap.get(w.date).rawM : 0;
+  const wasFinished = !!w.finished;
+  for (const item of w.items) syncSets(item);
+  w.finished = true;
+  w.finishedAt = w.finishedAt || new Date().toISOString();
+  state.meta.activeWorkoutId = null;
+  stopTimer();
+  persist();
+  if (wasFinished) {
+    toast("Gespeichert");
+    ui.selDay = w.date;
+    go("history");
+    return;
+  }
+  const after = dayMap.get(w.date);
+  ui.gain = (after?.total || 0) - before;
+  ui.capped = ui.gain === 0 && (after ? after.rawK + after.rawM : 0) > rawBefore;
+  ui.records = findRecords(state, w);
+  ui.doneId = w.id;
+  go("done");
+}
 
-  on("#btnResetDev", "click", () => {
-    if (!confirm("Reset (dev): State komplett lÃ¶schen?")) return;
-    resetState();
-    state = loadState();
-    ensureDefaults(state, defaults);
-    state.meta = state.meta || {};
-
+function cancelRun() {
+  const w = activeWorkout();
+  if (!w) return go("home");
+  if (w.finished) {
+    for (const item of w.items) syncSets(item);
     state.meta.activeWorkoutId = null;
     persist();
-    rerenderAll();
-  });
+    ui.selDay = w.date;
+    return go("history");
+  }
+  const anyDone = w.items.some((i) => i.sets?.length || i.done);
+  if (anyDone && !window.confirm("Einheit verwerfen? Abgehakte Sätze gehen verloren.")) return;
+  state.workouts = state.workouts.filter((x) => x !== w);
+  state.meta.activeWorkoutId = null;
+  stopTimer();
+  persist();
+  go("home");
+}
 
-  on("#btnAddPlan", "click", () => {
-    createPlan(state);
+/* ---------- Pausenuhr ---------- */
+let timerInt = null;
+function startTimer() {
+  clearInterval(timerInt);
+  ui.timer = state.settings.restSeconds || 90;
+  timerInt = setInterval(() => {
+    ui.timer -= 1;
+    if (ui.timer <= 0) {
+      stopTimer();
+      if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+      if (ui.view === "run") render({ keepScroll: true });
+      return;
+    }
+    const el = document.getElementById("tval");
+    if (el) el.textContent = `${Math.floor(ui.timer / 60)}:${String(ui.timer % 60).padStart(2, "0")}`;
+  }, 1000);
+}
+function stopTimer() {
+  clearInterval(timerInt);
+  ui.timer = null;
+}
+
+/* ---------- Kraftkurve Tooltip ---------- */
+function wireChart() {
+  const c = document.getElementById("chart");
+  const geo = ui._chart;
+  if (!c || !geo) return;
+  const svg = c.querySelector("svg");
+  const tip = c.querySelector("#tip");
+  const xh = svg.querySelector(".xh");
+  const move = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const px = ((ev.clientX - r.left) / r.width) * geo.W;
+    let best = geo.pts[0];
+    for (const p of geo.pts) if (Math.abs(p.x - px) < Math.abs(best.x - px)) best = p;
+    xh.setAttribute("x1", best.x); xh.setAttribute("x2", best.x); xh.setAttribute("opacity", "1");
+    const [y, m, d] = best.date.split("-");
+    tip.hidden = false;
+    tip.textContent = `${Number(d)}.${Number(m)}.${y.slice(2)}: ${String(best.v).replace(".", ",")}${ui._chartUnit}`;
+    tip.style.left = `${(best.x / geo.W) * r.width}px`;
+    tip.style.top = `${(best.y / geo.H) * r.height}px`;
+  };
+  svg.addEventListener("pointermove", move);
+  svg.addEventListener("pointerdown", move);
+  svg.addEventListener("pointerleave", () => { tip.hidden = true; xh.setAttribute("opacity", "0"); });
+}
+
+/* ---------- Klicks ---------- */
+const actions = {
+  tab: (d) => { ui.area = null; go({ home: "home", history: "history", progress: "progress", more: "more" }[d.tab] || "home"); },
+  go: (d) => { if (d.view === "areas") ui.area = null; go(d.view); },
+  resume: () => go("run"),
+
+  energy: (d) => {
+    ui.energy = Number(d.energy);
+    const sportToday = (state.activities || []).some((a) => a.date === todayKey());
+    ui.suggestions = suggest(state, dayMap, {
+      energy: ui.energy, sportToday: ui.ctx.sport ?? sportToday, away: !!ui.ctx.away, hour: new Date().getHours(),
+    });
+    ui.pick = null;
+    go("suggest");
+  },
+  ctx: (d, b) => {
+    const cur = b.getAttribute("aria-pressed") === "true";
+    ui.ctx[d.key] = !cur;
+    b.setAttribute("aria-pressed", String(!cur));
+  },
+  pick: (d) => { ui.pick = d.id; render(); },
+  area: (d) => { ui.area = d.area || null; go("areas"); },
+  preview: (d) => { ui.previewId = d.id; go("preview"); },
+  "preview-any": (d) => { ui.previewId = d.id; ui.area = null; go("preview"); },
+  start: (d) => startRun(d.kind, d.id),
+
+  adj: (d) => {
+    const w = activeWorkout();
+    const [xi, si] = d.id.split("-").map(Number);
+    const item = w.items[xi];
+    const ex = exerciseById(state, item.exerciseId);
+    const row = item.rows[si];
+    const dir = Number(d.dir);
+    if (d.field === "weight") {
+      row.weight = ex.eq === "free" || !ex.eq ? Math.max(0, Math.round(((Number(row.weight) || 0) + dir * 1.25) * 100) / 100) : nextWeight(ex.eq, row.weight, dir, state.settings);
+    } else {
+      const step = ex.kind === "time" ? 5 : 1;
+      row.reps = Math.max(ex.kind === "time" ? 5 : 1, (Number(row.reps) || 0) + dir * step);
+    }
+    // folgende, noch offene Sätze übernehmen die Änderung
+    for (let i = si + 1; i < item.rows.length; i++) {
+      if (!item.rows[i].done) item.rows[i][d.field] = row[d.field];
+    }
+    syncSets(item);
     persist();
-    rerenderAll();
-    toast("Neuer Plan angelegt âœ…");
-  });
-
-  on("#btnAddExercise", "click", (ev) => {
-    // prevent <details> toggle when clicking button in summary
-    ev.preventDefault();
-    ev.stopPropagation();
-
-    const name = prompt("Neue Ãœbung (Name):");
-    if (!name) return;
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    upsertExercise(state, trimmed);
+    render({ keepScroll: true });
+  },
+  set: (d) => {
+    const w = activeWorkout();
+    const [xi, si] = d.id.split("-").map(Number);
+    const item = w.items[xi];
+    const row = item.rows[si];
+    row.done = !row.done;
+    syncSets(item);
     persist();
-    rerenderAll();
-    toast("Ãœbung angelegt âœ…");
-  });
-
-  on("#plansList", "click", (ev) => {
-    const btn = ev.target.closest("button[data-action]");
-    if (!btn) return;
-    const action = btn.dataset.action;
-    const planId = btn.dataset.id;
-
-    if (action === "delete") {
-      if (!confirm("Plan lÃ¶schen?")) return;
-      const ok = deletePlan(state, planId);
-      if (!ok) return toast("Default-PlÃ¤ne kÃ¶nnen nicht gelÃ¶scht werden.");
-      persist();
-      rerenderAll();
-      return;
-    }
-
-    if (action === "save") {
-      const nameEl = document.querySelector(`input[data-field="name"][data-id="${planId}"]`);
-      const txtEl = document.querySelector(`textarea[data-field="exercises"][data-id="${planId}"]`);
-      updatePlanFromTextarea(state, planId, nameEl?.value, txtEl?.value);
-      persist();
-      rerenderAll();
-      toast("Plan gespeichert âœ…");
-      return;
-    }
-  });
-
-  // Training controls
-  on("#btnStartWorkout", "click", startWorkout);
-  on("#btnNewWorkout", "click", () => {
-    if (state.meta.activeWorkoutId) {
-      toast("Es lÃ¤uft schon ein aktives Workout.");
-      return;
-    }
-    $("#newWorkoutCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-
-  on("#btnEndWorkout", "click", () => {
-    state.meta.activeWorkoutId = null;
+    if (row.done && !w.finished) startTimer();
+    render({ keepScroll: true });
+  },
+  task: (d) => {
+    const item = activeWorkout().items[Number(d.x)];
+    item.done = !item.done;
     persist();
-    rerenderAll();
-    toast("Workout geschlossen âœ…");
-  });
-
-  on("#btnDeleteWorkout", "click", () => {
-    const id = state.meta.activeWorkoutId;
-    if (!id) return;
-    if (!confirm("Workout wirklich lÃ¶schen?")) return;
-    deleteWorkout(state, id);
-    state.meta.activeWorkoutId = null;
+    render({ keepScroll: true });
+  },
+  "add-set": (d) => {
+    const item = activeWorkout().items[Number(d.x)];
+    const last = item.rows[item.rows.length - 1] || { weight: exerciseById(state, item.exerciseId)?.defKg ?? null, reps: 10 };
+    item.rows.push({ weight: last.weight, reps: last.reps, done: false });
     persist();
-    rerenderAll();
-    toast("Workout gelÃ¶scht âœ…");
-  });
-
-  on("#activeWorkoutNotes", "input", (ev) => {
-    const id = state.meta.activeWorkoutId;
-    const w = id ? getWorkout(state, id) : null;
-    if (!w) return;
-    setWorkoutNotes(w, ev.target.value);
-    persistWorkoutNotesSoon();
-    renderDiagnostics();
-  });
-
-  on("#btnAddExerciseToWorkout", "click", () => {
-    const id = state.meta.activeWorkoutId;
-    const w = id ? getWorkout(state, id) : null;
-    if (!w) return;
-    const exId = $("#addExerciseSelect").value;
-    if (!exId) return;
-    ensureExerciseItem(w, exId);
+    render({ keepScroll: true });
+  },
+  "remove-ex": (d) => {
+    const w = activeWorkout();
+    const item = w.items[Number(d.x)];
+    if ((item.sets?.length || item.done) && !window.confirm("Übung mit abgehakten Sätzen entfernen?")) return;
+    w.items.splice(Number(d.x), 1);
     persist();
-    renderActiveWorkout();
-  });
+    render({ keepScroll: true });
+  },
+  "add-ex": (d) => {
+    const w = activeWorkout();
+    if (w.items.some((i) => i.exerciseId === d.id)) return;
+    const item = planItem(state, d.id, w.id);
+    if (item) w.items.push(item);
+    ui.q = "";
+    persist();
+    go("run");
+    $screen.scrollTop = $screen.scrollHeight;
+  },
+  "create-ex": () => {
+    const name = document.getElementById("newExName").value.trim();
+    if (!name) return toast("Bitte gib der Übung einen Namen.");
+    if (state.exercises.some((e) => e.name.toLowerCase() === name.toLowerCase())) return toast("Diese Übung gibt es schon.");
+    const eq = document.getElementById("newExEq").value;
+    let id = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "uebung";
+    let n = 2; const base = id;
+    while (state.exercises.some((e) => e.id === id)) id = `${base}_${n++}`;
+    state.exercises.push({
+      id, name, aliases: [], area: document.getElementById("newExArea").value || guessArea(name), eq,
+      loc: ["lh", "kh2", "kh1"].includes(eq) ? "K" : "U", kind: ["band", "none"].includes(eq) ? "reps" : "weight",
+      defKg: weightSteps(eq, state.settings)[eq === "kh2" || eq === "kh1" ? 1 : 0] || 0, rating: "ok", hint: "",
+    });
+    actions["add-ex"]({ id });
+  },
+  finish: () => finishRun(),
+  cancel: () => cancelRun(),
+  "skip-timer": () => { stopTimer(); render({ keepScroll: true }); },
 
-  on("#workoutItems", "click", (ev) => {
-    const btn = ev.target.closest("button[data-action]");
-    if (!btn) return;
-    const action = btn.dataset.action;
-    const itemCard = ev.target.closest(".card[data-exercise-id]");
-    if (!itemCard) return;
+  rate: (d) => {
+    const ex = exerciseById(state, d.id);
+    if (!ex) return;
+    ex.rating = ex.rating === d.v && ui.view === "exercises" ? null : d.v;
+    persist();
+    if (ui.view === "done") toast(d.v === "no" ? "Wird nicht mehr vorgeschlagen." : "Danke, gespeichert.");
+    render({ keepScroll: true });
+  },
 
-    const exId = itemCard.dataset.exerciseId;
-    const wid = state.meta.activeWorkoutId;
-    const w = wid ? getWorkout(state, wid) : null;
-    if (!w) return;
+  day: (d) => { ui.selDay = d.day; ui.confirmDel = null; ui.view = "history"; render({ keepScroll: true }); },
+  "open-w": (d) => openWorkout(d.id),
+  "del-w": (d) => { ui.confirmDel = { type: "w", id: d.id }; render({ keepScroll: true }); },
+  "del-a": (d) => { ui.confirmDel = { type: "a", id: d.id }; render({ keepScroll: true }); },
+  "cancel-del": () => { ui.confirmDel = null; render({ keepScroll: true }); },
+  "confirm-del": () => {
+    const c = ui.confirmDel;
+    if (c?.type === "w") deleteWorkout(state, c.id);
+    if (c?.type === "a") state.activities = state.activities.filter((a) => a.id !== c.id);
+    ui.confirmDel = null;
+    persist();
+    toast("Gelöscht");
+    render({ keepScroll: true });
+  },
 
-    if (action === "remove-ex") {
-      if (!confirm("Ãœbung aus dem Workout entfernen?")) return;
-      removeExerciseFromWorkout(w, exId);
-      persist();
-      renderActiveWorkout();
-      return;
-    }
+  range: (d) => { ui.bodyRange = d.range; render({ keepScroll: true }); },
+  "chart-ex": (d) => { ui.chartEx = d.id; render({ keepScroll: true }); },
 
-    if (action === "add-set") {
-      const weightEl = itemCard.querySelector('input[data-field="weight"]');
-      const repsEl = itemCard.querySelector('input[data-field="reps"]');
-      const weight = Number(String(weightEl.value).replace(",", "."));
-      const reps = Number(String(repsEl.value).replace(",", "."));
+  sport: () => {
+    ui.sportForm = { kind: "Padel", minutes: 90, intensity: "Mittel", date: todayKey() };
+    ui.sportOpen = true;
+    render({ keepScroll: true });
+  },
+  "sport-opt": (d) => { ui.sportForm[d.grp] = d.grp === "minutes" ? Number(d.v) : d.v; render({ keepScroll: true }); },
+  "sport-close": () => { ui.sportOpen = false; render({ keepScroll: true }); },
+  "sport-save": () => {
+    const date = document.getElementById("sportDate")?.value || todayKey();
+    const f = ui.sportForm;
+    state.activities.push({ id: `a_${date}_${Date.now().toString(36)}`, date, kind: f.kind, minutes: f.minutes, intensity: f.intensity });
+    if (date === todayKey()) ui.ctx.sport = true;
+    ui.sportOpen = false;
+    persist();
+    toast(`${f.kind} eingetragen.${date === todayKey() ? " Heute keine schweren Beinübungen im Vorschlag." : ""}`);
+    render({ keepScroll: true });
+  },
 
-      if (!Number.isFinite(weight) || !Number.isFinite(reps) || reps <= 0) {
-        toast("Bitte gÃ¼ltige kg und reps eingeben.");
-        return;
-      }
-      addSetToWorkout(w, exId, { reps, weight });
-      weightEl.value = "";
-      repsEl.value = "";
-      persist();
-      renderActiveWorkout();
-      return;
-    }
+  setting: (d) => {
+    const s = state.settings;
+    s[d.key] = Math.min(Number(d.max), Math.max(Number(d.min), s[d.key] + Number(d.dir)));
+    if (s.strengthMin > s.weeklyGoal) s.strengthMin = s.weeklyGoal;
+    persist();
+    render({ keepScroll: true });
+  },
+  kb: (d) => {
+    const steps = [4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32];
+    const cur = state.settings.kbWeight;
+    state.settings.kbWeight = Number(d.dir) > 0 ? (steps.find((x) => x > cur) ?? cur) : ([...steps].reverse().find((x) => x < cur) ?? cur);
+    persist();
+    render({ keepScroll: true });
+  },
+  "reminder-toggle": async () => {
+    const r = state.settings.reminder;
+    r.enabled = !r.enabled;
+    persist();
+    render({ keepScroll: true });
+    if (r.enabled) toast(await enableReminder(), { duration: 4000 });
+    else { await disableReminder(); toast("Erinnerung ist aus."); }
+    render({ keepScroll: true });
+  },
 
-    if (action === "del-set") {
-      const idx = Number(btn.dataset.idx);
-      deleteSetFromWorkout(w, exId, idx);
-      persist();
-      renderActiveWorkout();
-      return;
-    }
-  });
-
-  // History actions
-  on("#historyList", "click", (ev) => {
-    const btn = ev.target.closest("button[data-action]");
-    if (!btn) return;
-    const action = btn.dataset.action;
-    const id = btn.dataset.id;
-
-    if (action === "open") {
-      state.meta.activeWorkoutId = id;
-      persist();
-      rerenderAll();
-      setActiveTab("training");
-      return;
-    }
-
-    if (action === "delete") {
-      if (!confirm("Workout lÃ¶schen?")) return;
-      deleteWorkout(state, id);
-      if (state.meta.activeWorkoutId === id) state.meta.activeWorkoutId = null;
-      persist();
-      rerenderAll();
-      toast("Workout gelÃ¶scht âœ…");
-      return;
-    }
-  });
-
-  on("#statsExerciseSelect", "change", (ev) => {
-    selectedStatsExerciseId = ev.target.value || null;
-    renderStats();
-  });
-
-  on("#statsOverview", "click", (ev) => {
-    const card = ev.target.closest("[data-action='select-stats-exercise']");
-    if (!card) return;
-    selectedStatsExerciseId = card.dataset.exerciseId || null;
-    renderStats();
-  });
-
-  on("#btnExport", "click", () => {
+  export: () => {
     const blob = new Blob([exportState(state)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `benchmarkpro_v4_${APP_VERSION}.json`;
+    a.download = `benchmarkpro_${APP_VERSION}_${todayKey()}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    toast("Export erfolgreich âœ…");
-  });
-
-  let pendingImport = null;
-
-function hideImportPreview(){
-  pendingImport = null;
-  const box = $("#importPreview");
-  box.style.display = "none";
-  $("#importKind").textContent = "â€”";
-  $("#importWorkouts").textContent = "â€”";
-  $("#importPlans").textContent = "â€”";
-  $("#importExercises").textContent = "â€”";
-  $("#importNote").textContent = "";
-}
-
-function showImportPreview(preview, validation){
-  const box = $("#importPreview");
-  box.style.display = "block";
-  $("#importKind").textContent = preview.kind;
-  $("#importWorkouts").textContent = String(preview.counts?.workouts ?? 0);
-  $("#importPlans").textContent = String(preview.counts?.plans ?? 0);
-  $("#importExercises").textContent = String(preview.counts?.exercises ?? 0);
-  if (validation && !validation.ok && validation.errors && validation.errors.length) {
-    $("#importNote").textContent = "Validierung fehlgeschlagen:\n" + validation.errors.join("\n");
-    $("#importNote").style.color = "var(--danger)";
-  } else {
-    $("#importNote").style.color = "";
-    $("#importNote").textContent = preview.note || "";
-  }
-}
-
-on("#fileImport", "change", async (ev) => {
-  const file = ev.target.files?.[0];
-  if (!file) return;
-  const text = await file.text();
-  try {
-    const { preview, state: imported, validation } = parseImportFile(text);
-    pendingImport = { state: imported, validation };
-    showImportPreview(preview, validation);
-    toast(validation && !validation.ok ? "Import-Vorschau (ungÃ¼ltige Daten)" : "Import-Vorschau bereit âœ…");
-  } catch (e) {
-    hideImportPreview();
-    toast(String(e?.message || e));
-  } finally {
-    ev.target.value = "";
-  }
-});
-
-on("#btnCancelImport", "click", () => {
-  hideImportPreview();
-  toast("Import abgebrochen");
-});
-
-on("#btnApplyImport", "click", () => {
-  if (!pendingImport) return;
-  if (!pendingImport.validation || !pendingImport.validation.ok) {
-    toast("Import abgebrochen: UngÃ¼ltige Daten. Bitte Validierungsfehler beheben.");
-    return;
-  }
-  try {
-    const backupKey = createBackup(state);
-    toast("Backup angelegt: " + backupKey);
-    state = applyImportedState(pendingImport.state);
-    // Ensure defaults exist (and keep imported custom exercises/plans/workouts)
+    toast("Export erstellt");
+  },
+  "import-cancel": () => { ui.importPreview = null; render({ keepScroll: true }); },
+  "import-apply": () => {
+    const p = ui.importPreview;
+    if (!p || !p.validation?.ok) return;
+    createBackup(state);
+    state = applyImportedState(p.state);
+    const m = runMigrations(state);
+    state = m.state;
     ensureDefaults(state, defaults);
+    ensureLibrary(state);
     state.meta = state.meta || {};
-    state.meta.activeWorkoutId = null; // avoid dangling ids after replace
-    // run migrations for imported v4 state
-    const mig2 = runMigrations(state);
-    state = mig2.state;
-    state.meta.lastMigration = { ran: mig2.ran, from: mig2.from, to: mig2.to, at: new Date().toISOString() };
+    state.meta.activeWorkoutId = null;
+    state.meta.lastMigration = { ran: m.ran, from: m.from, to: m.to, at: new Date().toISOString() };
+    ui.importPreview = null;
     persist();
-    rerenderAll();
-    hideImportPreview();
-    toast("Import angewendet âœ…");
-  } catch (e) {
-    toast(String(e?.message || e));
+    toast("Import angewendet. Das vorherige Backup liegt im Browser.");
+    render({ keepScroll: true });
+  },
+
+  "edit-ex": (d) => { ui.editEx = d.id || null; render({ keepScroll: true }); },
+  "save-ex": (d) => {
+    const ex = exerciseById(state, d.id);
+    const name = document.getElementById("exName").value.trim();
+    if (name) ex.name = name;
+    ex.area = document.getElementById("exArea").value;
+    ex.loc = document.getElementById("exLoc").value;
+    ex.eq = document.getElementById("exEq").value;
+    ex.kind = document.getElementById("exKind").value;
+    ui.editEx = null;
+    persist();
+    toast("Übung gespeichert");
+    render({ keepScroll: true });
+  },
+
+  "plan-new": () => { createPlan(state); persist(); render(); },
+  "plan-del": (d) => {
+    if (!window.confirm("Plan löschen?")) return;
+    deletePlan(state, d.id);
+    persist();
+    render({ keepScroll: true });
+  },
+  "plan-add": (d) => {
+    const sel = document.getElementById(`planAdd_${d.id}`);
+    const p = state.plans.find((x) => x.id === d.id);
+    if (!sel?.value || !p || p.exerciseIds.includes(sel.value)) return;
+    p.exerciseIds.push(sel.value);
+    persist();
+    render({ keepScroll: true });
+  },
+  "plan-rm": (d) => {
+    const p = state.plans.find((x) => x.id === d.id);
+    p.exerciseIds.splice(Number(d.i), 1);
+    persist();
+    render({ keepScroll: true });
+  },
+  "plan-move": (d) => {
+    const p = state.plans.find((x) => x.id === d.id);
+    const i = Number(d.i);
+    if (i <= 0) return;
+    [p.exerciseIds[i - 1], p.exerciseIds[i]] = [p.exerciseIds[i], p.exerciseIds[i - 1]];
+    persist();
+    render({ keepScroll: true });
+  },
+};
+
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-action]");
+  if (!b || b.disabled || b.getAttribute("aria-disabled") === "true") return;
+  const fn = actions[b.dataset.action];
+  if (!fn) return;
+  ev.preventDefault();
+  fn(b.dataset, b);
+});
+
+/* ---------- Eingaben ---------- */
+let notesTimer = null;
+document.addEventListener("input", (ev) => {
+  const t = ev.target;
+  const act = t.dataset?.actionInput;
+  if (act === "search") {
+    ui.q = t.value;
+    const pos = t.selectionStart;
+    render({ keepScroll: true });
+    const n = document.getElementById("q");
+    n.focus();
+    n.setSelectionRange(pos, pos);
+  } else if (act === "notes") {
+    const w = activeWorkout();
+    if (!w) return;
+    w.notes = t.value;
+    clearTimeout(notesTimer);
+    notesTimer = setTimeout(persist, 400);
+  } else if (act === "plan-name") {
+    const p = state.plans.find((x) => x.id === t.dataset.id);
+    if (p) { p.name = t.value || p.name; clearTimeout(notesTimer); notesTimer = setTimeout(persist, 400); }
   }
 });
-}
+document.addEventListener("change", async (ev) => {
+  const t = ev.target;
+  if (t.id === "remTime") {
+    state.settings.reminder.time = t.value || "18:30";
+    persist();
+    render({ keepScroll: true });
+  } else if (t.id === "fileImport") {
+    const file = t.files?.[0];
+    if (!file) return;
+    try {
+      const res = parseImportFile(await file.text());
+      ui.importPreview = res;
+    } catch (e) {
+      ui.importPreview = null;
+      toast(String(e?.message || e), { duration: 4000 });
+    }
+    t.value = "";
+    render({ keepScroll: true });
+  }
+});
 
-function boot(){
-  // persist defaults once
+/* ---------- Start ---------- */
+function boot() {
   persist();
-  rerenderAll();
-  setupTabs();
-  setupActions();
+  if (activeWorkout()) ui.view = "home";
+  render();
   registerServiceWorker();
-  setActiveTab("training");
+  document.getElementById("appVersion").textContent = APP_VERSION;
+  // Tageswechsel oder Rückkehr in die App: neu rechnen
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      dayMap = buildDayMap(state);
+      if (!["run", "picker"].includes(ui.view) && !ui.sportOpen) render({ keepScroll: true });
+    }
+  });
 }
 
 boot();
 
-
-
+// Für Tests und Diagnose
+window.__bmp = { get state() { return state; }, ui, counts };
