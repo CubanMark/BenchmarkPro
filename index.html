@@ -23,6 +23,9 @@
     <main class="screens" id="screen" tabindex="-1"></main>
 
     <div class="sheet-bg" id="overlay" hidden></div>
+    <!-- Außerhalb von #screen: Android meldet beim Zurückkommen aus der Dateiauswahl "sichtbar",
+         die App rendert neu, und ein Feld innerhalb von #screen würde die Auswahl verlieren -->
+    <input id="fileImport" type="file" accept=".json,application/json,*/*" hidden>
 
     <nav class="nav" id="nav" aria-label="Navigation">
       <button data-action="tab" data-tab="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 7.6 10.5" stroke-width="3"/></svg>Heute</button>
