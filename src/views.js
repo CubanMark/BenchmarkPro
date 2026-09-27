@@ -402,7 +402,7 @@ export function moreView({ state, ui }) {
     <div class="srow"><span>Export als Datei</span><button class="btn small-btn" data-action="export">Exportieren</button></div>
     <div class="srow"><span>Import aus Datei</span><label class="btn small-btn" for="fileImport">Importieren</label><input id="fileImport" type="file" accept=".json,application/json,*/*" hidden></div>
     ${ui.importPreview ? importBox(ui.importPreview) : ""}
-    <p class="small muted">Import ersetzt alle Daten. Vorher wird automatisch ein Backup im Browser angelegt.</p>
+    <p class="small muted">Vor jedem Import wird automatisch ein Backup im Browser angelegt.</p>
     <details class="small muted"><summary>Diagnose</summary><div class="kv mt6"><div>App</div><div>${APP_VERSION}</div><div>Datenversion</div><div>${state.dataVersion ?? DATA_VERSION}</div><div>Speicher</div><div>${STORAGE_KEY}</div><div>Gespeichert</div><div>${esc(state.meta?.updatedAt || "–")}</div><div>Einheiten</div><div>${state.workouts.length}</div><div>Sport</div><div>${state.activities.length}</div></div></details></div>
   <p class="small muted center">BenchMark Pro ${APP_VERSION}</p>`;
 }
@@ -412,7 +412,8 @@ function importBox(p) {
   return `<div class="import ${bad ? "bad" : ""}"><b>${bad ? "Datei ist ungültig" : "Import-Vorschau"}</b>
     <div class="kv"><div>Einheiten</div><div>${p.preview.counts?.workouts ?? 0}</div><div>Pläne</div><div>${p.preview.counts?.plans ?? 0}</div><div>Übungen</div><div>${p.preview.counts?.exercises ?? 0}</div></div>
     ${bad ? `<pre class="small">${esc(p.validation.errors.slice(0, 8).join("\n"))}</pre>` : p.preview.note ? `<p class="small muted">${esc(p.preview.note)}</p>` : ""}
-    <div class="btn-row"><button class="btn" data-action="import-cancel">Abbrechen</button>${bad ? "" : '<button class="btn primary-soft" data-action="import-apply">Import anwenden</button>'}</div></div>`;
+    <div class="btn-row"><button class="btn" data-action="import-cancel">Abbrechen</button>${bad ? "" : '<button class="btn primary-soft" data-action="import-merge">Hinzufügen</button>'}</div>
+    ${bad ? "" : '<p class="small muted">„Hinzufügen“ ergänzt nur, was noch fehlt. Deine bisherigen Einträge bleiben.</p><button class="link small" data-action="import-apply">Stattdessen alles ersetzen</button>'}</div>`;
 }
 
 function calendarLink(time) {

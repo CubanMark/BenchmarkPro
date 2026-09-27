@@ -485,12 +485,41 @@ function convertFlatTrainingsToV4(parsed) {
       id: `w_${ymd}_${String(idx + 1).padStart(3, "0")}`,
       date: ymd,
       planId,
-      notes: String(first?.notes || "").trim(),
+      notes: [...new Set(entries.map((e) => String(e?.notes || "").trim()).filter(Boolean))].join(" "),
       items,
     });
   });
 
+  // Pläne, die nur in den Trainings vorkommen, aus deren Übungen anlegen
+  for (const w of state.workouts) {
+    if (!w.planId || state.plans.some((p) => p.id === w.planId)) continue;
+    const key = String(trainings.find((t) => planKeyToId(t?.workout) === w.planId)?.workout || w.planId);
+    const exerciseIds = [];
+    for (const x of state.workouts.filter((y) => y.planId === w.planId)) {
+      for (const it of x.items) if (!exerciseIds.includes(it.exerciseId)) exerciseIds.push(it.exerciseId);
+    }
+    state.plans.push({ id: w.planId, name: key.length <= 2 ? `Workout ${key.toUpperCase()}` : key, exerciseIds });
+  }
+
   return state;
+}
+
+function flattenLegacyArray(arr) {
+  const out = [];
+  for (const entry of arr) {
+    if (!entry || typeof entry !== "object") continue;
+    if (Array.isArray(entry.exercises)) {
+      entry.exercises.forEach((ex, i) => {
+        if (!ex || !Array.isArray(ex.repsPerSet)) return;
+        out.push({ date: entry.date, workout: entry.workout ?? null, exercise: ex.exerciseName ?? ex.exercise, weight: ex.weight, repsPerSet: ex.repsPerSet, notes: i === 0 ? entry.notes || "" : "" });
+      });
+    } else if (Array.isArray(entry.repsPerSet)) {
+      out.push(entry);
+    }
+  }
+  // Die alte App hat Körpergewicht als 1 kg gespeichert
+  for (const t of out) if (Number(t.weight) === 1) t.weight = 0;
+  return out;
 }
 
 function isFlatTrainingsFormat(parsed) {
@@ -514,6 +543,13 @@ export function parseImportFile(fileText) {
     const preview = previewFromState(state);
     const validation = validateStateV4(state);
     return { kind: "v4", preview, state, validation };
+  }
+
+  // Altes Backup als reines Array: Einträge pro Übung und/oder pro Tag mit exercises[]
+  if (Array.isArray(parsed)) {
+    const trainings = flattenLegacyArray(parsed);
+    if (!trainings.length) throw new Error("Import abgelehnt: In der Datei wurden keine Trainings gefunden.");
+    parsed = { trainings };
   }
 
   // Flat format: trainings[] + planDefinitions{}
