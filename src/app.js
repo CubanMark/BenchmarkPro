@@ -208,6 +208,58 @@ function wireChart() {
 }
 
 /* ---------- Klicks ---------- */
+/** Fügt Daten aus einem Import hinzu, ohne Vorhandenes zu ändern. Liefert die Zahl neuer Einheiten. */
+function mergeState(target, src) {
+  const lower = (x) => String(x || "").trim().toLowerCase();
+  const namesOf = (e) => [e.name, ...(e.aliases || [])].map(lower).filter(Boolean);
+  const idMap = new Map();
+  for (const ex of src.exercises) {
+    const names = namesOf(ex);
+    let hit = target.exercises.find((e) => e.id === ex.id)
+      || target.exercises.find((e) => namesOf(e).some((n) => names.includes(n)));
+    if (!hit) {
+      hit = structuredClone(ex);
+      let id = ex.id, i = 2;
+      while (target.exercises.some((e) => e.id === id)) id = `${ex.id}_${i++}`;
+      hit.id = id;
+      target.exercises.push(hit);
+    }
+    idMap.set(ex.id, hit.id);
+  }
+  const planMap = new Map();
+  for (const pl of src.plans || []) {
+    const ids = pl.exerciseIds.map((id) => idMap.get(id) || id);
+    let hit = target.plans.find((x) => lower(x.name) === lower(pl.name));
+    if (!hit) {
+      hit = { ...structuredClone(pl), exerciseIds: ids };
+      let id = pl.id, i = 2;
+      while (target.plans.some((x) => x.id === id)) id = `${pl.id}_${i++}`;
+      hit.id = id;
+      target.plans.push(hit);
+    }
+    planMap.set(pl.id, hit.id);
+  }
+  const sig = (w) => `${w.date}|${(w.items || []).map((i) => `${i.exerciseId}:${(i.sets || []).map((st) => `${st.weight}x${st.reps}`).join(",")}`).sort().join(";")}`;
+  const have = new Set(target.workouts.map(sig));
+  let added = 0;
+  for (const w of src.workouts) {
+    const copy = structuredClone(w);
+    copy.items = (copy.items || []).map((i) => ({ ...i, exerciseId: idMap.get(i.exerciseId) || i.exerciseId }));
+    copy.planId = copy.planId ? planMap.get(copy.planId) || null : null;
+    if (have.has(sig(copy))) continue;
+    let id = copy.id, i = 2;
+    while (target.workouts.some((x) => x.id === id)) id = `${w.id}_${i++}`;
+    copy.id = id;
+    target.workouts.push(copy);
+    have.add(sig(copy));
+    added++;
+  }
+  const actIds = new Set((target.activities || []).map((a) => a.id));
+  for (const a of src.activities || []) if (!actIds.has(a.id)) target.activities.push(structuredClone(a));
+  target.workouts.sort((a, b) => a.date.localeCompare(b.date));
+  return added;
+}
+
 const actions = {
   tab: (d) => { ui.area = null; go({ home: "home", history: "history", progress: "progress", more: "more" }[d.tab] || "home"); },
   go: (d) => { if (d.view === "areas") ui.area = null; go(d.view); },
@@ -410,6 +462,21 @@ const actions = {
     ui.importPreview = null;
     persist();
     toast("Import angewendet. Das vorherige Backup liegt im Browser.");
+    render({ keepScroll: true });
+  },
+
+  "import-merge": () => {
+    const p = ui.importPreview;
+    if (!p || !p.validation?.ok) return;
+    createBackup(state);
+    let imp = applyImportedState(structuredClone(p.state));
+    imp = runMigrations(imp).state;
+    ensureLibrary(imp);
+    const added = mergeState(state, imp);
+    ensureLibrary(state);
+    ui.importPreview = null;
+    persist();
+    toast(added ? `${added} ${added === 1 ? "Einheit" : "Einheiten"} hinzugefügt. Deine bisherigen Daten sind unverändert.` : "Nichts Neues gefunden, alles war schon da.");
     render({ keepScroll: true });
   },
 
