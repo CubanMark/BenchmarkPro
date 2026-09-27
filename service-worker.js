@@ -1,4 +1,4 @@
-const CACHE_NAME = "benchmark-pro-cache-v500";
+const CACHE_NAME = "benchmark-pro-cache-v501";
 const META_CACHE = "benchmark-pro-meta";
 const CORE = [
   "./",

@@ -91,7 +91,7 @@ export function ensureLibrary(state) {
     if (ex.area === undefined) ex.area = guessArea(ex.name);
     if (ex.eq === undefined) ex.eq = "free";
     if (ex.loc === undefined) ex.loc = "K";
-    if (ex.kind === undefined) ex.kind = "weight";
+    if (ex.kind === undefined) ex.kind = used.has(ex.id) && !weighted.has(ex.id) ? "reps" : "weight";
     if (ex.defKg === undefined) ex.defKg = 0;
     if (!("rating" in ex)) ex.rating = "ok";
   }
