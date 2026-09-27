@@ -1,4 +1,4 @@
-const CACHE_NAME = "benchmark-pro-cache-v501";
+const CACHE_NAME = "benchmark-pro-cache-v502";
 const META_CACHE = "benchmark-pro-meta";
 const CORE = [
   "./",
@@ -30,7 +30,8 @@ const CORE = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(CORE))
+      // cache: "reload" umgeht den HTTP-Cache, sonst landen alte Dateien im neuen Cache
+      .then((cache) => cache.addAll(CORE.map((url) => new Request(url, { cache: "reload" }))))
       .then(() => self.skipWaiting())
   );
 });

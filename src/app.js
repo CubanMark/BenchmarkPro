@@ -28,7 +28,7 @@ const ui = {
   tab: "home", view: "home", ctx: {}, energy: null, suggestions: [], pick: null,
   area: null, previewId: null, q: "", timer: null, selDay: todayKey(), bodyRange: "w", chartEx: null,
   doneId: null, gain: 0, records: [], editEx: null, importPreview: null, sportOpen: false, sportForm: null,
-  confirmDel: null, reminderDue: false,
+  confirmDel: null, reminderDue: false, importResult: null,
 };
 
 let dayMap = buildDayMap(state);
@@ -450,6 +450,10 @@ const actions = {
   "import-apply": () => {
     const p = ui.importPreview;
     if (!p || !p.validation?.ok) return;
+    if (!(p.state.workouts || []).length && state.workouts.length) {
+      toast("Die Datei enthält keine Einheiten. Ersetzen würde alles löschen, deshalb wurde nichts geändert.", { duration: 5000 });
+      return;
+    }
     createBackup(state);
     state = applyImportedState(p.state);
     const m = runMigrations(state);
@@ -472,12 +476,25 @@ const actions = {
     let imp = applyImportedState(structuredClone(p.state));
     imp = runMigrations(imp).state;
     ensureLibrary(imp);
+    const before = state.workouts.length;
     const added = mergeState(state, imp);
     ensureLibrary(state);
+    ui.importResult = { text: `${p.fileName || "Datei"}: ${imp.workouts.length} Einheiten in der Datei, ${added} neu hinzugefügt. Vorher ${before}, jetzt ${state.workouts.length} Einheiten.` };
     ui.importPreview = null;
     persist();
     toast(added ? `${added} ${added === 1 ? "Einheit" : "Einheiten"} hinzugefügt. Deine bisherigen Daten sind unverändert.` : "Nichts Neues gefunden, alles war schon da.");
     render({ keepScroll: true });
+  },
+
+  "force-update": async () => {
+    toast("App wird neu geladen …");
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== "benchmark-pro-meta").map((k) => caches.delete(k)));
+      const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+      await Promise.all(regs.map((r) => r.unregister()));
+    } catch (e) { console.warn(e); }
+    location.reload();
   },
 
   "edit-ex": (d) => { ui.editEx = d.id || null; render({ keepScroll: true }); },
@@ -569,9 +586,13 @@ document.addEventListener("change", async (ev) => {
     if (!file) return;
     try {
       const res = parseImportFile(await file.text());
+      res.fileName = file.name;
+      res.fileSize = file.size;
       ui.importPreview = res;
+      ui.importResult = null;
     } catch (e) {
       ui.importPreview = null;
+      ui.importResult = { error: true, text: `${file.name}: ${String(e?.message || e)}` };
       toast(String(e?.message || e), { duration: 4000 });
     }
     t.value = "";
