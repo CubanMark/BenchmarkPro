@@ -400,7 +400,7 @@ export function moreView({ state, ui }) {
     <button class="srow as-btn" data-action="go" data-view="snacks"><span>Snacks</span><span class="muted">${SNACKS.length} ›</span></button></div>
   <div class="card settings"><h3>Daten</h3>
     <div class="srow"><span>Export als Datei</span><button class="btn small-btn" data-action="export">Exportieren</button></div>
-    <div class="srow"><span>Import aus Datei</span><label class="btn small-btn" for="fileImport">Importieren</label><input id="fileImport" type="file" accept=".json,application/json,*/*" hidden></div>
+    <div class="srow"><span>Import aus Datei</span><label class="btn small-btn" for="fileImport">Importieren</label></div>
     ${ui.importPreview ? importBox(ui.importPreview) : ""}
     ${ui.importResult ? `<div class="import ${ui.importResult.error ? "bad" : ""}"><b>${ui.importResult.error ? "Import fehlgeschlagen" : "Import abgeschlossen"}</b><p class="small">${esc(ui.importResult.text)}</p></div>` : ""}
     <p class="small muted">Vor jedem Import wird automatisch ein Backup im Browser angelegt.</p>
