@@ -47,6 +47,30 @@ export function runMigrations(state) {
  * Gleicht Übungen und Einstellungen mit der kuratierten Bibliothek ab. Idempotent, läuft bei jedem Start.
  * Überschreibt keine Nutzeränderungen: fehlende Felder werden ergänzt, fehlende Bibliotheksübungen angelegt.
  */
+/**
+ * Eigene Übungen, die nur unter einem Zweitnamen einer Bibliotheksübung existieren (z.B. "Bizepscurls" neben
+ * "KH-Curls"), werden in die Bibliotheksübung überführt, damit Verlauf und Kraftkurve nicht zerfallen.
+ */
+function mergeDuplicates(state, lower) {
+  const libIds = new Set(LIBRARY.map((l) => l.id));
+  const byName = new Map();
+  for (const lib of LIBRARY) {
+    if (!state.exercises.some((e) => e.id === lib.id)) continue;
+    for (const n of [lib.name, ...(lib.aliases || [])]) byName.set(lower(n), lib.id);
+  }
+  for (const dup of [...state.exercises]) {
+    if (libIds.has(dup.id)) continue;
+    const target = byName.get(lower(dup.name));
+    if (!target || target === dup.id) continue;
+    const t = state.exercises.find((e) => e.id === target);
+    for (const w of state.workouts || []) for (const it of w.items || []) if (it.exerciseId === dup.id) it.exerciseId = target;
+    for (const p of state.plans || []) p.exerciseIds = [...new Set(p.exerciseIds.map((id) => (id === dup.id ? target : id)))];
+    if (t.rating == null && dup.rating != null) t.rating = dup.rating;
+    for (const a of [dup.name, ...(dup.aliases || [])]) if (!t.aliases.map(lower).includes(lower(a)) && lower(a) !== lower(t.name)) t.aliases.push(a);
+    state.exercises = state.exercises.filter((e) => e !== dup);
+  }
+}
+
 const OLD_HINTS = { hipflex: "Kniender Ausfallschritt, Hüfte nach vorne schieben." };
 
 export function ensureLibrary(state) {
@@ -88,7 +112,12 @@ export function ensureLibrary(state) {
       if (ex[key] === undefined) ex[key] = lib[key];
     }
     if (!("rating" in ex)) ex.rating = lib.rating ?? (used.has(ex.id) ? "ok" : null);
+    // Neue Zweitnamen aus der Bibliothek auch bei bestehenden Übungen ergänzen
+    ex.aliases = Array.isArray(ex.aliases) ? ex.aliases : [];
+    for (const a of lib.aliases || []) if (!ex.aliases.map(lower).includes(lower(a))) ex.aliases.push(a);
   }
+
+  mergeDuplicates(state, lower);
 
   for (const ex of state.exercises) {
     if (!Array.isArray(ex.aliases)) ex.aliases = [];
