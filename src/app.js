@@ -86,7 +86,8 @@ function startRun(kind, id) {
     return;
   }
   const source = kind === "new" ? { kind, exerciseId: id } : { kind, id };
-  const w = buildRun(state, source, { energy: ui.energy });
+  const place = ui.energy ? ui.ctx.place || state.meta.lastPlace || "keller" : "keller";
+  const w = buildRun(state, source, { energy: ui.energy, place });
   state.workouts.push(w);
   state.meta.activeWorkoutId = w.id;
   stopTimer();
@@ -489,7 +490,7 @@ const actions = {
       try {
         await navigator.share({ files: [file], title: "BenchMark Pro Backup" });
         markBackup();
-        toast("Backup gesichert");
+        toast("Backup übergeben. Prüfe in Drive, ob die Datei angekommen ist.", { duration: 4000 });
       } catch (e) {
         if (e?.name !== "AbortError") toast("Teilen hat nicht geklappt. Nutze „Als Datei herunterladen“.", { duration: 4000 });
       }
@@ -507,7 +508,7 @@ const actions = {
     a.click();
     a.remove();
     markBackup();
-    toast("Backup heruntergeladen");
+    toast("Download gestartet. Prüfe, ob die Datei gespeichert wurde.", { duration: 4000 });
     render({ keepScroll: true });
   },
   "import-cancel": () => { ui.importPreview = null; render({ keepScroll: true }); },

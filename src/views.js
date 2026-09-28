@@ -440,7 +440,7 @@ export function moreView({ state, ui }) {
     <button class="srow as-btn" data-action="go" data-view="plans"><span>Workout-Pläne</span><span class="muted">${state.plans.length} ›</span></button>
     <button class="srow as-btn" data-action="go" data-view="snacks"><span>Snacks</span><span class="muted">${SNACKS.length} ›</span></button></div>
   <div class="card settings"><h3>Daten</h3>
-    <div class="srow"><span>Backup<br><span class="small muted">${lastBk ? `Zuletzt ${esc(fmtDate(state.meta.lastBackupDay || lastBk.slice(0, 10)))}` : "Noch keins gesichert"}</span></span><button class="btn small-btn" data-action="backup">Sichern</button></div>
+    <div class="srow"><span>Backup<br><span class="small muted">${lastBk ? `Zuletzt gesendet ${esc(fmtDate(state.meta.lastBackupDay || lastBk.slice(0, 10)))}` : "Noch keins gesichert"}</span></span><button class="btn small-btn" data-action="backup">Sichern</button></div>
     <p class="small muted">„Sichern“ öffnet das Teilen-Menü. Wähle dort Google Drive, dann liegt die Sicherung außerhalb des Handys.</p>
     <button class="link small" data-action="export">Stattdessen als Datei herunterladen</button>
     <div class="srow"><span>Import aus Datei</span><label class="btn small-btn" for="fileImport">Importieren</label></div>
