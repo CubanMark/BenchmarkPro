@@ -361,7 +361,7 @@ function recentList(state) {
 export function progressView({ state, ui }) {
   const today = todayKey();
   const four = ui.bodyRange === "4";
-  const from = four ? addDays(mondayOf(today), -21) : mondayOf(today);
+  const from = addDays(today, four ? -27 : -6);
   const cnt = areaCounts(state, from, today);
   const mult = four ? 4 : 1;
   const frac = (id) => { const a = AREAS.find((x) => x.id === id); return a?.target ? (cnt[id] || 0) / (a.target * mult) : (cnt[id] ? 0.5 : 0); };
@@ -399,7 +399,7 @@ export function progressView({ state, ui }) {
 
   return `<div class="card stack">
     <h3>Trainierte Muskeln</h3>
-    <div class="seg"><button data-action="range" data-range="w" aria-pressed="${!four}">Diese Woche</button><button data-action="range" data-range="4" aria-pressed="${four}">4 Wochen</button></div>
+    <div class="seg"><button data-action="range" data-range="w" aria-pressed="${!four}">7 Tage</button><button data-action="range" data-range="4" aria-pressed="${four}">28 Tage</button></div>
     <div class="bodies"><div>${bodySvg(false, frac, names)}<div class="lbl">Vorne</div></div><div>${bodySvg(true, frac, names)}<div class="lbl">Hinten</div></div></div>
     <div class="hm-legend center"><span>Sätze im Verhältnis zum Ziel</span><span class="row tight"><span class="sw" style="background:var(--h0)"></span><span class="sw" style="background:var(--h1)"></span><span class="sw" style="background:var(--h2)"></span><span class="sw" style="background:var(--h3)"></span><span class="sw" style="background:var(--h4)"></span></span><span>0 bis 100 %</span></div>
     <div class="arealist">${AREAS.filter((a) => a.id !== "mobility").map((a) => {
