@@ -4,7 +4,7 @@
  */
 import { AREAS, LOCATIONS, SPORTS, SNACKS, areaName, weightSteps } from "./library.js";
 import {
-  todayKey, mondayOf, addDays, isoWeek, weekSummary, areaCounts, daysSinceArea, exerciseById, exerciseName,
+  todayKey, mondayOf, addDays, isoWeek, weekSummary, last7Summary, areaCounts, daysSinceArea, exerciseById, exerciseName,
   exerciseSessions, suggest, snackById, fmtKg, counts, rawPoints, parseKey, WORKOUT_MIN_SETS,
 } from "./engine.js";
 import { ring, paiRing, paiWeekBars, heatmap, hmLegend, bodySvg, lineChart, esc, fmtDate, WD } from "./charts.js";
@@ -27,7 +27,7 @@ function back(action, label = "Zurück", extra = "") {
 /* ================= Heute ================= */
 export function home({ state, ui, dayMap }) {
   const s = state.settings;
-  const w = weekSummary(state, dayMap);
+  const w = last7Summary(state, dayMap);
   const need = Math.max(0, s.weeklyGoal - w.total);
   const needK = Math.max(0, s.strengthMin - w.k);
   const today = todayKey();
@@ -47,7 +47,7 @@ export function home({ state, ui, dayMap }) {
   strip += "</div>";
 
   let status;
-  if (w.goalMet) status = "<b>Wochenziel geschafft.</b>";
+  if (w.goalMet) status = "<b>Ziel geschafft.</b>";
   else if (need === 0 && needK > 0) status = `Punkte reichen, es fehlen noch <b>${needK}</b> Kraftpunkte.`;
   else if (needK >= need) status = `Noch <b>${needK}</b> ${needK === 1 ? "Kraftpunkt" : "Kraftpunkte"}.`;
   else status = `Noch <b>${need}</b> ${need === 1 ? "Punkt" : "Punkte"}${needK ? `, davon ${needK} Kraft` : ""}.`;
@@ -63,7 +63,7 @@ export function home({ state, ui, dayMap }) {
   ${reminder}
   ${backup ? `<div class="banner"><span>${esc(backup)}</span><button class="link" data-action="backup">Jetzt sichern</button></div>` : ""}
   <div class="card">
-    <div class="row between"><span class="eyebrow">Diese Woche · KW ${isoWeek(today)}</span><span class="small muted">${esc(fmtDate(today))}</span></div>
+    <div class="row between"><span class="eyebrow">Letzte 7 Tage</span><span class="small muted">${esc(fmtDate(today))}</span></div>
     <div class="tworings">
       <div>${ring(w.k, w.m, s.weeklyGoal, 118)}<div class="cap"><span><span class="dot k"></span> Kraft ${w.k}</span><span><span class="dot m"></span> Mobility ${w.m}</span></div><div class="st">${status}</div></div>
       <div>${paiRing(w.pai, paiGoal)}<div class="cap"><span><span class="dot s"></span> Bewegung</span></div><div class="st">${paiStatus}</div></div>
@@ -153,7 +153,7 @@ export function suggestView({ state, ui, dayMap }) {
 /* ================= Selbst aussuchen ================= */
 export function areasView({ state, ui }) {
   const today = todayKey();
-  const cnt = areaCounts(state, mondayOf(today), today);
+  const cnt = areaCounts(state, addDays(today, -6), today);
   if (ui.area) {
     const snacks = SNACKS.filter((s) => s.area === ui.area);
     return `${back("area", "Alle Bereiche", 'data-area=""')}
@@ -167,7 +167,7 @@ export function areasView({ state, ui }) {
   <h2>Was willst du trainieren?</h2>
   <div class="areas">${AREAS.map((a) => {
     const c = cnt[a.id] || 0;
-    const sub = a.id === "mobility" ? `${c} ${c === 1 ? "Einheit" : "Einheiten"} diese Woche` : a.target ? `${c} von ${a.target} Sätzen diese Woche` : `${c} Sätze diese Woche`;
+    const sub = a.id === "mobility" ? `${c} ${c === 1 ? "Einheit" : "Einheiten"} in 7 Tagen` : a.target ? `${c} von ${a.target} Sätzen in 7 Tagen` : `${c} Sätze in 7 Tagen`;
     return `<button data-action="area" data-area="${a.id}"><h3>${a.name}</h3><small>${sub}</small></button>`;
   }).join("")}</div>`;
 }
@@ -177,14 +177,14 @@ export function previewView({ state, ui }) {
   if (!s) return areasView({ state, ui });
   const since = daysSinceArea(state, s.area);
   const today = todayKey();
-  const cnt = areaCounts(state, mondayOf(today), today)[s.area] || 0;
+  const cnt = areaCounts(state, addDays(today, -6), today)[s.area] || 0;
   const area = AREAS.find((a) => a.id === s.area);
   const c = {
     kind: "snack", id: s.id, title: s.name, area: s.area, type: s.type, minutes: s.minutes, loc: s.loc,
     points: s.type === "mobility" ? state.settings.points.mobility : state.settings.points.snack,
     exercises: s.items.map((i) => exerciseName(state, i.exerciseId)),
     reasons: [
-      [area.name, s.area === "mobility" ? `${cnt} Einheiten diese Woche` : area.target ? `${cnt} von ${area.target} Sätzen diese Woche` : `${cnt} Sätze diese Woche`],
+      [area.name, s.area === "mobility" ? `${cnt} Einheiten in 7 Tagen` : area.target ? `${cnt} von ${area.target} Sätzen in 7 Tagen` : `${cnt} Sätze in 7 Tagen`],
       ["Zuletzt", since == null ? "noch nie trainiert" : since === 0 ? "heute schon trainiert" : `vor ${since} ${since === 1 ? "Tag" : "Tagen"} trainiert`],
     ],
   };
@@ -263,7 +263,7 @@ export function pickerView({ state, ui }) {
   const inW = new Set((w?.items || []).map((i) => i.exerciseId));
   const q = (ui.q || "").toLowerCase().trim();
   const today = todayKey();
-  const cnt = areaCounts(state, mondayOf(today), today);
+  const cnt = areaCounts(state, addDays(today, -6), today);
   const low = new Set(AREAS.filter((a) => a.target && (cnt[a.id] || 0) / a.target < 0.5).map((a) => a.id));
   const list = state.exercises.filter((e) => (q ? (e.name.toLowerCase().includes(q) || (e.aliases || []).some((a) => a.toLowerCase().includes(q)) || areaName(e.area).toLowerCase().includes(q)) : e.rating !== "no"));
   const groups = [...AREAS.map((a) => a.id), "sonstiges"].map((id) => [id, list.filter((e) => (e.area || "sonstiges") === id)]).filter(([, l]) => l.length);
@@ -276,7 +276,7 @@ export function pickerView({ state, ui }) {
   };
   return `${back("go", "Zurück zum Training", 'data-view="run"')}<h2>Übung hinzufügen</h2>
   <input id="q" type="search" class="input" placeholder="Suchen, z. B. Rudern" value="${esc(ui.q || "")}" autocomplete="off" data-action-input="search">
-  ${groups.map(([a, ls]) => `<div class="stack gap6"><div class="row between"><span class="eyebrow">${esc(areaName(a))}</span>${low.has(a) ? '<span class="chip warn">diese Woche wenig</span>' : ""}</div>
+  ${groups.map(([a, ls]) => `<div class="stack gap6"><div class="row between"><span class="eyebrow">${esc(areaName(a))}</span>${low.has(a) ? '<span class="chip warn">zuletzt wenig</span>' : ""}</div>
     ${ls.sort((x, y) => (y.rating === "love") - (x.rating === "love") || x.name.localeCompare(y.name, "de")).map((e) => `<button class="alt" data-action="add-ex" data-id="${esc(e.id)}" ${inW.has(e.id) ? "disabled" : ""}><span><h3>${esc(e.name)}</h3><span class="small muted">${esc(lastTxt(e))} · ${esc(LOCATIONS[e.loc] || "")}</span></span><span class="chip${e.rating == null ? " new" : ""}">${inW.has(e.id) ? "drin" : e.rating == null ? "neu" : "+"}</span></button>`).join("")}</div>`).join("") || '<p class="muted">Keine Übung gefunden.</p>'}
   <div class="card stack gap8"><h3>Neue Übung anlegen</h3>
     <input id="newExName" class="input" placeholder="Name der Übung" value="${esc(ui.q || "")}">
@@ -290,14 +290,14 @@ export function doneView({ state, ui, dayMap }) {
   const w = state.workouts.find((x) => x.id === ui.doneId);
   if (!w) return home(arguments[0]);
   const s = state.settings;
-  const wk = weekSummary(state, dayMap);
+  const wk = last7Summary(state, dayMap);
   const g = ui.gain ?? 0;
   const tryEx = w.tryExerciseId ? exerciseById(state, w.tryExerciseId) : null;
   return `<div class="card stack center gap6 pad-l">
     <span class="eyebrow">${esc(w.name || "Einheit")} erledigt</span>
     <div class="bignum pop">+${g}</div><div class="muted">${g === 1 ? "Punkt" : "Punkte"} für heute${g === 0 && ui.capped ? " (Tageslimit erreicht)" : ""}</div>
     <div class="mt8">${ring(wk.k, wk.m, s.weeklyGoal, 150)}</div>
-    <div class="small">${wk.goalMet ? "<b>Wochenziel geschafft.</b>" : `Noch ${Math.max(0, s.weeklyGoal - wk.total)} bis zum Wochenziel.`}</div>
+    <div class="small">${wk.goalMet ? "<b>Ziel der letzten 7 Tage geschafft.</b>" : `Noch ${Math.max(0, s.weeklyGoal - wk.total)} bis zum Ziel der letzten 7 Tage.`}</div>
   </div>
   ${(ui.records || []).map((r) => `<div class="pr"><span class="medal">REKORD</span><span>${esc(r.text)}</span></div>`).join("")}
   ${tryEx && tryEx.rating == null ? `<div class="card stack gap8"><h3>Wie fandest du ${esc(tryEx.name)}?</h3><div class="rate">${[["love", "Mag ich"], ["ok", "Okay"], ["no", "Nein"]].map(([v, l]) => `<button data-action="rate" data-id="${esc(tryEx.id)}" data-v="${v}">${l}</button>`).join("")}</div></div>` : ""}

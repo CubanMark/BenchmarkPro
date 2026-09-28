@@ -117,6 +117,11 @@ export function weekSummary(state, dayMap, monday = mondayOf(todayKey())) {
   return { k, m, total, pai, days, goalMet: total >= s.weeklyGoal && k >= s.strengthMin };
 }
 
+/** Die letzten 7 Tage bis heute (rollierend, für Ringe und Vorschläge). */
+export function last7Summary(state, dayMap, today = todayKey()) {
+  return weekSummary(state, dayMap, addDays(today, -6));
+}
+
 /** Wie viele Wochen in Folge wurde das Ziel erreicht (aktuelle Woche zählt, sobald erreicht). */
 export function goalStreak(state, dayMap) {
   let monday = mondayOf(todayKey());
@@ -369,13 +374,12 @@ function snackUsable(state, snack) {
 /**
  * Liefert sortierte Vorschläge: { kind, id, exerciseId?, title, area, type, minutes, points, reasons, score }.
  * ctx: { energy: 1|2|3, sportToday: bool, sportYesterday: bool, place: "keller"|"home"|"away", hour }
- * Die Tagesform entscheidet zuerst über Art und Länge, danach zählt, was diese Woche fehlt.
+ * Die Tagesform entscheidet zuerst über Art und Länge, danach zählt, was in den letzten 7 Tagen fehlt.
  */
 export function suggest(state, dayMap, ctx) {
   const today = todayKey();
-  const monday = mondayOf(today);
-  const week = weekSummary(state, dayMap, monday);
-  const counts7 = areaCounts(state, monday, today);
+  const week = last7Summary(state, dayMap, today);
+  const counts7 = areaCounts(state, addDays(today, -6), today);
   const todayDay = dayMap.get(today);
   const trainedToday = new Set();
   for (const w of todayDay?.workouts || []) {
@@ -401,7 +405,7 @@ export function suggest(state, dayMap, ctx) {
 
     if (snack.type === "mobility") {
       score = 0.3;
-      if (done < area.target) { score += 0.3; reasons.push(["Mobility", `${done} von ${area.target} Einheiten diese Woche`]); }
+      if (done < area.target) { score += 0.3; reasons.push(["Mobility", `${done} von ${area.target} Einheiten in 7 Tagen`]); }
       if (ctx.energy === 1) { score += 1.6; reasons.push(["Tagesform", energyText]); }
       if (ctx.energy === 2) score -= 0.3;
       if (ctx.energy === 3) score -= 0.6;
@@ -413,7 +417,7 @@ export function suggest(state, dayMap, ctx) {
     } else {
       const deficit = area.target ? Math.max(0, 1 - done / area.target) : 0.15;
       score = deficit;
-      if (area.target) reasons.push([area.name, `${done} von ${area.target} Sätzen diese Woche`]);
+      if (area.target) reasons.push([area.name, `${done} von ${area.target} Sätzen in 7 Tagen`]);
       if (since == null) { score += 0.3; reasons.push(["Zuletzt", "noch nie trainiert"]); }
       else { score += Math.min(since, 14) / 14 * 0.6; reasons.push(["Zuletzt", since === 0 ? "heute schon trainiert" : `vor ${since} ${since === 1 ? "Tag" : "Tagen"} trainiert`]); }
       if (week.k < s.strengthMin) score += 0.2;
@@ -478,7 +482,7 @@ function tryNewCandidate(state, counts7, ctx) {
     kind: "new", id: `new_${ex.id}`, exerciseId: ex.id, title: `Neu: ${ex.name}`, area: ex.area,
     type: ex.kind === "task" ? "mobility" : "strength", minutes: ex.kind === "task" ? 4 : 6, loc: ex.loc,
     points: ex.kind === "task" ? state.settings.points.mobility : state.settings.points.snack,
-    reasons: [["Neu ausprobieren", "Diese Übung kennst du noch nicht. Danach sagst du, ob sie bleibt."], ...(ex.hint ? [["So geht's", ex.hint]] : []), [areaName(ex.area), "Bereich, in dem diese Woche noch etwas fehlt"]],
+    reasons: [["Neu ausprobieren", "Diese Übung kennst du noch nicht. Danach sagst du, ob sie bleibt."], ...(ex.hint ? [["So geht's", ex.hint]] : []), [areaName(ex.area), "Bereich, in dem in den letzten 7 Tagen etwas fehlt"]],
     score: 0, isNew: true, exercises: [ex.name],
   };
 }
