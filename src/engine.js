@@ -491,3 +491,65 @@ function tryNewCandidate(state, counts7, ctx) {
     score: 0, isNew: true, exercises: [ex.name],
   };
 }
+
+/* ---------- Kompass ---------- */
+export const STRENGTH_DAY_SETS = 6;
+
+function strengthSets(state, w) {
+  if (w.type === "mobility") return 0;
+  let n = 0;
+  for (const i of w.items || []) {
+    const ex = exerciseById(state, i.exerciseId);
+    if (ex && ex.kind !== "task" && ex.area !== "mobility") n += i.sets?.length || 0;
+  }
+  return n;
+}
+const isFullWorkout = (w) => w.type !== "snack" && w.type !== "mobility"
+  && (w.items || []).reduce((n, i) => n + (i.sets?.length || 0), 0) >= WORKOUT_MIN_SETS;
+
+/**
+ * Stand der letzten 7 Tage plus die heute passende Einheit.
+ * Ziel: 2 Krafttage (je mindestens 6 Kraftsätze), davon 1 volles Workout.
+ * Fehlt das Workout seit 4 Tagen oder länger, kommt zuerst ein Workout, der Snack als Alternative.
+ */
+export function compass(state, dayMap, { place = "keller", sportToday = false, sportYesterday = false } = {}) {
+  const today = todayKey();
+  const from = addDays(today, -6);
+  let strengthDays = 0, fullWorkouts = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = dayMap.get(addDays(from, i));
+    const ws = d?.workouts || [];
+    if (ws.reduce((n, w) => n + strengthSets(state, w), 0) >= STRENGTH_DAY_SETS) strengthDays++;
+    fullWorkouts += ws.filter(isFullWorkout).length;
+  }
+  const lastFull = state.workouts.filter((w) => w.date && w.date <= today && counts(state, w) && isFullWorkout(w)).map((w) => w.date).sort().pop();
+  const sinceFull = lastFull ? Math.round((parseKey(today) - parseKey(lastFull)) / DAY_MS) : Infinity;
+
+  const cnt = areaCounts(state, from, today);
+  const low = AREAS.filter((a) => a.target && a.id !== "mobility")
+    .map((a) => ({ a, r: (cnt[a.id] || 0) / a.target })).filter((x) => x.r < 0.5).sort((x, y) => x.r - y.r)[0]?.a || null;
+
+  const ctx = { sportToday, sportYesterday, place, hour: new Date().getHours() };
+  const goalMet = strengthDays >= 2 && fullWorkouts >= 1;
+  const list = suggest(state, dayMap, { ...ctx, energy: goalMet ? 1 : 2 }).filter((c) => c.kind === "snack");
+  const snack = (goalMet ? list.find((c) => c.type === "mobility") : list.find((c) => c.area === low?.id)) || list[0] || null;
+  // Ein Workout heißt Keller, egal wo der letzte Snack war
+  const plan = pickPlan(state, sportToday || sportYesterday);
+  const workoutFirst = !!plan && !goalMet && sinceFull >= 4 && fullWorkouts === 0;
+  const main = workoutFirst ? plan : snack;
+  const alt = workoutFirst ? snack : (!goalMet && fullWorkouts === 0 ? plan : null);
+  return { strengthDays, fullWorkouts, sinceFull, low, goalMet, main, alt };
+}
+
+/** Der Plan, der am längsten nicht dran war. Nach Sport bevorzugt einer mit wenig Beinarbeit. */
+function pickPlan(state, legsTired) {
+  const plans = (state.plans || []).filter((p) => (p.exerciseIds || []).length >= 3);
+  if (!plans.length) return null;
+  const lastDone = (p) => state.workouts.filter((w) => w.planId === p.id && counts(state, w)).map((w) => w.date).sort().pop() || "";
+  const legs = (p) => p.exerciseIds.filter((id) => ["beine", "huefte"].includes(exerciseById(state, id)?.area)).length;
+  const best = plans.slice().sort((a, b) => (legsTired ? legs(a) - legs(b) : 0) || lastDone(a).localeCompare(lastDone(b)))[0];
+  return {
+    kind: "plan", id: best.id, title: best.name, type: "workout", minutes: best.exerciseIds.length * 6,
+    points: state.settings.points.workout, exercises: best.exerciseIds.map((id) => exerciseName(state, id)),
+  };
+}
