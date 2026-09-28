@@ -167,16 +167,35 @@ export function ensureLibrary(state) {
 function replacePlansOnce(state, lower) {
   state.meta = state.meta || {};
   if (state.meta.plansV54) return;
-  const has = (id) => state.exercises.some((e) => e.id === id);
   const used = (id) => (state.workouts || []).some((w) => (w.items || []).some((i) => i.exerciseId === id && (i.sets || []).length));
   const own = (re) => state.exercises.find((e) => re.test(lower(e.name)) && used(e.id))?.id;
   const swap = { db_ohp: own(/^schulterdrücken$/), side_plank: own(/^seitstütz\/dead bug$/) };
-  const oldIds = new Set((state.plans || []).map((p) => p.id));
+  // Bibliotheks-ID auflösen, auch wenn die Übung unter einer alten ID mit gleichem Namen/Alias liegt
+  const resolve = (id) => {
+    if (swap[id]) return swap[id];
+    if (state.exercises.some((e) => e.id === id)) return id;
+    const lib = LIBRARY.find((l) => l.id === id);
+    const names = new Set([lib?.name, ...(lib?.aliases || [])].filter(Boolean).map(lower));
+    return state.exercises.find((e) => names.has(lower(e.name)) || (e.aliases || []).some((a) => names.has(lower(a))))?.id || null;
+  };
+  // Nur die mitgelieferten Alt-Pläne ersetzen; selbst angelegte Pläne bleiben
+  const LEGACY = new Set(["homegym_a", "homegym_b", "homegym_c", "homegym_a_2", "homegym_b_2"]);
+  const old = state.plans || [];
+  const oldIds = new Set(old.map((p) => p.id));
   const reuse = { workout_a: "homegym_a_2", workout_b: "homegym_b_2" };
-  state.plans = getDefaultPlans().map((p) => ({
+  const fresh = getDefaultPlans().map((p) => ({
     ...p,
     id: oldIds.has(reuse[p.id]) ? reuse[p.id] : p.id,
-    exerciseIds: p.exerciseIds.map((id) => swap[id] || id).filter(has),
+    exerciseIds: [...new Set(p.exerciseIds.map(resolve).filter(Boolean))],
   }));
+  state.plans = [...fresh, ...old.filter((p) => !LEGACY.has(p.id) && !fresh.some((f) => f.id === p.id))];
+  // Einheiten, deren Plan wegfällt, behalten ihren Namen, verweisen aber auf keinen Plan mehr
+  const ids = new Set(state.plans.map((p) => p.id));
+  for (const w of state.workouts || []) {
+    if (w.planId && !ids.has(w.planId)) {
+      if (!w.name) w.name = old.find((p) => p.id === w.planId)?.name || "Workout";
+      w.planId = null;
+    }
+  }
   state.meta.plansV54 = true;
 }
