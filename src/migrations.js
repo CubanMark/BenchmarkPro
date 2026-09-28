@@ -1,3 +1,4 @@
+import { getDefaultPlans } from "./models.js";
 import { DATA_VERSION } from "./version.js";
 import { LIBRARY, DEFAULT_SETTINGS, guessArea } from "./library.js";
 
@@ -154,5 +155,28 @@ export function ensureLibrary(state) {
   for (const w of state.workouts) {
     if (!w.type) w.type = "workout";
   }
+  replacePlansOnce(state, lower);
   return state;
+}
+
+/**
+ * Einmalig (v5.4): die alten Pläne durch Workout A und B ersetzen. Bisherige Einheiten bleiben unverändert.
+ * Hat Markus eine eigene Übung mit Verlauf (z.B. "Schulterdrücken"), wird sie statt der Bibliotheksübung genommen,
+ * damit die Kraftkurve weiterläuft. Bekannte Plan-IDs werden weiterverwendet, damit "Zuletzt" stimmt.
+ */
+function replacePlansOnce(state, lower) {
+  state.meta = state.meta || {};
+  if (state.meta.plansV54) return;
+  const has = (id) => state.exercises.some((e) => e.id === id);
+  const used = (id) => (state.workouts || []).some((w) => (w.items || []).some((i) => i.exerciseId === id && (i.sets || []).length));
+  const own = (re) => state.exercises.find((e) => re.test(lower(e.name)) && used(e.id))?.id;
+  const swap = { db_ohp: own(/^schulterdrücken$/), side_plank: own(/^seitstütz\/dead bug$/) };
+  const oldIds = new Set((state.plans || []).map((p) => p.id));
+  const reuse = { workout_a: "homegym_a_2", workout_b: "homegym_b_2" };
+  state.plans = getDefaultPlans().map((p) => ({
+    ...p,
+    id: oldIds.has(reuse[p.id]) ? reuse[p.id] : p.id,
+    exerciseIds: p.exerciseIds.map((id) => swap[id] || id).filter(has),
+  }));
+  state.meta.plansV54 = true;
 }
