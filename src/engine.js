@@ -549,7 +549,7 @@ function pickPlan(state, legsTired) {
   const legs = (p) => p.exerciseIds.filter((id) => ["beine", "huefte"].includes(exerciseById(state, id)?.area)).length;
   const best = plans.slice().sort((a, b) => (legsTired ? legs(a) - legs(b) : 0) || lastDone(a).localeCompare(lastDone(b)))[0];
   return {
-    kind: "plan", id: best.id, title: best.name, type: "workout", minutes: best.exerciseIds.length * 6,
+    kind: "plan", id: best.id, title: best.name, type: "workout", minutes: Math.min(best.exerciseIds.length, 6) * 6, // Varianten wie Box Squat / Kniebeuge: nur eine wird gemacht
     points: state.settings.points.workout, exercises: best.exerciseIds.map((id) => exerciseName(state, id)),
   };
 }
