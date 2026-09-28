@@ -75,7 +75,7 @@ function activeWorkout() {
   return state.workouts.find((w) => w.id === state.meta.activeWorkoutId) || null;
 }
 
-function startRun(kind, id) {
+function startRun(kind, id, placeOverride = null) {
   const cur = activeWorkout();
   if (cur && !cur.items.some((i) => i.sets?.length || i.done)) {
     state.workouts = state.workouts.filter((w) => w !== cur);
@@ -86,7 +86,7 @@ function startRun(kind, id) {
     return;
   }
   const source = kind === "new" ? { kind, exerciseId: id } : { kind, id };
-  const place = ui.energy ? ui.ctx.place || state.meta.lastPlace || "keller" : "keller";
+  const place = placeOverride || (ui.energy ? ui.ctx.place || state.meta.lastPlace || "keller" : "keller");
   const w = buildRun(state, source, { energy: ui.energy, place });
   state.workouts.push(w);
   state.meta.activeWorkoutId = w.id;
@@ -316,7 +316,7 @@ const actions = {
   area: (d) => { ui.area = d.area || null; go("areas"); },
   preview: (d) => { ui.previewId = d.id; go("preview"); },
   "preview-any": (d) => { ui.previewId = d.id; ui.area = null; go("preview"); },
-  start: (d) => startRun(d.kind, d.id),
+  start: (d) => startRun(d.kind, d.id, d.place),
 
   adj: (d) => {
     const w = activeWorkout();

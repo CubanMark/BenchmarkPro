@@ -4,7 +4,7 @@
  */
 import { AREAS, LOCATIONS, SPORTS, SNACKS, areaName, weightSteps } from "./library.js";
 import {
-  todayKey, mondayOf, addDays, isoWeek, weekSummary, last7Summary, areaCounts, daysSinceArea, exerciseById, exerciseName,
+  todayKey, mondayOf, addDays, isoWeek, weekSummary, last7Summary, compass, areaCounts, daysSinceArea, exerciseById, exerciseName,
   exerciseSessions, suggest, snackById, fmtKg, counts, rawPoints, parseKey, WORKOUT_MIN_SETS,
 } from "./engine.js";
 import { ring, paiRing, paiWeekBars, heatmap, hmLegend, bodySvg, lineChart, esc, fmtDate, WD } from "./charts.js";
@@ -58,10 +58,18 @@ export function home({ state, ui, dayMap }) {
   const reminder = ui.reminderDue && !todayDay?.total
     ? `<div class="banner"><span>Heute noch keine Einheit. 5 Minuten reichen.</span><button class="link" data-action="go" data-view="energy">Snack starten</button></div>` : "";
 
+  const y = dayMap.get(addDays(today, -1));
+  const cp = compass(state, dayMap, {
+    place: state.meta.lastPlace || "keller",
+    sportToday: !!todayDay?.sports.length,
+    sportYesterday: !!(y?.sports.length || (y?.pai ?? 0) >= 30),
+  });
+
   return `
   ${active ? `<div class="banner accent"><span><b>${esc(active.name || "Einheit")}</b> läuft noch.</span><button class="link" data-action="resume">Fortsetzen</button></div>` : ""}
   ${reminder}
   ${backup ? `<div class="banner"><span>${esc(backup)}</span><button class="link" data-action="backup">Jetzt sichern</button></div>` : ""}
+  ${active ? "" : compassCard(cp, state)}
   <div class="card">
     <div class="row between"><span class="eyebrow">Letzte 7 Tage</span><span class="small muted">${esc(fmtDate(today))}</span></div>
     <div class="tworings">
@@ -71,11 +79,31 @@ export function home({ state, ui, dayMap }) {
     ${strip}
     ${paiForm(paiDay, dayMap)}
   </div>
-  <button class="btn primary big" data-action="go" data-view="energy">Snack starten</button>
-  <div class="btn-row"><button class="btn" data-action="go" data-view="workouts">Workout starten</button><button class="btn" data-action="sport">Sport eintragen</button></div>
+  <div class="btn-row"><button class="btn" data-action="go" data-view="energy">Snack starten</button><button class="btn" data-action="go" data-view="workouts">Workout starten</button></div>
+  <button class="btn" data-action="sport">Sport eintragen</button>
   <div class="card stack">
     <div class="row between"><h3>Letzte 12 Wochen</h3><button class="link small" data-action="tab" data-tab="history">Alles ansehen</button></div>
     ${heatmap(dayMap, 12)}${hmLegend}
+  </div>`;
+}
+
+/** Kompass: Stand der letzten 7 Tage und die heute passende Einheit. */
+function compassCard(cp, state) {
+  const pips = (n, of) => `<span class="pips">${Array.from({ length: of }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`;
+  const ktOk = cp.strengthDays >= 2, woOk = cp.fullWorkouts >= 1;
+  const startAttrs = (c) => `data-action="start" data-kind="${c.kind}" data-id="${esc(c.id)}"${c.kind === "snack" ? ` data-place="${esc(state.meta.lastPlace || "keller")}"` : ""}`;
+  const verb = (c) => (c.kind === "plan" ? "Workout starten" : c.type === "mobility" ? "Mobility starten" : "Snack starten");
+  const meta = (c) => `${c.kind === "plan" ? "ca. " : ""}${c.minutes} min · ${c.exercises.slice(0, 4).map(esc).join(", ")} · +${c.points} ${c.points === 1 ? "Punkt" : "Punkte"}`;
+  const m = cp.main, a = cp.alt;
+  return `<div class="card compass">
+    <span class="eyebrow">Kompass · letzte 7 Tage</span>
+    <div class="cplines">
+      <div class="cpline${ktOk ? " ok" : ""}"><span class="ico">${ktOk ? "✓" : ""}</span><span>Krafttage${pips(Math.min(cp.strengthDays, 2), 2)}</span><b>${cp.strengthDays}/2</b></div>
+      <div class="cpline${woOk ? " ok" : " warn"}"><span class="ico">${woOk ? "✓" : "!"}</span><span>Volles Workout</span><b>${cp.fullWorkouts}/1</b></div>
+      ${cp.low ? `<div class="cpline"><span class="ico">↓</span><span>Zuletzt wenig</span><b class="txt">${esc(cp.low.name)}</b></div>` : `<div class="cpline ok"><span class="ico">✓</span><span>Alle Bereiche dabei</span><b></b></div>`}
+    </div>
+    ${m ? `<div class="cpsug"><span class="eyebrow">Heute passend</span><h3>${esc(m.title)}</h3><span class="small muted">${meta(m)}</span><button class="btn primary" ${startAttrs(m)}>${verb(m)}</button></div>` : ""}
+    ${a ? `<div class="cpalt"><span>${a.kind === "plan" ? "Heute mehr Zeit?" : "Lieber kurz?"} <b>${esc(a.title)} · ${a.minutes} min</b></span><button class="link" ${startAttrs(a)}>Starten</button></div>` : ""}
   </div>`;
 }
 
