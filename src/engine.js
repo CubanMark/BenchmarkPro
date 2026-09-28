@@ -255,7 +255,7 @@ export function snackById(id) {
 }
 
 /** Baut eine neue Einheit aus einer Quelle: { kind: 'snack'|'plan'|'free'|'new', id, exerciseId } */
-export function buildRun(state, source, { energy = null } = {}) {
+export function buildRun(state, source, { energy = null, place = "keller" } = {}) {
   const date = todayKey();
   const base = { id: newId(date), date, notes: "", energy, startedAt: new Date().toISOString(), items: [] };
 
@@ -270,6 +270,11 @@ export function buildRun(state, source, { energy = null } = {}) {
       const easy = energy === 1;
       const sets = easy && it.sets > 2 ? it.sets - 1 : it.sets;
       const pf = prefill(state, ex, { sets, reps: it.reps, easy });
+      // Außerhalb des Kellers gibt es keine Langhantel: ohne Gewicht (z.B. Glute Bridge)
+      if (place !== "keller" && ex.kind === "weight" && pf.rows.some((r) => Number(r.weight) > 0)) {
+        pf.rows = pf.rows.map((r) => ({ ...r, weight: 0 }));
+        pf.hint = "Heute ohne Gewicht.";
+      }
       return { exerciseId: ex.id, target: { sets, reps: it.reps }, rows: pf.rows, hint: pf.hint, hold: pf.hold, sets: [] };
     }).filter(Boolean);
     if (source.kind === "new") w.tryExerciseId = source.exerciseId;
@@ -353,8 +358,8 @@ function allowedEx(ex, place) {
   if (!ex) return false;
   if (place === "keller") return true;
   if (ex.loc !== "U") return false;
-  if (ex.kind === "task") return true; // Mobility geht überall, Band notfalls mit Handtuch
   if (ex.eq === "band") return place === "home";
+  if (ex.kind === "task") return true;
   return !["kb", "kh1", "kh2"].includes(ex.eq);
 }
 function allowedSnack(state, snack, place) {

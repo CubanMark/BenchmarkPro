@@ -63,7 +63,20 @@ function mergeDuplicates(state, lower) {
     const target = byName.get(lower(dup.name));
     if (!target || target === dup.id) continue;
     const t = state.exercises.find((e) => e.id === target);
-    for (const w of state.workouts || []) for (const it of w.items || []) if (it.exerciseId === dup.id) it.exerciseId = target;
+    // Nur zusammenführen, wenn es wirklich dieselbe Übung ist: gleiches Equipment und gleiche Messart.
+    const eqKnown = (e) => e.eq && e.eq !== "free"; // "free" = beim Import unbekannt
+    if ((eqKnown(dup) && eqKnown(t) && dup.eq !== t.eq) || (dup.kind && t.kind && dup.kind !== t.kind)) continue;
+    for (const w of state.workouts || []) {
+      const items = w.items || [];
+      const keep = items.find((it) => it.exerciseId === target);
+      if (!keep) { for (const it of items) if (it.exerciseId === dup.id) it.exerciseId = target; continue; }
+      // Beide im selben Workout: Sätze verlustfrei an den vorhandenen Eintrag anhängen
+      for (const it of items.filter((x) => x.exerciseId === dup.id)) {
+        keep.sets = [...(keep.sets || []), ...(it.sets || [])];
+        if (it.done) keep.done = true;
+      }
+      w.items = items.filter((x) => x.exerciseId !== dup.id);
+    }
     for (const p of state.plans || []) p.exerciseIds = [...new Set(p.exerciseIds.map((id) => (id === dup.id ? target : id)))];
     if (t.rating == null && dup.rating != null) t.rating = dup.rating;
     for (const a of [dup.name, ...(dup.aliases || [])]) if (!t.aliases.map(lower).includes(lower(a)) && lower(a) !== lower(t.name)) t.aliases.push(a);
