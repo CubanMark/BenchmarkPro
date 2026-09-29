@@ -559,7 +559,7 @@ export function sportSheet(ui) {
   const opts = (grp, list, cur) => `<div class="opts">${list.map((x) => `<button class="toggle" data-action="sport-opt" data-grp="${grp}" data-v="${esc(x)}" aria-pressed="${String(x) === String(cur)}">${esc(x)}${grp === "minutes" ? " min" : ""}</button>`).join("")}</div>`;
   return `<div class="sheet" role="dialog" aria-label="Sport eintragen"><h2>Sport eintragen</h2>
     <div class="stack gap6"><span class="small muted">Was?</span>${opts("kind", SPORTS, f.kind)}</div>
-    <div class="stack gap6"><span class="small muted">Wie lange?</span>${opts("minutes", [60, 90, 120], f.minutes)}</div>
+    <div class="stack gap6"><span class="small muted">Wie lange?</span>${opts("minutes", [30, 60, 90, 120], f.minutes)}</div>
     <div class="stack gap6"><span class="small muted">Wie anstrengend?</span>${opts("intensity", ["Locker", "Mittel", "Hart"], f.intensity)}</div>
     <div class="stack gap6"><label class="small muted" for="sportDate">Wann?</label><input id="sportDate" type="date" class="input" value="${esc(f.date)}" max="${todayKey()}"></div>
     <div class="btn-row"><button class="btn ghost" data-action="sport-close">Abbrechen</button><button class="btn sport" data-action="sport-save">Speichern</button></div></div>`;
