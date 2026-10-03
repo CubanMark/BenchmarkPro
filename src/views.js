@@ -4,10 +4,10 @@
  */
 import { AREAS, LOCATIONS, SPORTS, SNACKS, areaName, weightSteps } from "./library.js";
 import {
-  todayKey, mondayOf, addDays, isoWeek, weekSummary, areaCounts, daysSinceArea, exerciseById, exerciseName,
-  exerciseSessions, suggest, snackById, fmtKg, counts, rawPoints, parseKey,
+  todayKey, mondayOf, addDays, isoWeek, weekSummary, last7Summary, compass, areaCounts, daysSinceArea, exerciseById, exerciseName,
+  exerciseSessions, suggest, snackById, fmtKg, counts, rawPoints, parseKey, WORKOUT_MIN_SETS,
 } from "./engine.js";
-import { ring, heatmap, hmLegend, bodySvg, lineChart, esc, fmtDate, WD } from "./charts.js";
+import { ring, paiRing, paiWeekBars, heatmap, hmLegend, bodySvg, lineChart, esc, fmtDate, WD } from "./charts.js";
 import { APP_VERSION, DATA_VERSION, STORAGE_KEY } from "./version.js";
 
 const checkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -27,73 +27,125 @@ function back(action, label = "Zurück", extra = "") {
 /* ================= Heute ================= */
 export function home({ state, ui, dayMap }) {
   const s = state.settings;
-  const w = weekSummary(state, dayMap);
+  const w = last7Summary(state, dayMap);
   const need = Math.max(0, s.weeklyGoal - w.total);
   const needK = Math.max(0, s.strengthMin - w.k);
   const today = todayKey();
   const active = state.meta.activeWorkoutId ? state.workouts.find((x) => x.id === state.meta.activeWorkoutId) : null;
   const todayDay = dayMap.get(today);
 
+  const paiDay = ui.paiDay || today;
   let strip = '<div class="weekstrip">';
   for (const { key, day } of w.days) {
     const dots = [
       ...(day?.workouts || []).map((x) => `<span class="dot ${x.type === "mobility" ? "m" : "k"}"></span>`),
       ...(day?.sports || []).map(() => '<span class="dot s"></span>'),
     ].join("");
-    strip += `<div class="wd${key === today ? " today" : ""}"><span>${WD[parseKey(key).getDay()]}</span><span class="pts${day?.total ? "" : " zero"}">${day?.total || "·"}</span><span class="dots">${dots}</span></div>`;
+    const future = key > today;
+    strip += `<button class="wd${key === today ? " today" : ""}${key === paiDay ? " sel" : ""}" data-action="pai-day" data-day="${key}" ${future ? "disabled" : ""} aria-label="${esc(fmtDate(key))}: PAI eintragen"><span>${WD[parseKey(key).getDay()]}</span><span class="pts${day?.total ? "" : " zero"}">${day?.total || "·"}</span><span class="dots">${dots}</span><span class="pai">${day?.pai ?? ""}</span></button>`;
   }
   strip += "</div>";
 
   let status;
-  if (w.goalMet) status = "<b>Wochenziel geschafft.</b>";
+  if (w.goalMet) status = "<b>Ziel geschafft.</b>";
   else if (need === 0 && needK > 0) status = `Punkte reichen, es fehlen noch <b>${needK}</b> Kraftpunkte.`;
   else if (needK >= need) status = `Noch <b>${needK}</b> ${needK === 1 ? "Kraftpunkt" : "Kraftpunkte"}.`;
   else status = `Noch <b>${need}</b> ${need === 1 ? "Punkt" : "Punkte"}${needK ? `, davon ${needK} Kraft` : ""}.`;
+  const paiGoal = s.paiGoal || 100;
+  const paiStatus = w.pai >= paiGoal ? "<b>Ziel geschafft.</b>" : `Noch <b>${paiGoal - w.pai}</b> PAI.`;
+  const backup = backupDue(state);
 
   const reminder = ui.reminderDue && !todayDay?.total
     ? `<div class="banner"><span>Heute noch keine Einheit. 5 Minuten reichen.</span><button class="link" data-action="go" data-view="energy">Snack starten</button></div>` : "";
 
+  const y = dayMap.get(addDays(today, -1));
+  const cp = compass(state, dayMap, {
+    place: state.meta.lastPlace || "keller",
+    sportToday: !!todayDay?.sports.length,
+    sportYesterday: !!(y?.sports.length || (y?.pai ?? 0) >= 30),
+  });
+
   return `
   ${active ? `<div class="banner accent"><span><b>${esc(active.name || "Einheit")}</b> läuft noch.</span><button class="link" data-action="resume">Fortsetzen</button></div>` : ""}
   ${reminder}
+  ${backup ? `<div class="banner"><span>${esc(backup)}</span><button class="link" data-action="backup">Jetzt sichern</button></div>` : ""}
+  ${active ? "" : compassCard(cp, state)}
   <div class="card">
-    <div class="row between"><span class="eyebrow">Diese Woche · KW ${isoWeek(today)}</span><span class="small muted">Ziel ${s.weeklyGoal} Punkte</span></div>
-    <div class="ringwrap">${ring(w.k, w.m, s.weeklyGoal)}
-      <div class="stack gap8">
-        <div class="legend-line"><span class="dot k"></span>Kraft <b>${w.k}</b><span class="muted small">von mind. ${s.strengthMin}</span></div>
-        <div class="bar"><i style="width:${Math.min(100, (w.k / Math.max(1, s.strengthMin)) * 100)}%"></i></div>
-        <div class="legend-line"><span class="dot m"></span>Mobility <b>${w.m}</b></div>
-        <div class="small">${status}</div>
-      </div>
+    <div class="row between"><span class="eyebrow">Letzte 7 Tage</span><span class="small muted">${esc(fmtDate(today))}</span></div>
+    <div class="tworings">
+      <div>${ring(w.k, w.m, s.weeklyGoal, 118)}<div class="cap"><span><span class="dot k"></span> Kraft ${w.k}</span><span><span class="dot m"></span> Mobility ${w.m}</span></div><div class="st">${status}</div></div>
+      <div>${paiRing(w.pai, paiGoal)}<div class="cap"><span><span class="dot s"></span> Bewegung</span></div><div class="st">${paiStatus}</div></div>
     </div>
     ${strip}
+    ${paiForm(paiDay, dayMap)}
   </div>
-  <button class="btn primary big" data-action="go" data-view="energy">Snack starten</button>
-  <div class="btn-row"><button class="btn" data-action="go" data-view="workouts">Workout starten</button><button class="btn" data-action="sport">Sport eintragen</button></div>
+  <div class="btn-row"><button class="btn" data-action="go" data-view="energy">Snack starten</button><button class="btn" data-action="go" data-view="workouts">Workout starten</button></div>
+  <button class="btn" data-action="sport">Sport eintragen</button>
   <div class="card stack">
     <div class="row between"><h3>Letzte 12 Wochen</h3><button class="link small" data-action="tab" data-tab="history">Alles ansehen</button></div>
     ${heatmap(dayMap, 12)}${hmLegend}
   </div>`;
 }
 
+/** Kompass: Stand der letzten 7 Tage und die heute passende Einheit. */
+function compassCard(cp, state) {
+  const pips = (n, of) => `<span class="pips">${Array.from({ length: of }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>`;
+  const ktOk = cp.strengthDays >= 2, woOk = cp.fullWorkouts >= 1;
+  const startAttrs = (c) => `data-action="start" data-kind="${c.kind}" data-id="${esc(c.id)}"${c.kind === "snack" ? ` data-place="${esc(state.meta.lastPlace || "keller")}"` : ""}`;
+  const verb = (c) => (c.kind === "plan" ? "Workout starten" : c.type === "mobility" ? "Mobility starten" : "Snack starten");
+  const meta = (c) => `${c.kind === "plan" ? "ca. " : ""}${c.minutes} min · ${c.exercises.slice(0, 4).map(esc).join(", ")} · +${c.points} ${c.points === 1 ? "Punkt" : "Punkte"}`;
+  const m = cp.main, a = cp.alt;
+  return `<div class="card compass">
+    <span class="eyebrow">Kompass · letzte 7 Tage</span>
+    <div class="cplines">
+      <div class="cpline${ktOk ? " ok" : ""}"><span class="ico">${ktOk ? "✓" : ""}</span><span>Krafttage${pips(Math.min(cp.strengthDays, 2), 2)}</span><b>${cp.strengthDays}/2</b></div>
+      <div class="cpline${woOk ? " ok" : " warn"}"><span class="ico">${woOk ? "✓" : "!"}</span><span>Volles Workout</span><b>${cp.fullWorkouts}/1</b></div>
+      ${cp.low ? `<div class="cpline"><span class="ico">↓</span><span>Zuletzt wenig</span><b class="txt">${esc(cp.low.name)}</b></div>` : `<div class="cpline ok"><span class="ico">✓</span><span>Alle Bereiche dabei</span><b></b></div>`}
+    </div>
+    ${m ? `<div class="cpsug"><span class="eyebrow">Heute passend</span><h3>${esc(m.title)}</h3><span class="small muted">${meta(m)}</span><button class="btn primary" ${startAttrs(m)}>${verb(m)}</button></div>` : ""}
+    ${a ? `<div class="cpalt"><span>${a.kind === "plan" ? "Heute mehr Zeit?" : "Lieber kurz?"} <b>${esc(a.title)} · ${a.minutes} min</b></span><button class="link" ${startAttrs(a)}>Starten</button></div>` : ""}
+  </div>`;
+}
+
+/** Eingabe für den Tages-PAI aus der Uhr. */
+function paiForm(key, dayMap) {
+  const v = dayMap.get(key)?.pai;
+  return `<form class="paiin" id="paiForm">
+    <input id="paiDate" type="date" class="input" value="${esc(key)}" max="${todayKey()}" aria-label="Tag">
+    <input id="paiVal" type="number" class="input" inputmode="numeric" min="0" max="300" value="${v ?? ""}" placeholder="PAI" aria-label="Tages-PAI an diesem Tag">
+    <button type="submit" class="btn sport-btn">Speichern</button>
+  </form>`;
+}
+
+/** Hinweistext, wenn das letzte Backup eine Woche oder länger her ist. Sonst null. */
+export function backupDue(state) {
+  if (!state.workouts.length) return null;
+  const last = state.meta?.lastBackupAt;
+  if (!last) return "Noch kein Backup gesichert.";
+  const days = Math.floor((Date.now() - new Date(last).getTime()) / 864e5);
+  return days >= 7 ? `Letztes Backup vor ${days} Tagen.` : null;
+}
+
 /* ================= Tagesform ================= */
 export function energy({ state, ui }) {
   const sportToday = (state.activities || []).some((a) => a.date === todayKey());
   const sport = ui.ctx.sport ?? sportToday;
+  const place = ui.ctx.place || state.meta.lastPlace || "keller";
+  const placeBtn = (id, label) => `<button data-action="place" data-place="${id}" aria-pressed="${place === id}">${label}</button>`;
+  const placeText = { keller: "Alles, was im Keller steht.", home: "Wohnzimmer: ohne Hanteln und Bank, Bänder gehen.", away: "Büro oder unterwegs: ganz ohne Equipment." }[place];
   return `
   ${back("go", "Zurück", 'data-view="home"')}
-  <div><span class="eyebrow">Snack starten</span><h2>Wie fit bist du gerade?</h2></div>
+  <div><span class="eyebrow">Snack starten</span><h2>Wo bist du?</h2></div>
+  <div class="stack gap6">
+    <div class="seg seg3" role="group" aria-label="Ort">${placeBtn("keller", "Keller")}${placeBtn("home", "Zuhause")}${placeBtn("away", "Unterwegs")}</div>
+    <span class="small muted">${placeText}</span>
+    <div class="ctx"><button class="toggle" data-action="ctx" data-key="sport" aria-pressed="${sport}">Heute schon Sport gehabt</button></div>
+  </div>
+  <h2>Wie fit bist du gerade?</h2>
   <div class="energy">
     <button data-action="energy" data-energy="1"><span class="lvl">1</span><span><h3>Platt</h3><span class="small muted">5 bis 6 Minuten, locker</span></span></button>
-    <button data-action="energy" data-energy="2"><span class="lvl">2</span><span><h3>Okay</h3><span class="small muted">Kurzer Kraftsnack, 8 bis 10 Minuten</span></span></button>
-    <button data-action="energy" data-energy="3"><span class="lvl">3</span><span><h3>Fit</h3><span class="small muted">Gerne auch ein ganzes Workout</span></span></button>
-  </div>
-  <div class="stack gap6">
-    <div class="ctx">
-      <button class="toggle" data-action="ctx" data-key="sport" aria-pressed="${sport}">Heute schon Sport gehabt</button>
-      <button class="toggle" data-action="ctx" data-key="away" aria-pressed="${!!ui.ctx.away}">Unterwegs oder im Büro</button>
-    </div>
-    <span class="small muted">${sportToday ? "Dein Sport von heute ist eingetragen. " : ""}Nach Sport gibt es keine schweren Beinübungen. Unterwegs nur Übungen ohne Keller-Equipment.</span>
+    <button data-action="energy" data-energy="2"><span class="lvl">2</span><span><h3>Okay</h3><span class="small muted">Normaler Kraftsnack, 6 bis 10 Minuten</span></span></button>
+    <button data-action="energy" data-energy="3"><span class="lvl">3</span><span><h3>Fit</h3><span class="small muted">Längerer Kraftsnack, gerne mit Hanteln</span></span></button>
   </div>
   <button class="link" data-action="go" data-view="areas">Selbst aussuchen statt Vorschlag</button>`;
 }
@@ -129,7 +181,7 @@ export function suggestView({ state, ui, dayMap }) {
 /* ================= Selbst aussuchen ================= */
 export function areasView({ state, ui }) {
   const today = todayKey();
-  const cnt = areaCounts(state, mondayOf(today), today);
+  const cnt = areaCounts(state, addDays(today, -6), today);
   if (ui.area) {
     const snacks = SNACKS.filter((s) => s.area === ui.area);
     return `${back("area", "Alle Bereiche", 'data-area=""')}
@@ -143,7 +195,7 @@ export function areasView({ state, ui }) {
   <h2>Was willst du trainieren?</h2>
   <div class="areas">${AREAS.map((a) => {
     const c = cnt[a.id] || 0;
-    const sub = a.id === "mobility" ? `${c} ${c === 1 ? "Einheit" : "Einheiten"} diese Woche` : a.target ? `${c} von ${a.target} Sätzen diese Woche` : `${c} Sätze diese Woche`;
+    const sub = a.id === "mobility" ? `${c} ${c === 1 ? "Einheit" : "Einheiten"} in 7 Tagen` : a.target ? `${c} von ${a.target} Sätzen in 7 Tagen` : `${c} Sätze in 7 Tagen`;
     return `<button data-action="area" data-area="${a.id}"><h3>${a.name}</h3><small>${sub}</small></button>`;
   }).join("")}</div>`;
 }
@@ -153,14 +205,14 @@ export function previewView({ state, ui }) {
   if (!s) return areasView({ state, ui });
   const since = daysSinceArea(state, s.area);
   const today = todayKey();
-  const cnt = areaCounts(state, mondayOf(today), today)[s.area] || 0;
+  const cnt = areaCounts(state, addDays(today, -6), today)[s.area] || 0;
   const area = AREAS.find((a) => a.id === s.area);
   const c = {
     kind: "snack", id: s.id, title: s.name, area: s.area, type: s.type, minutes: s.minutes, loc: s.loc,
     points: s.type === "mobility" ? state.settings.points.mobility : state.settings.points.snack,
     exercises: s.items.map((i) => exerciseName(state, i.exerciseId)),
     reasons: [
-      [area.name, s.area === "mobility" ? `${cnt} Einheiten diese Woche` : area.target ? `${cnt} von ${area.target} Sätzen diese Woche` : `${cnt} Sätze diese Woche`],
+      [area.name, s.area === "mobility" ? `${cnt} Einheiten in 7 Tagen` : area.target ? `${cnt} von ${area.target} Sätzen in 7 Tagen` : `${cnt} Sätze in 7 Tagen`],
       ["Zuletzt", since == null ? "noch nie trainiert" : since === 0 ? "heute schon trainiert" : `vor ${since} ${since === 1 ? "Tag" : "Tagen"} trainiert`],
     ],
   };
@@ -177,7 +229,7 @@ export function workoutsView({ state }) {
   };
   return `${back("go", "Zurück", 'data-view="home"')}<h2>Workout starten</h2>
   <div class="stack gap8">${state.plans.map((p) => `<button class="alt" data-action="start" data-kind="plan" data-id="${esc(p.id)}"><span><h3>${esc(p.name)}</h3><span class="small muted">${p.exerciseIds.map((id) => esc(exerciseName(state, id))).join(" · ") || "Noch keine Übungen"}</span><br><span class="small muted">Zuletzt ${last(p.id)}</span></span><span class="chip k">+${state.settings.points.workout}</span></button>`).join("")}
-  <button class="alt" data-action="start" data-kind="free" data-id=""><span><h3>Freie Einheit</h3><span class="small muted">Übungen selbst zusammenstellen, auch unterwegs ergänzen</span></span><span class="chip k">+${state.settings.points.workout}</span></button></div>
+  <button class="alt" data-action="start" data-kind="free" data-id=""><span><h3>Freie Einheit</h3><span class="small muted">Übungen selbst zusammenstellen. Unter ${WORKOUT_MIN_SETS} Sätzen zählt sie als Snack.</span></span><span class="chip k">+${state.settings.points.snack} bis +${state.settings.points.workout}</span></button></div>
   <button class="link small" data-action="go" data-view="plans">Pläne bearbeiten</button>`;
 }
 
@@ -221,7 +273,7 @@ export function runView({ state, ui }) {
       else wHtml = stepper(id, "weight", r.weight ? `${num(r.weight)}<small>kg</small>` : `<small class="muted">ohne</small>`, "Gewicht");
       h += `<div class="set${r.done ? " done" : ""}"><span class="n">${si + 1}</span>${wHtml}${stepper(id, "reps", `${r.reps}<small>${unit}</small>`, "Wiederholungen")}<button class="chk" data-action="set" data-id="${id}" aria-label="Satz ${si + 1} erledigt" aria-pressed="${!!r.done}">${checkSvg}</button></div>`;
     });
-    h += `<button class="link small" data-action="add-set" data-x="${xi}">+ Satz hinzufügen</button></div>`;
+    h += `<div class="row between"><button class="link small" data-action="add-set" data-x="${xi}">+ Satz hinzufügen</button>${rows.length > 1 ? `<button class="link small" data-action="rm-set" data-x="${xi}">− Satz</button>` : ""}</div></div>`;
   });
 
   h += `<button class="btn dashed" data-action="go" data-view="picker">+ Übung hinzufügen</button>`;
@@ -239,7 +291,7 @@ export function pickerView({ state, ui }) {
   const inW = new Set((w?.items || []).map((i) => i.exerciseId));
   const q = (ui.q || "").toLowerCase().trim();
   const today = todayKey();
-  const cnt = areaCounts(state, mondayOf(today), today);
+  const cnt = areaCounts(state, addDays(today, -6), today);
   const low = new Set(AREAS.filter((a) => a.target && (cnt[a.id] || 0) / a.target < 0.5).map((a) => a.id));
   const list = state.exercises.filter((e) => (q ? (e.name.toLowerCase().includes(q) || (e.aliases || []).some((a) => a.toLowerCase().includes(q)) || areaName(e.area).toLowerCase().includes(q)) : e.rating !== "no"));
   const groups = [...AREAS.map((a) => a.id), "sonstiges"].map((id) => [id, list.filter((e) => (e.area || "sonstiges") === id)]).filter(([, l]) => l.length);
@@ -252,7 +304,7 @@ export function pickerView({ state, ui }) {
   };
   return `${back("go", "Zurück zum Training", 'data-view="run"')}<h2>Übung hinzufügen</h2>
   <input id="q" type="search" class="input" placeholder="Suchen, z. B. Rudern" value="${esc(ui.q || "")}" autocomplete="off" data-action-input="search">
-  ${groups.map(([a, ls]) => `<div class="stack gap6"><div class="row between"><span class="eyebrow">${esc(areaName(a))}</span>${low.has(a) ? '<span class="chip warn">diese Woche wenig</span>' : ""}</div>
+  ${groups.map(([a, ls]) => `<div class="stack gap6"><div class="row between"><span class="eyebrow">${esc(areaName(a))}</span>${low.has(a) ? '<span class="chip warn">zuletzt wenig</span>' : ""}</div>
     ${ls.sort((x, y) => (y.rating === "love") - (x.rating === "love") || x.name.localeCompare(y.name, "de")).map((e) => `<button class="alt" data-action="add-ex" data-id="${esc(e.id)}" ${inW.has(e.id) ? "disabled" : ""}><span><h3>${esc(e.name)}</h3><span class="small muted">${esc(lastTxt(e))} · ${esc(LOCATIONS[e.loc] || "")}</span></span><span class="chip${e.rating == null ? " new" : ""}">${inW.has(e.id) ? "drin" : e.rating == null ? "neu" : "+"}</span></button>`).join("")}</div>`).join("") || '<p class="muted">Keine Übung gefunden.</p>'}
   <div class="card stack gap8"><h3>Neue Übung anlegen</h3>
     <input id="newExName" class="input" placeholder="Name der Übung" value="${esc(ui.q || "")}">
@@ -266,14 +318,14 @@ export function doneView({ state, ui, dayMap }) {
   const w = state.workouts.find((x) => x.id === ui.doneId);
   if (!w) return home(arguments[0]);
   const s = state.settings;
-  const wk = weekSummary(state, dayMap);
+  const wk = last7Summary(state, dayMap);
   const g = ui.gain ?? 0;
   const tryEx = w.tryExerciseId ? exerciseById(state, w.tryExerciseId) : null;
   return `<div class="card stack center gap6 pad-l">
     <span class="eyebrow">${esc(w.name || "Einheit")} erledigt</span>
     <div class="bignum pop">+${g}</div><div class="muted">${g === 1 ? "Punkt" : "Punkte"} für heute${g === 0 && ui.capped ? " (Tageslimit erreicht)" : ""}</div>
     <div class="mt8">${ring(wk.k, wk.m, s.weeklyGoal, 150)}</div>
-    <div class="small">${wk.goalMet ? "<b>Wochenziel geschafft.</b>" : `Noch ${Math.max(0, s.weeklyGoal - wk.total)} bis zum Wochenziel.`}</div>
+    <div class="small">${wk.goalMet ? "<b>Ziel der letzten 7 Tage geschafft.</b>" : `Noch ${Math.max(0, s.weeklyGoal - wk.total)} bis zum Ziel der letzten 7 Tage.`}</div>
   </div>
   ${(ui.records || []).map((r) => `<div class="pr"><span class="medal">REKORD</span><span>${esc(r.text)}</span></div>`).join("")}
   ${tryEx && tryEx.rating == null ? `<div class="card stack gap8"><h3>Wie fandest du ${esc(tryEx.name)}?</h3><div class="rate">${[["love", "Mag ich"], ["ok", "Okay"], ["no", "Nein"]].map(([v, l]) => `<button data-action="rate" data-id="${esc(tryEx.id)}" data-v="${v}">${l}</button>`).join("")}</div></div>` : ""}
@@ -296,13 +348,28 @@ export function historyView({ state, ui, dayMap }) {
     }),
     ...daySports.map((a) => `<div class="entry">${typeChip("sport")}<span>${esc(a.kind)}<br><span class="small muted">${a.minutes} min · ${esc(a.intensity || "")}</span></span><span class="row gap6"><span class="pts-badge">·</span><button class="icon-btn" data-action="del-a" data-id="${esc(a.id)}" aria-label="Löschen">×</button></span></div>`),
   ];
+  const weeks = 12;
+  const paiGoal = state.settings.paiGoal || 100;
+  const hasPai = Object.keys(state.pai || {}).length > 0;
+  let paiCard = `<div class="card stack"><h3>PAI pro Woche</h3><p class="small muted">Trag auf „Heute“ deinen Tages-PAI aus Zepp ein, dann siehst du hier deine Wochen.</p></div>`;
+  if (hasPai) {
+    const bars = paiWeekBars(weeks, paiGoal, (mon) => weekSummary(state, dayMap, mon).pai);
+    const done = bars.sums.slice(0, -1).filter((x) => x > 0);
+    const avg = done.length ? Math.round(done.reduce((a, b) => a + b, 0) / done.length) : 0;
+    paiCard = `<div class="card stack"><div class="row between"><h3>PAI pro Woche</h3><span class="small muted">Ziel ${paiGoal}</span></div>
+      <div class="chart">${bars.svg}</div>
+      <div class="paistats"><div><b>${bars.sums[weeks - 1]}</b><span>diese Woche</span></div><div><b>${avg}</b><span>Schnitt pro Woche</span></div><div><b>${bars.sums.filter((x) => x >= paiGoal).length}</b><span>Wochen im Ziel</span></div></div></div>`;
+  }
   const confirm = ui.confirmDel ? `<div class="banner warn"><span>Wirklich löschen?</span><span class="row gap8"><button class="link" data-action="confirm-del">Löschen</button><button class="link" data-action="cancel-del">Abbrechen</button></span></div>` : "";
   return `<div class="card stack"><div class="row between"><h3>Letzte 6 Monate</h3><span class="small muted">Tippe auf einen Tag</span></div>${heatmap(dayMap, 26, { selected: key, interactive: true })}${hmLegend}</div>
   ${confirm}
   <div class="card"><span class="eyebrow">${esc(fmtDate(key))}</span>
     ${entries.length ? `<div class="mt6">${entries.join("")}</div><p class="small muted mt8">${o?.total || 0} ${o?.total === 1 ? "Punkt" : "Punkte"} an diesem Tag${o && o.rawK + o.rawM > o.total ? ` (auf ${state.settings.dailyCap} begrenzt)` : ""}. Sport zählt nicht zu den Punkten.</p>`
-      : `<p class="muted mt6">Kein Eintrag an diesem Tag.</p>`}
+      : `<p class="muted mt6">Keine Einheit an diesem Tag.</p>`}
+    <div class="eyebrow mt8">Tages-PAI</div>
+    ${paiForm(key, dayMap)}
   </div>
+  ${paiCard}
   ${recentList(state)}`;
 }
 
@@ -322,7 +389,7 @@ function recentList(state) {
 export function progressView({ state, ui }) {
   const today = todayKey();
   const four = ui.bodyRange === "4";
-  const from = four ? addDays(mondayOf(today), -21) : mondayOf(today);
+  const from = addDays(today, four ? -27 : -6);
   const cnt = areaCounts(state, from, today);
   const mult = four ? 4 : 1;
   const frac = (id) => { const a = AREAS.find((x) => x.id === id); return a?.target ? (cnt[id] || 0) / (a.target * mult) : (cnt[id] ? 0.5 : 0); };
@@ -360,7 +427,7 @@ export function progressView({ state, ui }) {
 
   return `<div class="card stack">
     <h3>Trainierte Muskeln</h3>
-    <div class="seg"><button data-action="range" data-range="w" aria-pressed="${!four}">Diese Woche</button><button data-action="range" data-range="4" aria-pressed="${four}">4 Wochen</button></div>
+    <div class="seg"><button data-action="range" data-range="w" aria-pressed="${!four}">7 Tage</button><button data-action="range" data-range="4" aria-pressed="${four}">28 Tage</button></div>
     <div class="bodies"><div>${bodySvg(false, frac, names)}<div class="lbl">Vorne</div></div><div>${bodySvg(true, frac, names)}<div class="lbl">Hinten</div></div></div>
     <div class="hm-legend center"><span>Sätze im Verhältnis zum Ziel</span><span class="row tight"><span class="sw" style="background:var(--h0)"></span><span class="sw" style="background:var(--h1)"></span><span class="sw" style="background:var(--h2)"></span><span class="sw" style="background:var(--h3)"></span><span class="sw" style="background:var(--h4)"></span></span><span>0 bis 100 %</span></div>
     <div class="arealist">${AREAS.filter((a) => a.id !== "mobility").map((a) => {
@@ -379,13 +446,15 @@ export function progressView({ state, ui }) {
 /* ================= Mehr ================= */
 export function moreView({ state, ui }) {
   const s = state.settings;
-  const row = (label, key, min, max) => `<div class="srow"><span>${label}</span><div class="step small-step"><button data-action="setting" data-key="${key}" data-dir="-1" data-min="${min}" data-max="${max}" aria-label="${label} weniger">−</button><span>${s[key]}</span><button data-action="setting" data-key="${key}" data-dir="1" data-min="${min}" data-max="${max}" aria-label="${label} mehr">+</button></div></div>`;
+  const row = (label, key, min, max, step = 1) => `<div class="srow"><span>${label}</span><div class="step small-step"><button data-action="setting" data-key="${key}" data-dir="-1" data-step="${step}" data-min="${min}" data-max="${max}" aria-label="${label} weniger">−</button><span>${s[key]}</span><button data-action="setting" data-key="${key}" data-dir="1" data-step="${step}" data-min="${min}" data-max="${max}" aria-label="${label} mehr">+</button></div></div>`;
+  const lastBk = state.meta?.lastBackupAt;
   const perm = typeof Notification !== "undefined" ? Notification.permission : "unsupported";
   return `<div class="card settings"><h3>Wochenziel</h3>
     ${row("Punkte pro Woche", "weeklyGoal", 3, 20)}
     ${row("davon mindestens Kraft", "strengthMin", 0, 20)}
     ${row("Höchstens pro Tag", "dailyCap", 1, 10)}
-    <table class="pts"><tr><td>Workout</td><td>${s.points.workout}</td></tr><tr><td>Kraft-Snack</td><td>${s.points.snack}</td></tr><tr><td>Mobility-Snack</td><td>${s.points.mobility}</td></tr><tr><td>Tennis, Padel, Fußball</td><td>0</td></tr></table></div>
+    ${row("PAI pro Woche", "paiGoal", 30, 300, 10)}
+    <table class="pts"><tr><td>Workout (ab ${WORKOUT_MIN_SETS} Sätzen)</td><td>${s.points.workout}</td></tr><tr><td>Kraft-Snack</td><td>${s.points.snack}</td></tr><tr><td>Mobility-Snack</td><td>${s.points.mobility}</td></tr><tr><td>Tennis, Padel, Fußball</td><td>0</td></tr></table></div>
   <div class="card settings"><h3>Erinnerung</h3>
     <div class="srow"><span>Täglich erinnern, wenn noch nichts eingetragen ist</span><button class="sw-t" data-action="reminder-toggle" aria-pressed="${s.reminder.enabled}" aria-label="Erinnerung an oder aus"></button></div>
     <div class="srow"><label for="remTime">Uhrzeit</label><input id="remTime" type="time" class="input w-auto" value="${esc(s.reminder.time)}" data-action-input="reminder-time"></div>
@@ -399,7 +468,9 @@ export function moreView({ state, ui }) {
     <button class="srow as-btn" data-action="go" data-view="plans"><span>Workout-Pläne</span><span class="muted">${state.plans.length} ›</span></button>
     <button class="srow as-btn" data-action="go" data-view="snacks"><span>Snacks</span><span class="muted">${SNACKS.length} ›</span></button></div>
   <div class="card settings"><h3>Daten</h3>
-    <div class="srow"><span>Export als Datei</span><button class="btn small-btn" data-action="export">Exportieren</button></div>
+    <div class="srow"><span>Backup<br><span class="small muted">${lastBk ? `Zuletzt gesendet ${esc(fmtDate(state.meta.lastBackupDay || lastBk.slice(0, 10)))}` : "Noch keins gesichert"}</span></span><button class="btn small-btn" data-action="backup">Sichern</button></div>
+    <p class="small muted">„Sichern“ öffnet das Teilen-Menü. Wähle dort Google Drive, dann liegt die Sicherung außerhalb des Handys.</p>
+    <button class="link small" data-action="export">Stattdessen als Datei herunterladen</button>
     <div class="srow"><span>Import aus Datei</span><label class="btn small-btn" for="fileImport">Importieren</label></div>
     ${ui.importPreview ? importBox(ui.importPreview) : ""}
     ${ui.importResult ? `<div class="import ${ui.importResult.error ? "bad" : ""}"><b>${ui.importResult.error ? "Import fehlgeschlagen" : "Import abgeschlossen"}</b><p class="small">${esc(ui.importResult.text)}</p></div>` : ""}
@@ -488,7 +559,7 @@ export function sportSheet(ui) {
   const opts = (grp, list, cur) => `<div class="opts">${list.map((x) => `<button class="toggle" data-action="sport-opt" data-grp="${grp}" data-v="${esc(x)}" aria-pressed="${String(x) === String(cur)}">${esc(x)}${grp === "minutes" ? " min" : ""}</button>`).join("")}</div>`;
   return `<div class="sheet" role="dialog" aria-label="Sport eintragen"><h2>Sport eintragen</h2>
     <div class="stack gap6"><span class="small muted">Was?</span>${opts("kind", SPORTS, f.kind)}</div>
-    <div class="stack gap6"><span class="small muted">Wie lange?</span>${opts("minutes", [60, 90, 120], f.minutes)}</div>
+    <div class="stack gap6"><span class="small muted">Wie lange?</span>${opts("minutes", [30, 60, 90, 120], f.minutes)}</div>
     <div class="stack gap6"><span class="small muted">Wie anstrengend?</span>${opts("intensity", ["Locker", "Mittel", "Hart"], f.intensity)}</div>
     <div class="stack gap6"><label class="small muted" for="sportDate">Wann?</label><input id="sportDate" type="date" class="input" value="${esc(f.date)}" max="${todayKey()}"></div>
     <div class="btn-row"><button class="btn ghost" data-action="sport-close">Abbrechen</button><button class="btn sport" data-action="sport-save">Speichern</button></div></div>`;

@@ -11,6 +11,7 @@ export function createEmptyState() {
     plans: [],
     workouts: [],
     activities: [],
+    pai: {},
     settings: structuredClone(DEFAULT_SETTINGS)
   };
 }
@@ -112,46 +113,11 @@ export function getDefaultExercises() {
 }
 
 export function getDefaultPlans() {
+  // Zwei Ganzkörper-Workouts im Wechsel, je ca. 35 Minuten. Pro Workout eine Zugübung mehr als Druck.
   return [
-  {
-    "id": "homegym_a",
-    "name": "Home Gym A",
-    "exerciseIds": [
-      "box_squat",
-      "bench_press",
-      "barbell_row",
-      "lateral_raise",
-      "glute_bridge_bilateral",
-      "mcgill_big_3"
-    ],
-    "isDefault": true
-  },
-  {
-    "id": "homegym_b",
-    "name": "Home Gym B",
-    "exerciseIds": [
-      "romanian_dead_lift",
-      "incline_bench_press",
-      "pull_ups_strict",
-      "pull_ups_toe_assisted",
-      "w_raises"
-    ],
-    "isDefault": true
-  },
-  {
-    "id": "homegym_c",
-    "name": "Home Gym C",
-    "exerciseIds": [
-      "box_squat",
-      "bench_press_close_grip",
-      "inverted_row",
-      "glute_bridge_bilateral",
-      "w_raises",
-      "mcgill_big_3"
-    ],
-    "isDefault": true
-  }
-];
+    { id: "workout_a", name: "Workout A", exerciseIds: ["box_squat", "squat", "bench_press", "db_row", "glute_bridge_bilateral", "w_raises", "mcgill_big_3"], isDefault: true },
+    { id: "workout_b", name: "Workout B", exerciseIds: ["romanian_dead_lift", "db_ohp", "pull_ups_strict", "inverted_row", "db_lunge", "side_plank"], isDefault: true },
+  ];
 }
 
 export function isLikelyState(obj) {

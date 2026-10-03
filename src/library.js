@@ -120,7 +120,8 @@ export const LIBRARY = [
   L("catcow", "Cat-Cow", "mobility", "none", "U", "task", 0, "love", "Im Vierfüßlerstand abwechselnd rund und hohl machen."),
   L("hip_9090", "90/90 Hüfte", "mobility", "none", "U", "task", 0, "love", "Beide Beine im 90-Grad-Winkel am Boden, Oberkörper über das vordere Bein neigen."),
   L("openbook", "Brustwirbel-Rotation", "mobility", "none", "U", "task", 0, null, "Seitlage, oberen Arm wie ein Buch nach hinten aufklappen."),
-  L("hipflex", "Hüftbeuger-Dehnung", "mobility", "none", "U", "task", 0, null, "Kniender Ausfallschritt, Hüfte nach vorne schieben."),
+  L("hipflex", "Hüftbeuger-Dehnung", "mobility", "none", "U", "task", 0, null, "Kniender Ausfallschritt. Becken leicht nach hinten kippen, Gesäß des hinteren Beins anspannen, dann Hüfte ein Stück nach vorne. Zieht vorne in der Leiste, nicht im Rücken."),
+  L("piri_sitz", "Piriformis-Dehnung im Sitzen", "mobility", "none", "U", "task", 0, "love", "Aufrecht sitzen, Knöchel auf das andere Knie legen, mit geradem Rücken nach vorne neigen, bis es im Gesäß zieht.", ["Figur-4-Dehnung"]),
   L("wgs", "World's Greatest Stretch", "mobility", "none", "U", "task", 0, null, "Tiefer Ausfallschritt, Ellbogen zum Boden, dann Arm nach oben aufdrehen."),
   L("deep_squat", "Tiefe Hocke halten", "mobility", "none", "U", "task", 0, "love"),
   L("dislocate", "Schulter-Durchzug mit Band", "mobility", "band", "U", "task", 0, null, "Band weit greifen, gestreckt über den Kopf nach hinten führen."),
@@ -188,13 +189,15 @@ export const SNACKS = [
     { exerciseId: "openbook", detail: "2 × 8 pro Seite" },
     { exerciseId: "hip_9090", detail: "2 × 45 s pro Seite" },
     { exerciseId: "hipflex", detail: "2 × 30 s pro Seite" }]),
-  S("mob_sport", "Nach dem Sport", "mobility", "mobility", 8, "U", [1, 2, 3], [
+  S("mob_sport", "Nach dem Sport", "mobility", "mobility", 9, "U", [1, 2, 3], [
     { exerciseId: "foam_leg", detail: "2 Minuten" },
     { exerciseId: "fascia_ball", detail: "je Seite 1 Minute" },
     { exerciseId: "hipflex", detail: "2 × 30 s pro Seite" },
+    { exerciseId: "piri_sitz", detail: "2 × 30 s pro Seite" },
     { exerciseId: "deep_squat", detail: "2 × 30 s" }]),
-  S("mob_buero", "Büro-Mobility", "mobility", "mobility", 5, "U", [1, 2, 3], [
+  S("mob_buero", "Büro-Mobility", "mobility", "mobility", 6, "U", [1, 2, 3], [
     { exerciseId: "deep_squat", detail: "30 s" },
+    { exerciseId: "piri_sitz", detail: "30 s pro Seite, geht auf dem Bürostuhl" },
     { exerciseId: "wgs", detail: "3 pro Seite" },
     { exerciseId: "hipflex", detail: "30 s pro Seite" },
     { exerciseId: "dislocate", detail: "10 ×" }]),
@@ -208,6 +211,7 @@ export const DEFAULT_SETTINGS = {
   kbWeight: 10,
   reminder: { enabled: false, time: "18:30" },
   restSeconds: 90,
+  paiGoal: 100,
 };
 
 export function areaName(id) {
