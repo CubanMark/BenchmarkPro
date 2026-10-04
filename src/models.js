@@ -115,7 +115,7 @@ export function getDefaultExercises() {
 export function getDefaultPlans() {
   // Zwei Ganzkörper-Workouts im Wechsel, je ca. 35 Minuten. Pro Workout eine Zugübung mehr als Druck.
   return [
-    { id: "workout_a", name: "Workout A", exerciseIds: ["box_squat", "squat", "bench_press", "db_row", "glute_bridge_bilateral", "w_raises", "mcgill_big_3"], isDefault: true },
+    { id: "workout_a", name: "Workout A", exerciseIds: ["box_squat", "squat", "bench_press", "db_row", "glute_bridge_kh", "w_raises", "mcgill_big_3"], isDefault: true },
     { id: "workout_b", name: "Workout B", exerciseIds: ["romanian_dead_lift", "db_ohp", "pull_ups_strict", "inverted_row", "db_lunge", "side_plank"], isDefault: true },
   ];
 }

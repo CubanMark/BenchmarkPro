@@ -98,6 +98,7 @@ export const LIBRARY = [
   L("kb_swing", "Kettlebell Swing", "huefte", "kb", "K", "weight", 10, "love", "Bewegung kommt aus der Hüfte, nicht aus den Armen."),
   L("hip_thrust", "Hip Thrust", "huefte", "lh", "K", "weight", 40, null, "Schultern auf der Bank, Hüfte nach oben strecken."),
   L("glute_bridge_bilateral", "Glute Bridge", "huefte", "lh", "U", "weight", 0, "love", "Ohne Gewicht überall möglich, mit Langhantel im Keller.", ["Glute Bridge (bilateral)", "Glute Bridge bilateral", "Glute Bridge", "Hüftheben/Glute Bridge"]),
+  L("glute_bridge_kh", "Glute Bridge mit Kurzhantel", "huefte", "kh1", "K", "weight", 11, "love", "Eine Kurzhantel quer auf die Hüfte legen und mit beiden Händen festhalten."),
   L("sl_rdl", "Einbeiniges Kreuzheben", "huefte", "kb", "U", "weight", 10, null, "Auf einem Bein nach vorne neigen. Trainiert auch die Balance."),
   L("band_walk", "Band Side Walks", "huefte", "band", "U", "reps", 0, null, "Mini-Band um die Knie, seitlich gehen."),
   // Rumpf
