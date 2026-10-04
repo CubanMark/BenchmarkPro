@@ -156,6 +156,7 @@ export function ensureLibrary(state) {
     if (!w.type) w.type = "workout";
   }
   replacePlansOnce(state, lower);
+  swapGluteBridgeOnce(state);
   return state;
 }
 
@@ -198,4 +199,18 @@ function replacePlansOnce(state, lower) {
     }
   }
   state.meta.plansV54 = true;
+}
+
+/**
+ * Einmalig (v5.4.2): In Workout A die Glute Bridge mit Langhantel durch die Variante mit Kurzhantel ersetzen,
+ * weil der Aufbau mit Langhantel zu aufwendig ist. Snacks behalten die Glute Bridge ohne Gewicht.
+ */
+function swapGluteBridgeOnce(state) {
+  if (state.meta.gluteKhV542) return;
+  const plan = (state.plans || []).find((p) => p.id === "workout_a" || p.id === "homegym_a_2");
+  if (plan && state.exercises.some((e) => e.id === "glute_bridge_kh")) {
+    const ids = plan.exerciseIds.map((id) => (id === "glute_bridge_bilateral" ? "glute_bridge_kh" : id));
+    plan.exerciseIds = [...new Set(ids)];
+  }
+  state.meta.gluteKhV542 = true;
 }
